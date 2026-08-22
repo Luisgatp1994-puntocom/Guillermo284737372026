@@ -458,9 +458,13 @@
 
   /* ---------- Reset del día ---------- */
   document.getElementById("resetBtn").addEventListener("click", function(){
-    if (!confirm("¿Reiniciar el día actual de " + (perfil === "lucho" ? "Lucho" : "Juli") + "?")) return;
+    if (!confirm("¿Reiniciar el día de " + (perfil === "lucho" ? "Lucho" : "Juli") + "? Se desmarcan las series, tus kg y reps quedan guardados.")) return;
     var pref = perfil + "::" + dia + "::";
-    Object.keys(estado).forEach(function(key){ if (key.indexOf(pref) === 0) delete estado[key]; });
+    Object.keys(estado).forEach(function(key){
+      if (key.indexOf(pref) === 0 && estado[key] && typeof estado[key] === "object"){
+        estado[key].done = false; // conserva kg y reps para la proxima sesion
+      }
+    });
     guardar(); render();
   });
 
