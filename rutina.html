@@ -97,7 +97,7 @@
   <header>
     <div class="eyebrow">Sábado · Día de pierna</div>
     <h1>Rodilla <span>Fuerte</span></h1>
-    <div class="meta"><span>⏱ ~75-80 min</span><span>⏸ Descanso máx 75 seg</span></div>
+    <div class="meta"><span>⏱ ~65-70 min</span><span>⏸ Descanso máx 75 seg</span></div>
   </header>
 
   <div class="progress-card">
@@ -147,24 +147,22 @@
 
 <script>
 (function(){
-  var REST = 75, KEY = "rodillaFuerte_v2";
+  var REST = 75, KEY = "rodillaFuerte_v3";
 
   /* ---------- Definición de la rutina ---------- */
   var EJERCICIOS = [
-    {id:"e1", nombre:"Prensa abierta", esquema:"4×12", reps:12, series:4, drop:false,
+    {id:"e1", nombre:"Prensa abierta", esquema:"4×12", reps:12, series:4, drop:false, kg:80,
      cue:"Pies anchos, puntas afuera. Bajada de <b>3-4 seg</b>, no bloquees rodillas. Aductor y glúteo."},
-    {id:"e2", nombre:"Prensa cerrada", esquema:"4×12", reps:12, series:4, drop:false,
+    {id:"e2", nombre:"Prensa cerrada", esquema:"4×12", reps:12, series:4, drop:false, kg:80,
      cue:"Pies juntos al centro. Énfasis en <b>cuádriceps</b>. Misma bajada controlada."},
-    {id:"e3", nombre:"Aductores en máquina", esquema:"3×15", reps:15, series:3, drop:false,
+    {id:"e3", nombre:"Aductores en máquina", esquema:"3×15", reps:15, series:3, drop:false, kg:32,
      cue:"Cierre controlado, <b>pausa 1 seg</b> al apretar. Rodilla estable en cambios de dirección."},
-    {id:"e4", nombre:"Curl femoral", esquema:"4×12", reps:12, series:4, drop:true,
-     cue:"Femoral fuerte = rodilla protegida. Última serie: <b>dropset</b> si hay gasolina (−40% peso)."},
-    {id:"e5", nombre:"Extensión de cuádriceps", esquema:"4×15", reps:15, series:4, drop:false,
+    {id:"e4", nombre:"Curl femoral", esquema:"4×12", reps:12, series:4, drop:false, kg:32,
+     cue:"Femoral fuerte = rodilla protegida en el fútbol."},
+    {id:"e5", nombre:"Extensión de cuádriceps", esquema:"4×15", reps:15, series:4, drop:false, kg:32,
      cue:"<b>Pausa 2-3 seg arriba</b> en cada rep. La pausa no se negocia: ahí está el vasto medial."},
-    {id:"e6", nombre:"Zancadas o búlgara", esquema:"3×10 c/p", reps:10, series:3, drop:false,
-     cue:"Con mancuernas. Lo único unilateral: <b>clave para fútbol</b>. Si ya no da, 2 series livianas."},
-    {id:"e7", nombre:"Elevación de talones", esquema:"4×15-20", reps:18, series:4, drop:false,
-     cue:"<b>Pausa 1-2 seg arriba</b>. Sube completo, baja profundo."}
+    {id:"e6", nombre:"Elevación de talones", esquema:"3×15", reps:15, series:3, drop:false, kg:null,
+     cue:"<b>Pausa 1-2 seg arriba</b>. Sube completo, baja profundo. Con esto cierras el trabajo de fuerza."}
   ];
 
   /* ---------- Estado con persistencia ---------- */
@@ -191,7 +189,7 @@
       var st = estado[sid] || {};
       html += '<div class="srow' + (esDrop ? ' drop' : '') + (st.done ? ' hecha' : '') + '" data-sid="' + sid + '">'
         + '<div class="stag">' + (esDrop ? 'DROP' : 'S' + (s+1)) + '</div>'
-        + '<input type="number" inputmode="decimal" class="ikg" placeholder="kg" value="' + (st.kg != null ? st.kg : '') + '">'
+        + '<input type="number" inputmode="decimal" class="ikg" placeholder="kg" value="' + (st.kg != null ? st.kg : (ex.kg != null ? ex.kg : '')) + '">'
         + '<input type="number" inputmode="numeric" class="irep" value="' + (st.reps != null ? st.reps : (esDrop ? 15 : ex.reps)) + '">'
         + '<button class="schk" aria-label="Marcar serie">✓</button>'
         + '</div>';
