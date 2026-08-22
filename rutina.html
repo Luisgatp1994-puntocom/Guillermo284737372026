@@ -260,6 +260,24 @@
   try { estado = JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){}
   function guardar(){ try { localStorage.setItem(KEY, JSON.stringify(estado)); } catch(e){} }
 
+  /* ---- Migracion: rescatar la sesion marcada en la version anterior ---- */
+  if (!estado._migradoV3){
+    try {
+      var viejo = JSON.parse(localStorage.getItem("rodillaFuerte_v3"));
+      if (viejo){
+        var mapaChecks = {c1:"c1", b1:"c2", b2:"c3"}; // eliptica, isometrica, equilibrio
+        Object.keys(viejo).forEach(function(kv){
+          var nk = null;
+          if (mapaChecks[kv]) nk = "lucho::sab::" + mapaChecks[kv];
+          else if (/^e[1-6]_s\d+$/.test(kv)) nk = "lucho::sab::" + kv;
+          if (nk && !estado[nk]) estado[nk] = viejo[kv];
+        });
+      }
+    } catch(e){}
+    estado._migradoV3 = true;
+    guardar();
+  }
+
   var perfil = estado._perfil || "lucho";
   var HOY = ["dom","lun","mar","mie","jue","vie","sab"][new Date().getDay()];
   var dia = estado._dia || HOY;
