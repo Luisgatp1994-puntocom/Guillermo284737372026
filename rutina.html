@@ -130,7 +130,10 @@
     </div>
   </div>
 
-  <div class="reset-row"><button id="resetBtn">Reiniciar sesión</button></div>
+  <div class="reset-row" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button id="resumenBtn" style="background:var(--naranja);border:none;color:#14181c;font-weight:700;border-radius:10px;padding:12px 18px;font-size:14px;cursor:pointer;font-family:'Archivo',sans-serif">📋 Copiar resumen para Claude</button>
+    <button id="resetBtn">Reiniciar sesión</button>
+  </div>
   <div class="saved-note">💾 Tu progreso y pesos se guardan solos en este navegador</div>
 </div>
 
@@ -292,6 +295,57 @@
     if (!confirm("¿Reiniciar toda la sesión? Se borran checks y pesos.")) return;
     estado = {}; guardar();
     location.reload();
+  });
+
+  /* ---------- Resumen para Claude ---------- */
+  document.getElementById("resumenBtn").addEventListener("click", function(){
+    var hoy = new Date();
+    var fecha = hoy.toLocaleDateString("es-CO", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+    var lineas = ["RESUMEN SESION - RODILLA FUERTE", "Fecha: " + fecha, ""];
+
+    var calen = [];
+    if (estado.c1 && estado.c1.done) calen.push("Eliptica 10 min");
+    if (estado.c2 && estado.c2.done) calen.push("Sentadilla al aire 2x15");
+    lineas.push("Calentamiento: " + (calen.length ? calen.join(", ") : "no registrado"));
+    lineas.push("");
+
+    EJERCICIOS.forEach(function(ex){
+      var total = ex.series + (ex.drop ? 1 : 0);
+      var hechas = 0, detalle = [];
+      for (var s = 0; s < total; s++){
+        var st = estado[ex.id + "_s" + s] || {};
+        if (st.done){
+          hechas++;
+          var kg = st.kg != null ? st.kg : (ex.kg != null ? ex.kg : "?");
+          var reps = st.reps != null ? st.reps : ex.reps;
+          detalle.push(kg + "kg x" + reps);
+        }
+      }
+      if (hechas > 0){
+        lineas.push("- " + ex.nombre + ": " + hechas + "/" + total + " series (" + detalle.join(", ") + ")");
+      } else {
+        lineas.push("- " + ex.nombre + ": no realizada");
+      }
+    });
+
+    lineas.push("");
+    var cierre = [];
+    if (estado.b1 && estado.b1.done) cierre.push("Isometrica pared 2x45s");
+    if (estado.b2 && estado.b2.done) cierre.push("Equilibrio 1 pierna 30s/lado");
+    lineas.push("Cierre estabilidad: " + (cierre.length ? cierre.join(", ") : "no realizado"));
+    lineas.push("Progreso total: " + progNum.textContent);
+
+    var texto = lineas.join("\n");
+    function ok(){ var b = document.getElementById("resumenBtn"); var t = b.textContent; b.textContent = "✅ ¡Copiado! Pegalo en el chat"; setTimeout(function(){ b.textContent = t; }, 2500); }
+    if (navigator.share){
+      navigator.share({text: texto}).catch(function(){
+        if (navigator.clipboard) navigator.clipboard.writeText(texto).then(ok);
+      });
+    } else if (navigator.clipboard){
+      navigator.clipboard.writeText(texto).then(ok);
+    } else {
+      prompt("Copia este resumen:", texto);
+    }
   });
 
   actualizar();
