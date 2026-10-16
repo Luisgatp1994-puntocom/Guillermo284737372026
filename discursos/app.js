@@ -1,4 +1,4 @@
-/* Discursos Públicos · Congregación Tierra Baja
+/* Discursos Públicos · Congregación Tierra Baja (grupos 4:00 PM y 6:15 PM)
    Front sencillo (sin build) + Supabase vía funciones RPC protegidas por PIN. */
 const SB_URL="https://pswgldarwsdgznxyegov.supabase.co";
 const SB_KEY="sb_publishable_s77cAYroy7Q5XSZsvslQCQ_vHEAmk12";
@@ -30,7 +30,7 @@ const ICO_E={sin:I.empty,asig:I.cal,porc:I.clock,conf:I.check,planb:I.alert,hech
 const LS={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
 
 /* ---------- Backend ---------- */
-let PIN=LS.get("dtb_pin"), DB={congs:[],hermanos:[],prog:[],log:[]}, rol=null;
+let PIN=LS.get("dtb_pin"), DB={congs:[],hermanos:[],prog:[],log:[]}, rol=null, GRUPO={id:"",nombre:"Tierra Baja",hora:""}, ETIQ="";
 async function rpc(fn,args){
   const r=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_pin:PIN,...args})});
   const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null}catch(e){}
@@ -39,7 +39,7 @@ async function rpc(fn,args){
 }
 async function cargar(){
   const d=await rpc("app_data",{});
-  rol=d.rol;
+  rol=d.rol;GRUPO=d.grupo||GRUPO;ETIQ=d.etiqueta||"";
   DB={congs:d.congs||[],hermanos:(d.hermanos||[]).map(h=>({...h,bos:h.bos||[]})),prog:d.prog||[],log:d.log||[]};
   HOY=hoyBogota();
 }
@@ -104,15 +104,15 @@ function salir(){LS.del("dtb_pin");PIN=null;rol=null;entrada="";pintaLogin()}
 let vista="cal",filtroE=null;
 function iniciar(){
   $("#login").hidden=true;$("#app").hidden=false;
-  $("#subt").textContent=`Tierra Baja · ${esAdmin()?"Responsable":"Consulta"}`;
+  $("#subt").innerHTML=`<span class="gchip g-${esc(GRUPO.id)}">${esc(GRUPO.hora||GRUPO.nombre)}</span> ${esc(GRUPO.nombre.replace(/\s*\d.*$/,""))} · ${esc(esAdmin()?ETIQ:"Consulta")}`;
   render();
 }
-function setVista(v){vista=v;document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));if(v==="avisos"){LS.set("dtb_leidos",String(DB.log.length?DB.log[0].t:""))}render();scrollTo(0,0)}
+function setVista(v){vista=v;document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));if(v==="avisos"){LS.set("dtb_leidos_"+GRUPO.id,String(DB.log.length?DB.log[0].t:""))}render();scrollTo(0,0)}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>setVista(b.dataset.v));
 $("#campana").onclick=()=>setVista("avisos");
 $("#tema").onclick=()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=dark?"light":"dark";LS.set("dtb_tema",r.dataset.theme)};
 {const t=LS.get("dtb_tema");if(t)document.documentElement.dataset.theme=t}
-function updBadge(){const ult=LS.get("dtb_leidos")||"";const n=DB.log.filter(l=>l.t>ult).length;$("#nb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""}
+function updBadge(){const ult=LS.get("dtb_leidos_"+GRUPO.id)||"";const n=DB.log.filter(l=>l.t>ult).length;$("#nb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""}
 function render(){
   $("#fab").hidden=!esAdmin();
   updBadge();
@@ -248,8 +248,8 @@ function chipsOradores(d,f,sel,excluir){
   if(!l.length)return`<span class="note">Aún no hay oradores registrados.</span>`;
   return l.map(({h,inf,tiene})=>`<button class="pk ${sel===h.id?"on":""} ${inf.nivel==="warn"?"warn":""} ${tiene?"":"star"}" data-h="${h.id}">${esc(h.nombre)}<small>${esc(cname(h.cong))}${tiene?" · lo tiene ✓":""}</small><small class="${inf.nivel==="warn"?"w":""}">${inf.nivel==="warn"?"⚠ ":""}${inf.txt}</small></button>`).join("");
 }
-function msgRecordatorio(p){const o=H(p.o),F=fd(p.f);return`Buen día, hermano ${o.nombre.split(" ")[0]}. Le recuerdo con cariño que este sábado ${F.d} de ${F.m} tiene a cargo el discurso público n.º ${p.d}: "${tit(p.d)}" en la congregación Tierra Baja.\n¿Nos confirma si cuenta con poder venir? Responda SÍ o NO.\n¡Muchas gracias!`}
-function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · sáb. ${F.d} ${F.m}*\n${txt}\nDiscurso n.º ${p.d}: "${tit(p.d)}"`}
+function msgRecordatorio(p){const o=H(p.o),F=fd(p.f);return`Buen día, hermano ${o.nombre.split(" ")[0]}. Le recuerdo con cariño que este sábado ${F.d} de ${F.m} tiene a cargo el discurso público n.º ${p.d}: "${tit(p.d)}" en la congregación ${GRUPO.nombre.replace(/\s*\d.*$/,"")}, reunión de las ${GRUPO.hora}.\n¿Nos confirma si cuenta con poder venir? Responda SÍ o NO.\n¡Muchas gracias!`}
+function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · ${GRUPO.nombre} · sáb. ${F.d} ${F.m}*\n${txt}\nDiscurso n.º ${p.d}: "${tit(p.d)}"`}
 const telWa=t=>{t=String(t||"").replace(/\D/g,"");return t.length===10?"57"+t:t};
 
 function avisarAncianos(m){
@@ -465,20 +465,20 @@ function vCong(){
 function vAvisos(){
   let h=`<div class="label" style="margin-top:4px">Avisos</div>
   <p class="note" style="margin:0 4px 12px">Cada asignación, confirmación o cambio queda registrado aquí para todos los ancianos.</p>
-  <div class="log">${DB.log.length?DB.log.map(l=>`<div class="card"><span class="tile ${(ESTADOS[l.k]||ESTADOS.sin)[1]}">${ICO_E[l.k]||I.empty}</span><div style="min-width:0"><time>${esc(l.t)}</time><div style="white-space:pre-wrap;font-weight:600;font-size:14px">${esc(l.m.replace(/\*/g,""))}</div></div></div>`).join(""):`<div class="card empty">Todavía no hay avisos.</div>`}</div>
+  <div class="log">${DB.log.length?DB.log.map(l=>`<div class="card"><span class="tile ${(ESTADOS[l.k]||ESTADOS.sin)[1]}">${ICO_E[l.k]||I.empty}</span><div style="min-width:0"><time>${esc(l.t)}${l.autor?" · "+esc(l.autor):""}</time><div style="white-space:pre-wrap;font-weight:600;font-size:14px">${esc(l.m.replace(/\*/g,""))}</div></div></div>`).join(""):`<div class="card empty">Todavía no hay avisos.</div>`}</div>
   <div class="label">Cuenta</div>
   <div class="card" style="display:flex;flex-direction:column;gap:10px">
-    <div class="note">Entraste como <b>${esAdmin()?"responsable":"consulta"}</b>.</div>
+    <div class="note">Entraste como <b>${esc(esAdmin()?ETIQ:"Consulta")}</b> de <b>${esc(GRUPO.nombre)}</b>. Para ver el otro grupo, sal y entra con su PIN.</div>
     ${esAdmin()?`<div class="row"><button class="btn line" id="pc">${I.key} PIN de consulta</button><button class="btn line" id="pa">${I.key} Mi PIN</button></div>`:""}
-    <button class="btn bad" id="out">Salir</button>
+    <button class="btn bad" id="out">Salir / cambiar de grupo</button>
   </div>`;
   $("#view").innerHTML=h;
   $("#out").onclick=salir;
-  const cambiar=tipo=>hoja(`<div class="shead"><h2>${tipo==="consulta"?"PIN de consulta":"PIN del responsable"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
-    <div class="note">${tipo==="consulta"?"Es el que usan los ancianos para ver el programa. Al cambiarlo, deben entrar con el nuevo.":"Es tu PIN para hacer cambios. Usa uno distinto al de consulta."}</div>
-    <div><span class="flab">Nuevo PIN (4 a 8 números)</span><input id="np" inputmode="numeric" maxlength="8" autocomplete="off"></div>
+  const cambiar=tipo=>hoja(`<div class="shead"><h2>${tipo==="consulta"?"PIN de consulta":"Mi PIN ("+esc(ETIQ)+")"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
+    <div class="note">${tipo==="consulta"?"Es el que usan los ancianos para ver el programa. Al cambiarlo, deben entrar con el nuevo.":"Es tu PIN de administrador. Debe tener de 6 a 8 números y ser distinto a los demás."}</div>
+    <div><span class="flab">Nuevo PIN (${tipo==="consulta"?"4":"6"} a 8 números)</span><input id="np" inputmode="numeric" maxlength="8" autocomplete="off"></div>
     <button class="btn pri" id="ok">Guardar PIN</button>`,(bg)=>{
-      bg.querySelector("#ok").onclick=async()=>{const v=bg.querySelector("#np").value.trim();if(!/^[0-9]{4,8}$/.test(v)){toast("Usa de 4 a 8 números");return}
+      bg.querySelector("#ok").onclick=async()=>{const v=bg.querySelector("#np").value.trim();if(!(tipo==="consulta"?/^[0-9]{4,8}$/:/^[0-9]{6,8}$/).test(v)){toast(tipo==="consulta"?"Usa de 4 a 8 números":"Usa de 6 a 8 números");return}
         try{await rpc("app_cambiar_pin",{p_tipo:tipo,p_nuevo:v});if(tipo==="admin"){PIN=v;LS.set("dtb_pin",v)}bg.remove();toast("PIN actualizado")}catch(e){toast(e.message)}}});
   if($("#pc")){$("#pc").onclick=()=>cambiar("consulta");$("#pa").onclick=()=>cambiar("admin")}
 }
