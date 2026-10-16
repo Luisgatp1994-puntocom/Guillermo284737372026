@@ -14,6 +14,8 @@
 <style>
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{margin:0}
+html{touch-action:manipulation;-webkit-text-size-adjust:100%}
+button,a,.sat,.kpi,.pk{touch-action:manipulation}
 [hidden]{display:none!important}
 
 /* Layout: estilo LucAi — fondo lavanda, tarjetas blancas flotantes, mosaicos de íconos pastel, nav inferior con burbuja activa y FAB índigo */
@@ -150,7 +152,7 @@ input::placeholder,textarea::placeholder{color:var(--muted);font-weight:500}
 .dots i{width:16px;height:16px;border-radius:50%;background:var(--line);transition:background .15s}
 .dots i.on{background:var(--accent)}
 .pad{display:grid;grid-template-columns:repeat(3,76px);gap:14px}
-.pad button{height:76px;border-radius:50%;border:0;background:var(--surface);box-shadow:var(--shadow);font:800 26px var(--f);color:var(--ink);cursor:pointer}
+.pad button{touch-action:manipulation;-webkit-user-select:none;user-select:none;height:76px;border-radius:50%;border:0;background:var(--surface);box-shadow:var(--shadow);font:800 26px var(--f);color:var(--ink);cursor:pointer}
 .pad button.ghost{background:none;box-shadow:none;font-size:15px;color:var(--muted)}
 .err{color:var(--bad);font-weight:700;min-height:22px;text-align:center}
 .loading{opacity:.6;pointer-events:none}
@@ -165,7 +167,7 @@ input::placeholder,textarea::placeholder{color:var(--muted);font-weight:500}
   <div class="dots" id="dots"></div>
   <div class="err" id="err"></div>
   <div class="pad" id="pad"></div>
-  <div class="note" style="opacity:.6">v1.1</div>
+  <div class="note" style="opacity:.6">v1.2</div>
 </div>
 
 <div id="app" hidden>

@@ -84,7 +84,7 @@ function pintaLogin(msg){
   $("#dots").innerHTML=Array.from({length:Math.max(4,entrada.length)},(_,i)=>`<i class="${i<entrada.length?"on":""}"></i>`).join("");
   $("#err").textContent=msg||"";
   $("#pad").innerHTML=[1,2,3,4,5,6,7,8,9,"borrar",0,"entrar"].map(k=>`<button data-k="${k}" class="${typeof k==="string"?"ghost":""}">${k==="borrar"?"Borrar":k==="entrar"?"Entrar":k}</button>`).join("");
-  $("#pad").querySelectorAll("button").forEach(b=>b.onclick=()=>tecla(b.dataset.k));
+  $("#pad").querySelectorAll("button").forEach(b=>b.addEventListener("pointerdown",e=>{e.preventDefault();tecla(b.dataset.k)}));
 }
 async function tecla(k){
   if(k==="borrar"){entrada=entrada.slice(0,-1);return pintaLogin()}
