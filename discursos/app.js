@@ -169,7 +169,7 @@ function vCal(){
     h+=`<div class="hero" data-f="${prox.f}" role="button" tabindex="0">
       <div class="hhead"><div class="bigdate ${ec}"><span class="w">SÁB</span><span class="d">${F.d}</span><span class="m">${F.m.slice(0,3).toUpperCase()}</span></div>
         <div style="min-width:0"><div class="when">${cuando(dd)}</div><span class="pill ${ec}">${et}</span></div></div>
-      ${prox.d?`<div class="htitle"><span class="num">#${prox.d}</span> ${esc(tit(prox.d))}</div>`:""}
+      ${prox.d?`<div class="htitle"><span class="num">#${prox.d}</span> ${esc(tit(prox.d))}</div>`:prox.o?`<div class="htitle sinnum">Discurso por definir</div>`:""}
       ${o?`<div class="hwho">${I.user.replace("<svg",'<svg class="mini"')} ${esc(o.nombre)} · ${esc(cname(o.cong))}</div>`:""}
       <div class="msg">${txt}</div>
       ${esAdmin()&&act?`<button class="btn ${prox.e==="planb"?"bad":"pri"}" id="heroAct">${act} ${I.arrow}</button>`:""}
@@ -188,7 +188,7 @@ function vCal(){
     }
     h+=`<button class="sat" data-f="${p.f}">
       <div class="dbox ${ec}"><div class="d">${F.d}</div><div class="w">${F.m.slice(0,3)}</div></div>
-      <div class="tt"><span class="pill ${ec}">${et}</span><div class="ttl"><span class="num">#${p.d}</span> ${esc(tit(p.d))}</div><div class="who">${o?esc(o.nombre)+" · "+esc(cname(o.cong)):"Sin orador"}</div></div></button>`;
+      <div class="tt"><span class="pill ${ec}">${et}</span><div class="ttl">${p.d?`<span class="num">#${p.d}</span> ${esc(tit(p.d))}`:`<span class="sinnum">Discurso por definir</span>`}</div><div class="who">${o?esc(o.nombre)+" · "+esc(cname(o.cong)):"Sin orador"}</div></div></button>`;
   });
   if(!lista.length)h+=`<div class="empty">No hay sábados en este estado.</div>`;
   h+=`</div>`;
@@ -248,8 +248,8 @@ function chipsOradores(d,f,sel,excluir){
   if(!l.length)return`<span class="note">Aún no hay oradores registrados.</span>`;
   return l.map(({h,inf,tiene})=>`<button class="pk ${sel===h.id?"on":""} ${inf.nivel==="warn"?"warn":""} ${tiene?"":"star"}" data-h="${h.id}">${esc(h.nombre)}<small>${esc(cname(h.cong))}${tiene?" · lo tiene ✓":""}</small><small class="${inf.nivel==="warn"?"w":""}">${inf.nivel==="warn"?"⚠ ":""}${inf.txt}</small></button>`).join("");
 }
-function msgRecordatorio(p){const o=H(p.o),F=fd(p.f);return`Buen día, hermano ${o.nombre.split(" ")[0]}. Le recuerdo con cariño que este sábado ${F.d} de ${F.m} tiene a cargo el discurso público n.º ${p.d}: "${tit(p.d)}" en la congregación ${GRUPO.nombre.replace(/\s*\d.*$/,"")}, reunión de las ${GRUPO.hora}.\n¿Nos confirma si cuenta con poder venir? Responda SÍ o NO.\n¡Muchas gracias!`}
-function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · ${GRUPO.nombre} · sáb. ${F.d} ${F.m}*\n${txt}\nDiscurso n.º ${p.d}: "${tit(p.d)}"`}
+function msgRecordatorio(p){const o=H(p.o),F=fd(p.f),base=GRUPO.nombre.replace(/\s*\d.*$/,"");return`Buen día, hermano ${o.nombre.split(" ")[0]}. Le recuerdo con cariño que este sábado ${F.d} de ${F.m} tiene a cargo el discurso público${p.d?` n.º ${p.d}: "${tit(p.d)}"`:""} en la congregación ${base}, reunión de las ${GRUPO.hora}.${p.d?"":"\n¿Nos confirma el número de bosquejo que va a presentar?"}\n¿Nos confirma si cuenta con poder venir? Responda SÍ o NO.\n¡Muchas gracias!`}
+function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · ${GRUPO.nombre} · sáb. ${F.d} ${F.m}*\n${txt}${p.d?`\nDiscurso n.º ${p.d}: "${tit(p.d)}"`:""}`}
 const telWa=t=>{t=String(t||"").replace(/\D/g,"");return t.length===10?"57"+t:t};
 
 function avisarAncianos(m){
@@ -272,7 +272,7 @@ function abrir(f){
   ${p.e!=="sin"?progreso(p.e):""}
   <div class="card"><div style="font-weight:800">${p.d?`<span style="color:var(--accent)">#${p.d}</span> ${esc(tit(p.d))}`:"Discurso por definir"}</div>
   <div class="note" style="margin-top:6px">Orador: <b>${o?esc(o.nombre)+" · "+esc(cname(o.cong)):"—"}</b><br>Suplente: <b>${s?esc(s.nombre):"—"}</b></div></div>`;
-  if(esAdmin()&&p.e!=="hecho"&&o&&p.d){
+  if(esAdmin()&&p.e!=="hecho"&&o){
     const m=msgRecordatorio(p);
     const wa=`<div class="row"><a class="btn ok" target="_blank" rel="noopener" href="https://wa.me/${telWa(o.tel)}?text=${encodeURIComponent(m)}" id="waR">${I.wa} ${p.e==="porc"?"Reenviar recordatorio":"Enviar recordatorio"}</a><button class="btn line" id="cpR" style="flex:0 0 auto">${I.copy}</button></div>
       ${!o.tel?`<div class="aviso warn">${I.alert}<span>Este orador no tiene celular registrado.</span></div>`:""}
@@ -283,12 +283,12 @@ function abrir(f){
     if(p.e==="conf")h+=`${f<=HOY?`<button class="btn pri" id="hecho">${I.check} Marcar realizado</button>`:""}<button class="btn bad" id="no">Canceló a última hora</button>`;
     if(p.e==="planb")h+=`<div class="aviso warn">${I.alert}<span>${s?`Plan B en curso. Llama a <b>${esc(s.nombre)}</b> y confírmalo.`:"No hay suplente. Toca “Cambiar asignación”."}</span></div>${s?`<button class="btn pri" id="si">${I.check} Suplente confirmado</button>`:""}`;
   }
-  if(edit)h+=`<button class="btn line" id="cambiar">${p.d?"Cambiar asignación":"Asignar ahora"}</button>`;
+  if(edit)h+=`<button class="btn line" id="cambiar">${p.d?"Cambiar asignación":p.o?"Poner número de discurso":"Asignar ahora"}</button>`;
   if(p.e==="hecho")h+=`<div class="note">Este discurso ya se pronunció.</div>`;
   hoja(h,(bg,close)=>{
     const q=x=>bg.querySelector(x);
     if(q("#cambiar"))q("#cambiar").onclick=()=>{bg.remove();asignar(f)};
-    const marcarR=async()=>{if(p.e==="asig"){await guardarProg({...p,e:"porc"},`Recordatorio enviado a ${o.nombre} por el n.º ${p.d} del ${F.corto}.`,"porc")}};
+    const marcarR=async()=>{if(p.e==="asig"){await guardarProg({...p,e:"porc"},`Recordatorio enviado a ${o.nombre}${p.d?" por el n.º "+p.d:""} del ${F.corto}.`,"porc")}};
     if(q("#cpR"))q("#cpR").onclick=()=>{q(".msgbox").open=true;copiar(q("#mR").textContent,q("#mR"));marcarR()};
     if(q("#waR"))q("#waR").addEventListener("click",()=>{bg.remove();marcarR()});
     if(q("#si"))q("#si").onclick=async()=>{const plan=p.e==="planb",quien=plan?s:o;
@@ -297,7 +297,7 @@ function abrir(f){
       bg.remove();if(await guardarProg(np,m,"conf"))avisarAncianos(m)};
     if(q("#no"))q("#no").onclick=async()=>{const m=msgAncianos(p,`⚠️ ${o.nombre} NO puede venir. ${s?"Entra el suplente: "+s.nombre+".":"Se está buscando reemplazo."}`);
       bg.remove();if(await guardarProg({...p,e:"planb"},m,"planb"))avisarAncianos(m)};
-    if(q("#hecho"))q("#hecho").onclick=()=>{bg.remove();guardarProg({...p,e:"hecho"},`Realizado: n.º ${p.d} por ${o.nombre} (${cname(o.cong)}).`,"hecho")};
+    if(q("#hecho"))q("#hecho").onclick=()=>{bg.remove();guardarProg({...p,e:"hecho"},`Realizado${p.d?": n.º "+p.d:""} por ${o.nombre} (${cname(o.cong)}).`,"hecho")};
   });
 }
 
