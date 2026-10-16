@@ -140,6 +140,18 @@ function infoOrador(id,f){
   return{nivel:warn?"warn":"ok",txt,g};
 }
 
+
+/* Alerta de sábados sin asignar en el mes vigente (y el siguiente desde el día 20) */
+function alertaMes(fut){
+  const hoy=new Date(HOY+"T12:00:00"),mesAct=HOY.slice(0,7);
+  const sig=new Date(hoy.getFullYear(),hoy.getMonth()+1,15).toISOString().slice(0,7);
+  const vacios=fut.filter(p=>p.e==="sin"&&(p.f.slice(0,7)===mesAct||(hoy.getDate()>=20&&p.f.slice(0,7)===sig)));
+  if(!vacios.length)return"";
+  const urg=vacios.some(p=>dias(HOY,p.f)<=14);
+  const fechas=vacios.map(p=>fd(p.f).d+" "+fd(p.f).m.slice(0,3)).join(", ");
+  const nomMeses=[...new Set(vacios.map(p=>fd(p.f).m))].join(" y ");
+  return`<button class="alertmes ${urg?"urg":""}" id="alertMes">${I.alert}<span><b>${vacios.length} sábado${vacios.length>1?"s":""} de ${nomMeses} sin asignar</b><br>${fechas}${urg?" · ¡el más cercano es en menos de 2 semanas!":""}</span><span class="go">${esAdmin()?"Asignar":"Ver"} ${I.arrow}</span></button>`;
+}
 /* ---------- SÁBADOS ---------- */
 let verPasados=false;
 function cuando(dd){return dd===0?"Hoy":dd===1?"Mañana":`En ${dd} días`}
@@ -147,6 +159,7 @@ function vCal(){
   const todos=sabados(),fut=todos.filter(p=>p.f>=HOY);
   const cnt=k=>fut.filter(p=>p.e===k).length;
   let h=`<div class="kpis">${[["conf","Confirmados"],["porc","Por confirmar"],["sin","Sin asignar"],["planb","Plan B"]].map(([k,l])=>`<button class="kpi ${filtroE===k?"sel":""}" data-k="${k}"><span class="n"><i class="dot-${k}"></i>${cnt(k)}</span><span class="l">${l}</span></button>`).join("")}</div>`;
+  h=alertaMes(fut)+h;
   if(esAdmin())h+=`<button class="btn pri big" id="asigTop">${I.cal} Asignar discurso</button>`;
   const prox=fut[0];
   if(prox&&!filtroE){
@@ -191,6 +204,7 @@ function vCal(){
   document.querySelectorAll("[data-asig]").forEach(b=>b.onclick=()=>asignar(b.dataset.asig));
   document.querySelectorAll(".kpi").forEach(b=>b.onclick=()=>{filtroE=filtroE===b.dataset.k?null:b.dataset.k;vCal()});
   const ha=$("#heroAct");if(ha)ha.onclick=e=>{e.stopPropagation();prox.e==="sin"?asignar(prox.f):abrir(prox.f)};
+  const am=$("#alertMes");if(am)am.onclick=()=>{const v=sabados().find(p=>p.f>=HOY&&p.e==="sin");esAdmin()&&v?asignar(v.f):(filtroE="sin",vCal())};
   const at=$("#asigTop");if(at)at.onclick=()=>asignar();
   const qf=$("#qf");if(qf)qf.onclick=()=>{filtroE=null;vCal()};
   const m=$("#mas");if(m)m.onclick=()=>{semanas+=8;vCal()};
