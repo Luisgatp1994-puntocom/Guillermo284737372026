@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Discursos Tierra Baja</title>
 <meta name="theme-color" content="#f2f3fb">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -231,6 +231,12 @@ svg.mini{width:16px;height:16px}
 .gchip{display:inline-block;font-weight:800;font-size:11px;border-radius:999px;padding:1px 8px;margin-right:2px;background:var(--accent-soft);color:var(--accent)}
 .gchip.g-tb18{background:var(--cyan-soft);color:var(--cyan)}
 .sinnum{color:var(--warn);font-weight:700}
+html,body{overflow-x:hidden;max-width:100%}
+nav{padding-bottom:max(10px,calc(env(safe-area-inset-bottom,0px) + 4px))}
+html.navegador nav{padding-bottom:calc(max(10px,env(safe-area-inset-bottom,0px)) + 18px)}
+html.navegador .wrap{padding-bottom:180px}
+html.navegador .fab{bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+nav button{line-height:1.1}
 </style>
 </head>
 <body>
@@ -242,7 +248,7 @@ svg.mini{width:16px;height:16px}
   <div class="dots" id="dots"></div>
   <div class="err" id="err"></div>
   <div class="pad" id="pad"></div>
-  <div class="note" style="opacity:.6">v1.5.2</div>
+  <div class="note" style="opacity:.6">v1.5.3</div>
 </div>
 
 <div id="app" hidden>
@@ -265,6 +271,7 @@ svg.mini{width:16px;height:16px}
   <button data-v="avisos"><span class="bub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></span>Avisos</button>
 </nav>
 </div>
+<script>(function(){try{var st=window.navigator.standalone||matchMedia("(display-mode: standalone)").matches;var ios=/iPhone|iPad|iPod/.test(navigator.userAgent);if(ios&&!st)document.documentElement.classList.add("navegador")}catch(e){}})();</script>
 <script src="titulos.js"></script>
 <script src="app.js"></script>
 </body>
