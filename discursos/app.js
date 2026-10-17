@@ -248,8 +248,11 @@ function chipsOradores(d,f,sel,excluir){
   if(!l.length)return`<span class="note">Aún no hay oradores registrados.</span>`;
   return l.map(({h,inf,tiene})=>`<button class="pk ${sel===h.id?"on":""} ${inf.nivel==="warn"?"warn":""} ${tiene?"":"star"}" data-h="${h.id}">${esc(h.nombre)}<small>${esc(cname(h.cong))}${tiene?" · lo tiene ✓":""}</small><small class="${inf.nivel==="warn"?"w":""}">${inf.nivel==="warn"?"⚠ ":""}${inf.txt}</small></button>`).join("");
 }
-function msgRecordatorio(p){const o=H(p.o),F=fd(p.f),base=GRUPO.nombre.replace(/\s*\d.*$/,"");return`Buen día, hermano ${o.nombre.split(" ")[0]}. Le recuerdo con cariño que este sábado ${F.d} de ${F.m} tiene a cargo el discurso público${p.d?` n.º ${p.d}: "${tit(p.d)}"`:""} en la congregación ${base}, reunión de las ${GRUPO.hora}.${p.d?"":"\n¿Nos confirma el número de bosquejo que va a presentar?"}\n¿Nos confirma si cuenta con poder venir? Responda SÍ o NO.\n¡Muchas gracias!`}
-function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · ${GRUPO.nombre} · sáb. ${F.d} ${F.m}*\n${txt}${p.d?`\nDiscurso n.º ${p.d}: "${tit(p.d)}"`:""}`}
+function msgRecordatorio(p){const o=H(p.o),F=fd(p.f),base=GRUPO.nombre.replace(/\s*\d.*$/,""),dd=dias(HOY,p.f),hora=String(GRUPO.hora||"").replace(/\.$/,"");
+  const cuandoTxt=dd===0?`hoy sábado ${F.d} de ${F.m}`:dd===1?`mañana sábado ${F.d} de ${F.m}`:`este sábado ${F.d} de ${F.m}`;
+  const disc=p.d?` n.º ${p.d}: «${tit(p.d).replace(/[“”"]/g,"")}»`:"";
+  return`Buen día, hermano ${o.nombre.split(" ")[0]}. Le recuerdo con cariño que ${cuandoTxt} tiene a cargo el discurso público${disc} en la congregación ${base}, reunión de las ${hora}.\n\n${p.d?"":"¿Nos confirma el número de bosquejo que va a presentar?\n"}¿Nos confirma si puede venir?\n\n¡Muchas gracias!`}
+function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · ${GRUPO.nombre} · sáb. ${F.d} ${F.m}*\n${txt}${p.d?`\nDiscurso n.º ${p.d}: «${tit(p.d).replace(/[“”"]/g,"")}»`:""}`}
 const telWa=t=>{t=String(t||"").replace(/\D/g,"");return t.length===10?"57"+t:t};
 
 function avisarAncianos(m){
