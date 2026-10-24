@@ -32,9 +32,9 @@ const LS={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:
 /* ---------- Backend ---------- */
 let PIN=LS.get("dtb_pin"), DB={congs:[],hermanos:[],prog:[],log:[]}, rol=null, GRUPO={id:"",nombre:"Tierra Baja",hora:""}, ETIQ="";
 async function rpc(fn,args){
-  const r=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_pin:PIN,...args})});
+  let r;try{r=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_pin:PIN,...args})})}catch(e){throw new Error("No se pudo conectar con el servidor. Revisa tu internet o intenta en unos minutos.")}
   const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null}catch(e){}
-  if(!r.ok)throw new Error((j&&j.message)||"No se pudo conectar. Revisa tu internet.");
+  if(!r.ok){if(r.status>=500||r.status===0)throw new Error("El servidor está despertando. Intenta de nuevo en unos minutos.");throw new Error((j&&j.message)||"No se pudo conectar. Revisa tu internet.")}
   return j;
 }
 async function cargar(){
