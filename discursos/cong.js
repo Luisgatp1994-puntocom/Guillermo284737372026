@@ -741,23 +741,43 @@ function fichaAcomod(r) {
       const del = bg.querySelector("#aDel"); if (del) del.onclick = async () => { await cBorrar(r.id); close(); };
     });
 }
+// Nombre corto como lo escriben a mano: primer nombre, y la inicial del apellido si hay otro con el mismo nombre
+function nomPila(id) {
+  const p = P(id); if (!p) return id ? String(id) : "";
+  const pn = n => norm(n.split(" ")[0]);
+  const mismo = CG.personas.filter(x => pn(x.nombre) === pn(p.nombre));
+  const a = p.nombre.split(" "); const ap = a[a.length - 1];
+  return mismo.length > 1 ? `${a[0]} ${ap[0].toUpperCase()}` : a[0];
+}
 async function xlsAcomod(X) {
   const wb = new X.Workbook(); const ws = wb.addWorksheet("Acomodadores", { views: [{ showGridLines: false }] });
-  ws.columns = [{ width: 12 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 26 }, { width: 18 }];
+  ws.columns = [{ width: 15 }, { width: 15 }, { width: 13 }, { width: 18 }, { width: 18 }, { width: 13 }];
+  const borde1 = { style: "thin", color: { argb: "FF8E9EA3" } }; const caja = { top: borde1, left: borde1, bottom: borde1, right: borde1 };
+  const put = (ref, v, o = {}) => { const c = ws.getCell(ref); c.value = v; c.font = { name: "Calibri", size: o.size || 11, bold: !!o.bold, color: { argb: "FF111111" } }; c.alignment = { vertical: "top", horizontal: "left", wrapText: true }; if (o.fill) c.fill = relleno(o.fill); if (o.box !== false) c.border = caja; return c; };
   let r = 1;
-  const titulo = t => { ws.mergeCells(`A${r}:F${r}`); celda(ws, "A" + r, t, { bold: true, size: 13, border: false, fill: "FFF27A" }); r++; };
-  for (const tipo of ["entre", "tb16", "tb18"]) {
-    titulo(tipo === "entre" ? "Reunión de entre semana · acomodadores y micrófonos" : `Reunión fin de semana · horario ${tipo === "tb16" ? "4 pm" : "6:15 pm"}`);
-    const cols = tipo === "entre" ? ["Fechas", "Acomodador", "Micrófonos", "Plataforma"] : ["Fechas", "Presidente", "Lector", "Acomodador", "Micrófonos", "Plataforma"];
-    cols.forEach((t, i) => celda(ws, String.fromCharCode(65 + i) + r, t, { fill: "A8D8DC" })); r++;
-    R("acomod").filter(x => x.d.reunion === tipo && x.k.startsWith(CG.mes)).sort((a, b) => a.k < b.k ? -1 : 1).forEach(x => {
-      const mic = (x.d.microfonos || []).filter(Boolean).map(nomCorto).join(" - ");
-      const vals = tipo === "entre" ? [corto(x.k), nomCorto(x.d.acomodador), mic, nomCorto(x.d.plataforma)] : [corto(x.k), nomCorto(x.d.presidente), nomCorto(x.d.lector), nomCorto(x.d.acomodador), mic, nomCorto(x.d.plataforma)];
-      vals.forEach((v, i) => celda(ws, String.fromCharCode(65 + i) + r, v, { fill: "D6EEF0" })); r++;
+  const titulo = (t, amarillo) => { ws.mergeCells(`A${r}:${amarillo ? "E" : "F"}${r}`); put("A" + r, t, { bold: true, size: 14, fill: amarillo ? "FFFF00" : undefined, box: false }); ws.getRow(r).height = 24; r++; };
+  const bloques = [["entre", "Reunión de entre semana acomodadores y micrófonos", false, ["Fechas", "Acomodador", "Microfonos", "Plataforma"]],
+    ["tb16", "Reunión fin de semana primer horario 4 pm", true, ["Fechas", "Presidente", "Lector", "Acomodador", "Microfono", "Plataforma"]],
+    ["tb18", "Reunión fin de semana segundo horario 6:15 pm", true, ["Fechas", "Presidente", "Lector", "Acomodador", "Microfonos", "Plataforma"]]];
+  const fechaCorta = f => { const F = fd(f); return `${F.d} ${F.m.slice(0, 3)}`; };
+  for (const [tipo, t, am, cols] of bloques) {
+    if (tipo !== "entre") r++;
+    titulo(t, am); if (tipo === "entre") r++;
+    const ent = tipo === "entre";
+    // En entre semana la tabla ocupa 4 columnas más anchas: Fechas, Acomodador, Micrófonos, Plataforma
+    const colsEnt = [["A"], ["B"], ["C", "D"], ["E"]];
+    const escribe = (vals, fill, bold) => { if (ent) vals.forEach((v, k) => { const [c1, c2] = colsEnt[k]; if (c2) ws.mergeCells(`${c1}${r}:${c2}${r}`); put(c1 + r, v, { fill, bold }); if (c2) ws.getCell(c2 + r).border = caja; }); else vals.forEach((v, k) => put(String.fromCharCode(65 + k) + r, v, { fill, bold })); ws.getRow(r).height = 22; r++; };
+    escribe(cols, "A5D7DE");
+    const l = R("acomod").filter(x => x.d.reunion === tipo && x.k.startsWith(CG.mes)).sort((a, b) => a.k < b.k ? -1 : 1);
+    l.forEach((x, i) => {
+      const mic = (x.d.microfonos || []).filter(Boolean).map(nomPila).join("-");
+      const vals = ent ? [fechaCorta(x.k), nomPila(x.d.acomodador), mic, nomPila(x.d.plataforma)] : [fechaCorta(x.k), nomPila(x.d.presidente), nomPila(x.d.lector), nomPila(x.d.acomodador), mic, nomPila(x.d.plataforma)];
+      escribe(vals, i % 2 ? "A5D7DE" : "D6EBF0");
+      if (mic.length > 16) ws.getRow(r - 1).height = 36;
     });
-    r += 2;
+    if (!l.length) escribe(ent ? ["", "", "", ""] : ["", "", "", "", "", ""], "D6EBF0");
   }
-  hojaImprimible(ws, false);
+  ws.pageSetup = { paperSize: 1, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 1, margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
   await descargar(wb, `Acomodadores ${mesNombre(CG.mes)}.xlsx`);
 }
 
