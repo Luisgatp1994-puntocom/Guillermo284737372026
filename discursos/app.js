@@ -315,9 +315,9 @@ function abrir(f){
   let h=`<div class="shead"><span class="pill ${ESTADOS[p.e][1]}">${ESTADOS[p.e][0]}</span><button class="x" data-close aria-label="Cerrar">✕</button></div>
   <h2>Sábado ${F.d} de ${F.m}</h2>
   ${p.e!=="sin"&&p.e!=="evento"?progreso(p.e):""}
-  <div class="card"><div style="font-weight:800">${p.d?`<span style="color:var(--accent)">#${p.d}</span> ${esc(tit(p.d))}`:"Discurso por definir"}</div>
+  ${p.e==="evento"?"":`<div class="card"><div style="font-weight:800">${p.d?`<span style="color:var(--accent)">#${p.d}</span> ${esc(tit(p.d))}`:"Discurso por definir"}</div>
   <div class="note" style="margin-top:6px">Orador: <b>${o?esc(o.nombre)+" · "+esc(cname(o.cong)):"—"}</b><br>Suplente: <b>${s?esc(s.nombre):"—"}</b>${!esAdmin()?`<br>Canción: <b>${p.c?"n.º "+p.c:"—"}</b>`:""}</div>
-  ${esAdmin()&&p.e!=="hecho"?`<div class="cancion"><span>🎵 Canción</span><input id="cNum" type="number" inputmode="numeric" min="1" max="200" placeholder="n.º" value="${p.c||""}"><button class="btn line" id="cOk">Guardar</button></div>`:""}</div>`;
+  ${esAdmin()&&p.e!=="hecho"?`<div class="cancion"><span>🎵 Canción</span><input id="cNum" type="number" inputmode="numeric" min="1" max="200" placeholder="n.º" value="${p.c||""}"><button class="btn line" id="cOk">Guardar</button></div>`:""}</div>`}`;
   if(esAdmin()&&p.e!=="hecho"&&o){
     const m=msgRecordatorio(p);
     const wa=`<div class="row"><a class="btn ok" target="_blank" rel="noopener" href="${linkWa(o.tel,m)}" id="waR">${I.wa} ${p.e==="porc"?"Reenviar recordatorio":"Enviar recordatorio"}</a><button class="btn line" id="cpR" style="flex:0 0 auto">${I.copy}</button></div>

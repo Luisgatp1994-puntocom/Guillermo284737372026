@@ -917,7 +917,7 @@ async function paginaS21(pdf, F, p, anio, infs) {
   const pg = pdf.addPage([595.2, 841.9]); const H = 841.9, K = rgb(0, 0, 0);
   const y = t => H - t;
   const txt = (s, x, t, o = {}) => { s = String(s ?? ""); if (!s) return; const f = o.f || F.reg; let size = o.size || 10; if (o.max) while (size > 5 && f.widthOfTextAtSize(s, size) > o.max) size -= 0.25; const w = f.widthOfTextAtSize(s, size); const xx = o.align === "center" ? x - w / 2 : o.align === "right" ? x - w : x; pg.drawText(s, { x: xx, y: y(t), size, font: f, color: K }); };
-  const caja = (x, t, chk, s = 8.6) => { pg.drawRectangle({ x, y: y(t) - s, width: s, height: s, borderColor: K, borderWidth: 0.7 }); if (chk) pg.drawText("\u2714", { x: x + 1.2, y: y(t) - s + 1.6, size: s - 1.4, font: F.zapf, color: K }); };
+  const caja = (x, t, chk, s = 8.6) => { pg.drawRectangle({ x, y: y(t) - s, width: s, height: s, borderColor: K, borderWidth: 0.7 }); if (chk) pg.drawSvgPath(`M ${s*0.18} ${s*0.52} L ${s*0.42} ${s*0.78} L ${s*0.86} ${s*0.16}`, { x, y: y(t), borderColor: K, borderWidth: s * 0.16 }); };
   const linea = (x1, t1, x2, t2, w = 0.6) => pg.drawLine({ start: { x: x1, y: y(t1) }, end: { x: x2, y: y(t2) }, thickness: w, color: K });
   // Encabezado
   const tit = "REGISTRO DE PUBLICADOR DE LA CONGREGACIÓN"; const ts = 350 / F.bold.widthOfTextAtSize(tit, 1);
