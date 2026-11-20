@@ -8,8 +8,9 @@
 ## Discursos — cómo está armado
 
 - Front estático sin build: `index.html` + `app.js` + `titulos.js` (los 194 bosquejos de la S-99).
-- Dos grupos en la misma app, con datos separados: **Tierra Baja 4:00 PM** (`tb16`) y **Tierra Baja 6:15 PM** (`tb18`).
-  Cada grupo tiene su propio programa, oradores, congregaciones y avisos.
+- Es **una sola congregación** (Tierra Baja). Solo la reunión del sábado se divide en dos horarios por el calor:
+  **4:00 PM** (`tb16`) y **6:15 PM** (`tb18`). Por eso **solo Discursos** va separado por horario (programa, oradores, avisos).
+  Las demás secciones (Predicación, Informes, Recordatorios) serán de toda la congregación.
 - Datos en Supabase (proyecto `discursos-tierra-baja`). Las tablas están cerradas; la app solo usa funciones RPC que validan un PIN.
   El PIN decide el grupo y el rol. Por grupo hay 3 PIN:
   - **Consulta** (ancianos): solo lectura.

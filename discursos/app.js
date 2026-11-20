@@ -116,11 +116,11 @@ function resumenDiscursos(){
 }
 function mostrarInicio(){
   $("#login").hidden=true;$("#app").hidden=true;$("#hub").hidden=false;$("#fab").hidden=true;
-  $("#hello").innerHTML=`${saludo()} · <span class="gchip g-${esc(GRUPO.id)}">${esc(GRUPO.hora||GRUPO.nombre)}</span> ${esc(GRUPO.nombre.replace(/\s*\d.*$/,""))} · ${esc(esAdmin()?ETIQ:"Consulta")}`;
+  $("#hello").innerHTML=`${saludo()} · Congregación ${esc(GRUPO.nombre.replace(/\s*\d.*$/,""))} · ${esc(esAdmin()?ETIQ:"Consulta")}`;
   const pend=sabados().filter(p=>p.f>=HOY&&p.e!=="conf"&&dias(HOY,p.f)<=14).length;
   $("#hubgrid").innerHTML=SECCIONES.map((x,i)=>`<button class="hcard wide ${x.activa?"main":"soon"}" data-sec="${x.id}">
     <span class="tile ${x.tono}">${x.ico}</span>
-    ${i===0?`<span class="txt"><b>${x.nombre}</b><small>${resumenDiscursos()||x.desc}</small>${pend?`<small style="color:var(--warn);font-weight:800">${pend} sábado${pend>1?"s":""} por cerrar en 2 semanas</small>`:""}</span><span class="go" style="color:var(--accent)">${I.arrow}</span>`
+    ${i===0?`<span class="txt"><b>${x.nombre}</b><small><span class="gchip g-${esc(GRUPO.id)}">Sábado ${esc(GRUPO.hora||"")}</span></small><small>${resumenDiscursos()||x.desc}</small>${pend?`<small style="color:var(--warn);font-weight:800">${pend} sábado${pend>1?"s":""} por cerrar en 2 semanas</small>`:""}</span><span class="go" style="color:var(--accent)">${I.arrow}</span>`
       :`<span class="txt"><b>${x.nombre}</b><small>${x.desc}</small></span>`}
     ${x.activa?`<span class="tag live">Activo</span>`:`<span class="tag">Pronto</span>`}
   </button>`).join("");
