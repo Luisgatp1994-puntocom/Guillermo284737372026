@@ -411,11 +411,11 @@ function fichaTerr(t) {
     ${campo("Nombre / barrio", inp("tB", d.nombre, "Puerto Rey", dis))}
     <span class="flab">Mapa del territorio</span>
     <div class="tmap" id="tMap"><div class="note" style="padding:20px;text-align:center">Cargando mapa…</div></div>
-    <div class="note" id="tMapInfo" style="margin:4px 2px 0">${(d.area || []).length >= 3 ? "Límite marcado en azul." : "Todavía no tiene el límite marcado."}${ed ? " Usa los botones para marcarlo sobre la foto satelital." : ""}</div>
-    ${ed ? `<div class="tmbar" id="tBar"><button class="btn line" data-mm="area">✏️ Límite</button><button class="btn line" data-mm="calle">🟨 Calles</button><button class="btn line" data-mm="ref">📍 Referencia</button><button class="btn line" id="tYo">🎯 Estoy aquí</button></div>
-    <div class="tmbar" id="tBar2" hidden><button class="btn line" id="tUndo">↶ Deshacer</button><button class="btn line" id="tNueva">＋ Otra calle</button><button class="btn line" id="tClear">🗑 Borrar</button><button class="btn pri" id="tFin">✓ Listo</button></div>
+    <div class="note" id="tMapInfo" style="margin:4px 2px 0">${(d.manzanas || []).length || (d.area || []).length >= 3 ? `${(d.manzanas || [d.area]).length} manzana(s) marcadas.` : "Todavía no tiene las manzanas marcadas."}${ed ? " Usa los botones para marcarlo sobre la foto satelital." : ""}</div>
+    ${ed ? `<div class="tmbar" id="tBar"><button class="btn line" data-mm="area">🟩 Manzanas</button><button class="btn line" data-mm="calle">🟨 Calles</button><button class="btn line" data-mm="ref">📍 Referencia</button><button class="btn line" id="tYo">🎯 Estoy aquí</button></div>
+    <div class="tmbar" id="tBar2" hidden><button class="btn line" id="tUndo">↶ Deshacer</button><button class="btn line" id="tNueva">＋ Otra calle</button><button class="btn line" id="tNuevaM">＋ Otra manzana</button><button class="btn line" id="tBorrM">✕ Quitar manzana</button><button class="btn line" id="tClear">🗑 Borrar</button><button class="btn pri" id="tFin">✓ Listo</button></div>
     <div class="cf"><span class="flab">Ir a un punto (pega enlace o coordenadas de Google Maps)</span><div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input id="tIr" placeholder="10.5123, -75.4687" autocomplete="off"><button class="btn line" id="tIrB">Ir</button></div></div>` : ""}
-    ${(d.area || []).length || (d.refs || []).length || d.centro ? `<a class="btn ok" id="tNav" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${(d.centro || centroDe(d.area) || [d.refs[0].lat, d.refs[0].lng]).join(",")}">🧭 Cómo llegar (Google Maps)</a>` : ""}
+    ${(d.area || []).length || (d.manzanas || []).length || (d.refs || []).length || d.centro ? `<a class="btn ok" id="tNav" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${(d.centro || centroDe(d.area) || [d.refs[0].lat, d.refs[0].lng]).join(",")}">🧭 Cómo llegar (Google Maps)</a>` : ""}
     <span class="flab">Imagen del territorio</span>
     <div class="timg big" id="tImgBox">${t && CG.imgs[t.id] ? `<img src="${CG.imgs[t.id]}" alt="" id="tImg">` : `<span class="note">Sin imagen todavía</span>`}</div>
     ${ed ? `<label class="btn line" style="cursor:pointer">📷 ${t && CG.imgs[t.id] ? "Cambiar imagen" : "Subir foto o imagen"}<input type="file" accept="image/*" id="tFile" hidden></label>` : ""}
@@ -427,14 +427,14 @@ function fichaTerr(t) {
     ${ed && t ? `<button class="btn bad" id="tDel">Borrar territorio</button>` : ""}`,
     (bg, close) => {
       let nueva = null, M = null;
-      const AYUDA = { area: "Acerca bien el mapa y toca cada esquina siguiendo el borde de las calles, en orden. Arrastra un punto para corregirlo; toca un ＋ para meter un punto entre dos.", calle: "Toca a lo largo de cada calle que se trabaja (inicio, curvas y final). Para pasar a otra calle toca ＋ Otra calle.", ref: "Toca donde está la referencia (una casa, una tienda…). Tócala otra vez para quitarla." };
-      mapaTerritorio(bg.querySelector("#tMap"), d, ed, (a, r, c, m) => { const i = bg.querySelector("#tMapInfo"); if (!i) return; i.textContent = m ? AYUDA[m] + (m === "area" && a.length ? ` (${a.length} puntos)` : "") : `${a.length >= 3 ? "Límite marcado." : "Sin límite marcado."} ${c.filter(x => x.length >= 2).length} calle(s) · ${r.length} referencia(s). Dale Guardar abajo.`; })
+      const AYUDA = { area: "Acerca el mapa y toca las esquinas de una manzana siguiendo el borde de la calle. Al terminarla toca ＋ Otra manzana y sigue con la siguiente. Arrastra un punto para corregirlo; toca el ＋ blanco para meter un punto entre dos; toca una manzana ya hecha para editarla.", calle: "Toca a lo largo de cada calle que se trabaja (inicio, curvas y final). Para pasar a otra calle toca ＋ Otra calle.", ref: "Toca donde está la referencia (una casa, una tienda…). Tócala otra vez para quitarla." };
+      mapaTerritorio(bg.querySelector("#tMap"), d, ed, (a, r, c, m) => { const i = bg.querySelector("#tMapInfo"); if (!i) return; const nm = a.filter(x => x.length >= 3).length; i.textContent = m ? AYUDA[m] + (m === "area" ? ` · Llevas ${nm} manzana${nm === 1 ? "" : "s"}.` : "") : `${nm} manzana${nm === 1 ? "" : "s"} · ${c.filter(x => x.length >= 2).length} calle(s) · ${r.length} referencia(s). Dale Guardar abajo.`; })
         .then(m => { M = m;
           if (!ed) return;
           const q = x => bg.querySelector(x);
-          bg.querySelectorAll("[data-mm]").forEach(b => b.onclick = () => { M.modo(b.dataset.mm); q("#tBar").hidden = true; q("#tBar2").hidden = false; q("#tUndo").hidden = b.dataset.mm === "ref"; q("#tClear").hidden = b.dataset.mm === "ref"; q("#tNueva").hidden = b.dataset.mm !== "calle"; q("#tMap").scrollIntoView({ block: "center", behavior: "smooth" }); });
+          bg.querySelectorAll("[data-mm]").forEach(b => b.onclick = () => { M.modo(b.dataset.mm); q("#tBar").hidden = true; q("#tBar2").hidden = false; q("#tUndo").hidden = b.dataset.mm === "ref"; q("#tClear").hidden = b.dataset.mm === "ref"; q("#tNueva").hidden = b.dataset.mm !== "calle"; q("#tNuevaM").hidden = b.dataset.mm !== "area"; q("#tBorrM").hidden = b.dataset.mm !== "area"; q("#tMap").scrollIntoView({ block: "center", behavior: "smooth" }); });
           q("#tFin").onclick = () => { M.modo(null); q("#tBar").hidden = false; q("#tBar2").hidden = true; };
-          q("#tUndo").onclick = () => M.deshacer(); q("#tClear").onclick = () => { if (confirm("¿Borrar lo marcado en este modo?")) M.limpiar(); }; q("#tNueva").onclick = () => { M.nuevaCalle(); toast("Toca el inicio de la otra calle"); };
+          q("#tUndo").onclick = () => M.deshacer(); q("#tClear").onclick = () => { if (confirm("¿Borrar lo marcado en este modo?")) M.limpiar(); }; q("#tNueva").onclick = () => { M.nuevaCalle(); toast("Toca el inicio de la otra calle"); }; q("#tNuevaM").onclick = () => { M.nuevaManzana(); toast("Toca la primera esquina de la siguiente manzana"); }; q("#tBorrM").onclick = () => M.borrarManzana();
           q("#tYo").onclick = () => { if (!navigator.geolocation) { toast("Tu teléfono no comparte ubicación"); return; } toast("Buscando tu ubicación…"); navigator.geolocation.getCurrentPosition(pp => M.ir([pp.coords.latitude, pp.coords.longitude], 19), () => toast("Activa la ubicación para la app"), { enableHighAccuracy: true, timeout: 12000 }); };
           q("#tIrB").onclick = () => { const c = coordsDeTexto(val(bg, "tIr")); if (!c) { toast("No encontré coordenadas. En Google Maps deja el dedo sobre el sitio y copia los números."); return; } M.ir(c, 18); };
         }).catch(e => { bg.querySelector("#tMap").innerHTML = `<div class="note" style="padding:20px">${esc(e.message)}</div>`; });
@@ -446,8 +446,8 @@ function fichaTerr(t) {
         try { nueva = await comprimir(f); bg.querySelector("#tImgBox").innerHTML = `<img src="${nueva}" alt="" id="tImg">`; verImg(); toast("Imagen lista, dale Guardar"); } catch (er) { toast("No se pudo leer la imagen"); }
       };
       bg.querySelector("#tOk").onclick = async () => {
-        const md = M ? M.datos() : { area: d.area || [], refs: d.refs || [], calles: d.calles || [], centro: d.centro || null };
-        const nd = { numero: val(bg, "tN"), lamina: val(bg, "tL"), nombre: val(bg, "tB"), mapa: val(bg, "tM"), notas: val(bg, "tO"), area: md.area, refs: md.refs, calles: md.calles || [], centro: md.centro };
+        const md = M ? M.datos() : { area: d.area || [], manzanas: d.manzanas, refs: d.refs || [], calles: d.calles || [], centro: d.centro || null };
+        const nd = { numero: val(bg, "tN"), lamina: val(bg, "tL"), nombre: val(bg, "tB"), mapa: val(bg, "tM"), notas: val(bg, "tO"), area: md.area, manzanas: md.manzanas || (md.area && md.area.length ? [md.area] : []), refs: md.refs, calles: md.calles || [], centro: md.centro };
         if (!nd.nombre) { toast("Escribe el nombre"); return; }
         const tid = await cGuardar("territorio", nd.numero, t ? t.id : null, nd, t ? null : `Nuevo territorio: ${nd.numero} ${nd.nombre}`);
         if (nueva) { const id = t ? t.id : tid; const ya = CG.imgIds[id];
@@ -1082,52 +1082,62 @@ async function mapaTerritorio(box, d, editable, onCambio) {
   const L = await cargarLeaflet();
   box.innerHTML = ""; const map = L.map(box, { zoomControl: true, attributionControl: true, maxZoom: 20 });
   capas(L, map);
-  let area = (d.area || []).map(p => [+p[0], +p[1]]); let refs = (d.refs || []).map(r => ({ ...r }));
+  let manz = (d.manzanas && d.manzanas.length ? d.manzanas : (d.area && d.area.length ? [d.area] : [])).map(a => a.map(p => [+p[0], +p[1]])); let act = -1;
+  let area = []; let refs = (d.refs || []).map(r => ({ ...r }));
   let calles = (d.calles || []).map(c => c.map(p => [+p[0], +p[1]])); let calleAct = -1;
   const capa = L.layerGroup().addTo(map); let modo = null;
-  const avisa = () => onCambio && onCambio(area, refs, calles, modo);
+  const sync = () => { area = act >= 0 && manz[act] ? manz[act] : []; };
+  const todas = () => manz.filter(a => a.length >= 3);
+  const avisa = () => onCambio && onCambio(manz, refs, calles, modo, act);
   const icono = (cls, html) => L.divIcon({ className: cls, html: html || "", iconSize: null });
   const pinta = () => {
     capa.clearLayers();
-    if (area.length >= 3) L.polygon(area, { color: "#3138e0", weight: 3, fillColor: "#3138e0", fillOpacity: .15, interactive: false }).addTo(capa);
-    else if (area.length) L.polyline(area, { color: "#3138e0", weight: 3, dashArray: "6 6", interactive: false }).addTo(capa);
+    sync();
+    manz.forEach((a, k) => { const sel = modo === "area" && k === act;
+      if (a.length >= 3) { const pg = L.polygon(a, { color: sel ? "#3138e0" : "#22C55E", weight: sel ? 3.5 : 3, fillColor: sel ? "#3138e0" : "#22C55E", fillOpacity: .18, interactive: modo === "area" }).addTo(capa);
+        if (modo === "area") pg.on("click", e => { L.DomEvent.stop(e); act = k; pinta(); avisa(); });
+        if (!modo) pg.bindTooltip(String(k + 1), { permanent: true, direction: "center", className: "tlab" }); }
+      else if (a.length) L.polyline(a, { color: "#3138e0", weight: 3, dashArray: "6 6", interactive: false }).addTo(capa); });
     calles.forEach((c, k) => { if (c.length >= 2) { L.polyline(c, { color: "#111", weight: 11, opacity: .35, interactive: false }).addTo(capa); L.polyline(c, { color: "#FFD200", weight: 7, opacity: .95, interactive: false }).addTo(capa); }
       if (modo === "calle") c.forEach(pt => L.circleMarker(pt, { radius: k === calleAct ? 5 : 3, color: "#111", weight: 1.5, fillColor: "#FFD200", fillOpacity: 1, interactive: false }).addTo(capa)); });
     if (modo === "area") {
       area.forEach((pt, k) => { const m = L.marker(pt, { draggable: true, icon: icono("tvx", `<i>${k + 1}</i>`) }).addTo(capa);
-        m.on("dragend", e => { const ll = e.target.getLatLng(); area[k] = [+ll.lat.toFixed(6), +ll.lng.toFixed(6)]; pinta(); avisa(); }); });
+        m.on("dragend", e => { const ll = e.target.getLatLng(); manz[act][k] = [+ll.lat.toFixed(6), +ll.lng.toFixed(6)]; pinta(); avisa(); }); });
       if (area.length >= 2) area.forEach((pt, k) => { if (k === area.length - 1 && area.length < 3) return; const q = area[(k + 1) % area.length];
         const mid = L.marker([(pt[0] + q[0]) / 2, (pt[1] + q[1]) / 2], { icon: icono("tmid", "<i>+</i>") }).addTo(capa);
-        mid.on("click", e => { L.DomEvent.stop(e); area.splice(k + 1, 0, [+((pt[0] + q[0]) / 2).toFixed(6), +((pt[1] + q[1]) / 2).toFixed(6)]); pinta(); avisa(); }); });
+        mid.on("click", e => { L.DomEvent.stop(e); manz[act].splice(k + 1, 0, [+((pt[0] + q[0]) / 2).toFixed(6), +((pt[1] + q[1]) / 2).toFixed(6)]); pinta(); avisa(); }); });
     }
     refs.forEach((r, i) => { const m = L.marker([r.lat, r.lng], { icon: icono("tref", `<span>📍 ${esc(r.t)}</span>`) }).addTo(capa);
       if (editable) m.on("click", e => { if (modo === "ref") { L.DomEvent.stop(e); if (confirm(`¿Quitar "${r.t}"?`)) { refs.splice(i, 1); pinta(); avisa(); } } }); });
   };
-  const c = centroDe(area) || (refs[0] ? [refs[0].lat, refs[0].lng] : TB_CENTRO);
-  if (area.length >= 3) map.fitBounds(L.polygon(area).getBounds(), { padding: [20, 20] }); else map.setView(c, area.length || refs.length ? 18 : 16);
+  const todosPts = () => manz.flat().concat(calles.flat());
+  const c = centroDe(todosPts()) || (refs[0] ? [refs[0].lat, refs[0].lng] : TB_CENTRO);
+  if (todosPts().length >= 3) map.fitBounds(L.latLngBounds(todosPts()), { padding: [24, 24] }); else map.setView(c, todosPts().length || refs.length ? 18 : 16);
   pinta(); setTimeout(() => map.invalidateSize(), 250);
   map.on("click", e => {
     const pt = [+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)];
-    if (modo === "area") { area.push(pt); pinta(); avisa(); }
+    if (modo === "area") { if (act < 0 || !manz[act]) { manz.push([]); act = manz.length - 1; } manz[act].push(pt); pinta(); avisa(); }
     else if (modo === "calle") { if (calleAct < 0 || !calles[calleAct]) { calles.push([]); calleAct = calles.length - 1; } calles[calleAct].push(pt); pinta(); avisa(); }
     else if (modo === "ref") { const t = (window.prompt("¿Qué hay aquí? (ej. Familia Lopera)") || "").trim(); if (t) { refs.push({ lat: pt[0], lng: pt[1], t }); pinta(); avisa(); } }
   });
   return {
-    map, modo: m => { modo = m; if (m === "calle") calleAct = -1; box.classList.toggle("dibujando", !!m); if (m === "area" && area.length >= 3) map.fitBounds(L.polygon(area).getBounds(), { padding: [30, 30] }); pinta(); avisa(); },
+    map, modo: m => { modo = m; if (m === "calle") calleAct = -1; if (m === "area") act = -1; box.classList.toggle("dibujando", !!m); pinta(); avisa(); },
     nuevaCalle: () => { calleAct = -1; pinta(); avisa(); },
-    deshacer: () => { if (modo === "calle") { const cc = calles[calleAct]; if (cc && cc.length) cc.pop(); else if (calles.length) { calles.pop(); calleAct = calles.length - 1; } calles = calles.filter((x, k) => x.length || k === calleAct); } else area.pop(); pinta(); avisa(); },
-    limpiar: () => { if (modo === "calle") { calles = []; calleAct = -1; } else area = []; pinta(); avisa(); },
+    nuevaManzana: () => { manz = manz.filter(a => a.length); act = -1; pinta(); avisa(); },
+    borrarManzana: () => { if (act >= 0) { manz.splice(act, 1); act = -1; } pinta(); avisa(); },
+    deshacer: () => { if (modo === "calle") { const cc = calles[calleAct]; if (cc && cc.length) cc.pop(); else if (calles.length) { calles.pop(); calleAct = calles.length - 1; } calles = calles.filter((x, k) => x.length || k === calleAct); } else if (act >= 0 && manz[act]) { manz[act].pop(); if (!manz[act].length) { manz.splice(act, 1); act = -1; } } pinta(); avisa(); },
+    limpiar: () => { if (modo === "calle") { calles = []; calleAct = -1; } else { manz = []; act = -1; } pinta(); avisa(); },
     ir: (ll, z) => map.setView(ll, z || 18),
-    datos: () => ({ area, refs, calles: calles.filter(x => x.length >= 2), centro: centroDe(area) || (refs[0] ? [refs[0].lat, refs[0].lng] : null) })
+    datos: () => { const ms = todas(); const pts = ms.flat(); return { manzanas: ms, area: ms[0] || [], refs, calles: calles.filter(x => x.length >= 2), centro: centroDe(pts) || (refs[0] ? [refs[0].lat, refs[0].lng] : null) }; }
   };
 }
 async function mapaGeneral(box, ts, ultima) {
   const L = await cargarLeaflet();
   box.innerHTML = ""; const map = L.map(box, { zoomControl: true }); capas(L, map);
   const g = L.featureGroup().addTo(map);
-  ts.filter(t => (t.d.area || []).length >= 3).forEach(t => {
+  ts.filter(t => (t.d.manzanas || []).length || (t.d.area || []).length >= 3).forEach(t => {
     const col = colorTerr(ultima(t.id));
-    const pol = L.polygon(t.d.area, { color: col, weight: 2.5, fillColor: col, fillOpacity: .28 }).addTo(g);
+    const pol = L.polygon((t.d.manzanas && t.d.manzanas.length ? t.d.manzanas : [t.d.area]).map(a => [a]), { color: col, weight: 2.5, fillColor: col, fillOpacity: .28 }).addTo(g);
     pol.bindTooltip(`${t.d.numero ? t.d.numero + " · " : ""}${esc(t.d.nombre)}`, { permanent: true, direction: "center", className: "tlab" });
     pol.on("click", () => fichaTerr(t));
     (t.d.calles || []).forEach(c => L.polyline(c, { color: "#FFD200", weight: 4, opacity: .9, interactive: false }).addTo(g));
