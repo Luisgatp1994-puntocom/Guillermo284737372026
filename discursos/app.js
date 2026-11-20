@@ -119,7 +119,9 @@ function resumenDiscursos(){
 }
 function mostrarInicio(){
   $("#login").hidden=true;$("#app").hidden=true;$("#hub").hidden=false;$("#fab").hidden=true;
-  $("#hello").innerHTML=`${saludo()} · Congregación ${esc(GRUPO.nombre.replace(/\s*\d.*$/,""))} · ${esc(esAdmin()?ETIQ:"Consulta")}`;
+  const quien=esAdmin()?String(ETIQ||"").split(" ")[0]:"";const dS=new Date(HOY+"T12:00:00");
+  $("#hello").textContent=`${saludo()}${quien&&!/admin/i.test(quien)?", "+quien:""}`;
+  $("#hubsub").innerHTML=`<span>${(t=>t[0].toUpperCase()+t.slice(1))(dS.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"}))}</span><span class="pill ${esAdmin()?"t-acc":"t-idle"}">${esAdmin()?"Administrador":"Consulta"}</span>`;
   const pend=sabados().filter(p=>p.f>=HOY&&p.e!=="conf"&&dias(HOY,p.f)<=14).length;
   $("#hubgrid").innerHTML=SECCIONES.map((x,i)=>`<button class="hcard wide ${i===0?"main":""}" data-sec="${x.id}">
     <span class="tile ${x.tono}">${x.ico}</span>
