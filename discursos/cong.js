@@ -497,7 +497,7 @@ function ultimasVmc(antesDe) { const u = {}; R("vmc").filter(r => r.k < antesDe)
 function hace(k, l) { if (!k) return "nunca"; const s = Math.round(dias(k, l) / 7); return s <= 0 ? "esta semana" : s === 1 ? "hace 1 sem" : `hace ${s} sem`; }
 function selSug(id, v, sug, soloH, ult, l) {
   const act = CG.personas;
-  const op = p => `<option value="${p.id}" ${v === p.id ? "selected" : ""}>${esc(p.nombre)}${ult ? " · " + hace(ult[p.id], l) : ""}</option>`;
+  const op = p => `<option value="${p.id}" ${v === p.id ? "selected" : ""}>${esc(p.nombre)}${ult && ult[p.id] ? " · " + hace(ult[p.id], l) : ""}</option>`;
   const s = act.filter(p => (!soloH || p.sexo === "H") && sug && sug(p));
   const resto = act.filter(p => !s.includes(p));
   const Hs = resto.filter(p => p.sexo === "H"), Ms = soloH ? [] : resto.filter(p => p.sexo === "M");
