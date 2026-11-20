@@ -18,3 +18,7 @@
   - Los PIN se guardan cifrados en la base y se cambian desde la app (Avisos → Cuenta). **Nunca** los pongas en este repo.
 - La llave de Supabase en `app.js` es la *publishable*: es pública por diseño; la seguridad está en las funciones con PIN.
 - Vercel publica la carpeta `discursos/` (Root Directory = `discursos`).
+
+## v2.0 · Gestión de la congregación
+Inicio con secciones: Discursos, Reuniones (Vida y Ministerio, acomodadores/micrófonos/plataforma), Predicación (horario mensual + territorios), Informes (solo admins), Recordatorios (aseo/hospitalidad por grupos, eventos), Publicadores (grupos, privilegios, usuarios y PIN — solo super admin) y Notificaciones.
+Todo se exporta a Excel con formato listo para imprimir. Código en `discursos/cong.js`; datos en la tabla `registros` vía funciones `cong_*`.

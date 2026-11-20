@@ -80,7 +80,7 @@ const getSab=f=>sabados().find(x=>x.f===f)||{f,d:null,o:null,s:null,e:"sin"};
 /* ---------- Login con PIN ---------- */
 let entrada="";
 function pintaLogin(msg){
-  $("#login").hidden=false;$("#app").hidden=true;$("#hub").hidden=true;
+  $("#login").hidden=false;$("#app").hidden=true;$("#hub").hidden=true;if($("#cong"))$("#cong").hidden=true;
   $("#dots").innerHTML=Array.from({length:Math.max(4,entrada.length)},(_,i)=>`<i class="${i<entrada.length?"on":""}"></i>`).join("");
   $("#err").textContent=msg||"";
   $("#pad").innerHTML=[1,2,3,4,5,6,7,8,9,"borrar",0,"entrar"].map(k=>`<button data-k="${k}" class="${k==="borrar"?"ghost":k==="entrar"?"go":""}">${k==="borrar"?"Borrar":k==="entrar"?"Entrar":k}</button>`).join("");
@@ -103,10 +103,12 @@ function salir(){LS.del("dtb_pin");PIN=null;rol=null;entrada="";pintaLogin()}
 /* ---------- App ---------- */
 let vista="cal",filtroE=null;
 const SECCIONES=[
-  {id:"disc",nombre:"Discursos públicos",desc:"Programa de los sábados, confirmaciones y plan B",tono:"t-acc",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',activa:true},
-  {id:"pred",nombre:"Predicación",desc:"Salidas, conductores, territorios y exhibidor",tono:"t-ok",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>'},
-  {id:"inf",nombre:"Informes",desc:"Tablero con gráficos y tablas del grupo",tono:"t-info",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>'},
-  {id:"rec",nombre:"Recordatorios",desc:"Temas, asignaciones y fechas importantes",tono:"t-warn",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg>'}
+  {id:"disc",nombre:"Discursos p\u00fablicos",desc:"Programa de los s\u00e1bados, confirmaciones y plan B",tono:"t-acc",ico:"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3.5\" y=\"5\" width=\"17\" height=\"15.5\" rx=\"3\"/><path d=\"M3.5 10h17M8 3v4M16 3v4\"/></svg>",activa:true},
+  {id:"reu",nombre:"Reuniones",desc:"Vida y Ministerio \u00b7 acomodadores, micr\u00f3fonos y plataforma",tono:"t-info",ico:"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 5h11l3 3v11H4z\"/><path d=\"M7.5 10h7M7.5 13.5h7M7.5 17h4\"/></svg>",activa:true},
+  {id:"pred",nombre:"Predicaci\u00f3n",desc:"Horario de salidas, capitanes y territorios",tono:"t-ok",ico:"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z\"/><circle cx=\"12\" cy=\"9.5\" r=\"2.5\"/></svg>",activa:true},
+  {id:"inf",nombre:"Informes",desc:"Informe mensual por grupo, faltantes y totales",tono:"t-cyan",ico:"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 20V10M10 20V4M16 20v-7M22 20H2\"/></svg>",activa:true},
+  {id:"rec",nombre:"Recordatorios",desc:"Aseo, hospitalidad, asambleas y visitas",tono:"t-warn",ico:"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4\"/></svg>",activa:true},
+  {id:"pub",nombre:"Publicadores",desc:"Grupos de servicio, privilegios y usuarios",tono:"t-bad",ico:"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"8\" r=\"3.2\"/><circle cx=\"5\" cy=\"10\" r=\"2.3\"/><circle cx=\"19\" cy=\"10\" r=\"2.3\"/><path d=\"M6.5 19c.6-3 2.8-4.7 5.5-4.7s4.9 1.7 5.5 4.7M1.8 18c.3-2 1.5-3.3 3.2-3.6M22.2 18c-.3-2-1.5-3.3-3.2-3.6\"/></svg>",activa:true}
 ];
 function saludo(){const h=new Date().getHours();return h<12?"Buen día":h<19?"Buenas tardes":"Buenas noches"}
 function resumenDiscursos(){
@@ -118,17 +120,17 @@ function mostrarInicio(){
   $("#login").hidden=true;$("#app").hidden=true;$("#hub").hidden=false;$("#fab").hidden=true;
   $("#hello").innerHTML=`${saludo()} · Congregación ${esc(GRUPO.nombre.replace(/\s*\d.*$/,""))} · ${esc(esAdmin()?ETIQ:"Consulta")}`;
   const pend=sabados().filter(p=>p.f>=HOY&&p.e!=="conf"&&dias(HOY,p.f)<=14).length;
-  $("#hubgrid").innerHTML=SECCIONES.map((x,i)=>`<button class="hcard wide ${x.activa?"main":"soon"}" data-sec="${x.id}">
+  $("#hubgrid").innerHTML=SECCIONES.map((x,i)=>`<button class="hcard wide ${i===0?"main":""}" data-sec="${x.id}">
     <span class="tile ${x.tono}">${x.ico}</span>
     ${i===0?`<span class="txt"><b>${x.nombre}</b><small><span class="gchip g-${esc(GRUPO.id)}">Sábado ${esc(GRUPO.hora||"")}</span></small><small>${resumenDiscursos()||x.desc}</small>${pend?`<small style="color:var(--warn);font-weight:800">${pend} sábado${pend>1?"s":""} por cerrar en 2 semanas</small>`:""}</span><span class="go" style="color:var(--accent)">${I.arrow}</span>`
-      :`<span class="txt"><b>${x.nombre}</b><small>${x.desc}</small></span>`}
-    ${x.activa?`<span class="tag live">Activo</span>`:`<span class="tag">Pronto</span>`}
+      :`<span class="txt"><b>${x.nombre}</b><small>${x.desc}</small></span><span class="go" style="color:var(--muted)">${I.arrow}</span>`}
   </button>`).join("");
   document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{const x=SECCIONES.find(s=>s.id===b.dataset.sec);if(x.activa)abrirSeccion(x.id);else toast(`${x.nombre}: la estamos construyendo`)});
+  contarAvisos().then(n=>{$("#hubnb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""});
   $("#hubver").textContent=document.querySelector(".login .note[style*='opacity']")?.textContent||"";
   scrollTo(0,0);
 }
-function abrirSeccion(id){if(id==="disc"){$("#hub").hidden=true;iniciarDiscursos()}}
+function abrirSeccion(id){if(id==="disc"){$("#hub").hidden=true;iniciarDiscursos()}else abrirCong(id)}
 function iniciar(){mostrarInicio()}
 function iniciarDiscursos(){
   $("#login").hidden=true;$("#app").hidden=false;
@@ -140,6 +142,9 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>setVista(b.data
 $("#campana").onclick=()=>setVista("avisos");
 $("#aInicio").onclick=()=>{refrescar();mostrarInicio()};
 $("#hubSalir").onclick=()=>salir();
+$("#hubBell").onclick=()=>abrirCong("avi");
+$("#cBack").onclick=()=>cVolver();
+$("#cBell").onclick=()=>abrirCong("avi");
 $("#tema").onclick=()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=dark?"light":"dark";LS.set("dtb_tema",r.dataset.theme)};
 {const t=LS.get("dtb_tema");if(t)document.documentElement.dataset.theme=t}
 function updBadge(){const ult=LS.get("dtb_leidos_"+GRUPO.id)||"";const n=DB.log.filter(l=>l.t>ult).length;$("#nb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""}
