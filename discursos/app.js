@@ -146,8 +146,9 @@ $("#hubSalir").onclick=()=>salir();
 $("#hubBell").onclick=()=>abrirCong("avi");
 $("#cBack").onclick=()=>cVolver();
 $("#cBell").onclick=()=>abrirCong("avi");
-$("#tema").onclick=()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=dark?"light":"dark";LS.set("dtb_tema",r.dataset.theme)};
-{const t=LS.get("dtb_tema");if(t)document.documentElement.dataset.theme=t}
+function cambiarTema(){const r=document.documentElement,dark=r.dataset.theme==="dark";r.dataset.theme=dark?"light":"dark";LS.set("dtb_tema",r.dataset.theme)}
+$("#tema").onclick=cambiarTema;document.querySelectorAll(".btnTema").forEach(b=>b.onclick=cambiarTema);
+{document.documentElement.dataset.theme=LS.get("dtb_tema")||"light"}
 function updBadge(){const ult=LS.get("dtb_leidos_"+GRUPO.id)||"";const n=DB.log.filter(l=>l.t>ult).length;$("#nb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""}
 function render(){
   if($("#cong")&&!$("#cong").hidden){if(typeof cRender==="function")cRender();return}
