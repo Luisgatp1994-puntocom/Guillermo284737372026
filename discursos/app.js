@@ -253,7 +253,10 @@ function msgRecordatorio(p){const o=H(p.o),F=fd(p.f),base=GRUPO.nombre.replace(/
   const disc=p.d?` n.º ${p.d}: «${tit(p.d).replace(/[“”"]/g,"")}»`:"";
   return`Buen día, hermano ${o.nombre.split(" ")[0]}. Le recuerdo con cariño que ${cuandoTxt} tiene a cargo el discurso público${disc} en la congregación ${base}, reunión de las ${hora}.\n\n${p.d?"":"¿Nos confirma el número de bosquejo que va a presentar?\n"}¿Nos confirma si puede venir?\n\n¡Muchas gracias!`}
 function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · ${GRUPO.nombre} · sáb. ${F.d} ${F.m}*\n${txt}${p.d?`\nDiscurso n.º ${p.d}: «${tit(p.d).replace(/[“”"]/g,"")}»`:""}`}
-const telWa=t=>{t=String(t||"").replace(/\D/g,"");return t.length===10?"57"+t:t};
+const normContacto=v=>{v=String(v||"").trim();if(!v)return"";if(/[a-zA-Z_]/.test(v)||v.startsWith("@"))return"@"+v.replace(/^@+/,"").replace(/\s+/g,"").toLowerCase();return v.replace(/\D/g,"")};
+const esUsuario=t=>String(t||"").startsWith("@");
+const telWa=t=>{t=String(t||"");if(esUsuario(t))return t.slice(1);t=t.replace(/\D/g,"");return t.length===10?"57"+t:t};
+const linkWa=(t,msg)=>`https://wa.me/${telWa(t)}${msg?`?text=${encodeURIComponent(msg)}`:""}`;
 
 function avisarAncianos(m){
   hoja(`<div class="shead"><h2>Avisar a los ancianos</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
@@ -277,8 +280,8 @@ function abrir(f){
   <div class="note" style="margin-top:6px">Orador: <b>${o?esc(o.nombre)+" · "+esc(cname(o.cong)):"—"}</b><br>Suplente: <b>${s?esc(s.nombre):"—"}</b></div></div>`;
   if(esAdmin()&&p.e!=="hecho"&&o){
     const m=msgRecordatorio(p);
-    const wa=`<div class="row"><a class="btn ok" target="_blank" rel="noopener" href="https://wa.me/${telWa(o.tel)}?text=${encodeURIComponent(m)}" id="waR">${I.wa} ${p.e==="porc"?"Reenviar recordatorio":"Enviar recordatorio"}</a><button class="btn line" id="cpR" style="flex:0 0 auto">${I.copy}</button></div>
-      ${!o.tel?`<div class="aviso warn">${I.alert}<span>Este orador no tiene celular registrado.</span></div>`:""}
+    const wa=`<div class="row"><a class="btn ok" target="_blank" rel="noopener" href="${linkWa(o.tel,m)}" id="waR">${I.wa} ${p.e==="porc"?"Reenviar recordatorio":"Enviar recordatorio"}</a><button class="btn line" id="cpR" style="flex:0 0 auto">${I.copy}</button></div>
+      ${!o.tel?`<div class="aviso warn">${I.alert}<span>Este orador no tiene WhatsApp registrado. Agrégale el celular o el @usuario en Oradores.</span></div>`:esUsuario(o.tel)?`<div class="note">Contacto por usuario ${esc(o.tel)}: al tocar el botón se copia el mensaje, por si WhatsApp no lo deja escrito.</div>`:""}
       <details class="msgbox"><summary>Ver mensaje</summary><div class="wmsg" id="mR">${esc(m)}</div></details>`;
     const resp=`<span class="flab">¿Qué respondió ${esc(o.nombre.split(" ")[0])}?</span><div class="row"><button class="btn pri" id="si">${I.check} Confirmó</button><button class="btn bad" id="no">No puede</button></div>`;
     if(p.e==="asig")h+=`<span class="flab">Paso 1 · Recordatorio</span>${wa}${resp}`;
@@ -293,7 +296,7 @@ function abrir(f){
     if(q("#cambiar"))q("#cambiar").onclick=()=>{bg.remove();asignar(f)};
     const marcarR=async()=>{if(p.e==="asig"){await guardarProg({...p,e:"porc"},`Recordatorio enviado a ${o.nombre}${p.d?" por el n.º "+p.d:""} del ${F.corto}.`,"porc")}};
     if(q("#cpR"))q("#cpR").onclick=()=>{q(".msgbox").open=true;copiar(q("#mR").textContent,q("#mR"));marcarR()};
-    if(q("#waR"))q("#waR").addEventListener("click",()=>{bg.remove();marcarR()});
+    if(q("#waR"))q("#waR").addEventListener("click",()=>{if(esUsuario(o.tel)){try{navigator.clipboard.writeText(q("#mR").textContent).catch(()=>{})}catch(e){}toast("Mensaje copiado: si no aparece escrito en WhatsApp, pégalo")}bg.remove();marcarR()});
     if(q("#si"))q("#si").onclick=async()=>{const plan=p.e==="planb",quien=plan?s:o;
       const np={...p,e:"conf",o:plan?p.s:p.o,s:plan?null:p.s};
       const m=msgAncianos(np,`✅ ${quien.nombre} (${cname(quien.cong)}) CONFIRMÓ.`);
@@ -348,7 +351,7 @@ function nuevoOrador(after,editar){
   const bg=hoja(`<div class="shead"><h2>${h0?"Editar orador":"Nuevo orador"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
     <div><span class="flab">Nombre</span><input id="nN" placeholder="Ej. Pedro Salas" autocomplete="off" value="${esc(h0?.nombre||"")}"></div>
     <div><span class="flab">Congregación</span><div class="picks" id="pc"></div><input id="nC" placeholder="Nombre de la nueva congregación" ${st.nuevaC?"":"hidden"} style="margin-top:8px"></div>
-    <div><span class="flab">Celular (WhatsApp)</span><input id="nT" inputmode="tel" placeholder="300 000 0000" value="${esc(h0?.tel||"")}"></div>
+    <div><span class="flab">WhatsApp: celular o @usuario</span><input id="nT" autocapitalize="off" autocorrect="off" placeholder="300 000 0000 o @usuario" value="${esc(h0?.tel||"")}"></div>
     <div><span class="flab">Bosquejos que tiene</span><input id="nB" inputmode="numeric" placeholder="Ej. 1, 23, 99" value="${esc((h0?.bos||[]).join(", "))}"><div class="chips" id="pb"></div></div>
     <button class="btn pri" id="ok">Guardar orador</button>
     ${h0?`<button class="btn bad" id="del">Quitar de la lista</button>`:""}`,(bg)=>{
@@ -365,7 +368,7 @@ function nuevoOrador(after,editar){
       try{
         let cid=st.cong;
         if(st.nuevaC){const cn=q("#nC").value.trim();if(!cn){toast("Escribe la congregación");return}cid=await rpc("app_save_cong",{p_nombre:cn,p_ciudad:""})}
-        await rpc("app_save_hermano",{p_nombre:n,p_cong:cid||null,p_tel:q("#nT").value.replace(/\D/g,""),p_bos:nums(),p_id:h0?.id||null});
+        await rpc("app_save_hermano",{p_nombre:n,p_cong:cid||null,p_tel:normContacto(q("#nT").value),p_bos:nums(),p_id:h0?.id||null});
         await cargar();bg.remove();toast(h0?"Orador actualizado":"Orador agregado");if(after)after();else render();
       }catch(e){toast(e.message)}finally{document.body.classList.remove("loading")}};
     if(q("#del"))q("#del").onclick=()=>{q("#del").outerHTML=`<div class="row"><button class="btn line" id="nod">Cancelar</button><button class="btn bad" id="sid">Sí, quitar a ${esc(h0.nombre.split(" ")[0])}</button></div>`;
@@ -386,7 +389,7 @@ function nuevaCong(editar){
 }
 function pegarVarios(){
   hoja(`<div class="shead"><h2>Pegar varios oradores</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
-    <div class="note">Uno por línea: <b>Nombre ; Congregación ; Celular ; bosquejos</b>. Si la congregación no existe, se crea sola. Sirve para pegar desde WhatsApp o Excel.</div>
+    <div class="note">Uno por línea: <b>Nombre ; Congregación ; Celular o @usuario ; bosquejos</b>. Si la congregación no existe, se crea sola. Sirve para pegar desde WhatsApp o Excel.</div>
     <textarea id="tx" placeholder="Pedro Salas; La Boquilla; 3001234567; 1, 23, 99&#10;Luis Díaz; Crespo; 3019876543; 50, 140"></textarea>
     <div class="note" id="prev"></div>
     <button class="btn pri" id="ok">Importar</button>`,(bg,close)=>{
@@ -400,7 +403,7 @@ function pegarVarios(){
         for(const c of r){
           let cid=null;
           if(c[1]){cid=cache.get(norm(c[1]));if(!cid){cid=await rpc("app_save_cong",{p_nombre:c[1],p_ciudad:""});cache.set(norm(c[1]),cid)}}
-          await rpc("app_save_hermano",{p_nombre:c[0],p_cong:cid,p_tel:(c[2]||"").replace(/\D/g,""),p_bos:(c[3]||"").split(/[^0-9]+/).map(Number).filter(x=>x>0&&x<=TITULOS.length)});
+          await rpc("app_save_hermano",{p_nombre:c[0],p_cong:cid,p_tel:normContacto(c[2]),p_bos:(c[3]||"").split(/[^0-9]+/).map(Number).filter(x=>x>0&&x<=TITULOS.length)});
         }
         await cargar();close();toast(`${r.length} importado${r.length===1?"":"s"}`);
       }catch(e){toast(e.message)}finally{document.body.classList.remove("loading")}};
@@ -445,7 +448,7 @@ function vHer(){
     h+=`<div class="card person" ${esAdmin()?`data-eh="${x.id}" style="cursor:pointer"`:""}><span class="av ${tono(x.id)}">${esc(ini(x.nombre))}</span><div style="min-width:0">
       <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(x.nombre)}</b>${n?`<span class="pill t-info">${n} próximo${n===1?"":"s"}</span>`:""}</div>
       <div class="note">${esc(cname(x.cong))}${x.tel?" · "+esc(x.tel):""}</div><div class="note ${infoOrador(x.id,HOY).nivel==="warn"?"wtxt":""}">${infoOrador(x.id,HOY).txt}</div>
-      ${x.tel?`<a class="wabtn" target="_blank" rel="noopener" href="https://wa.me/${telWa(x.tel)}" onclick="event.stopPropagation()">${I.wa}</a>`:""}<div class="chips">${x.bos.slice().sort((a,b)=>a-b).map(b=>`<span class="cn" title="${esc(tit(b))}">#${b}</span>`).join("")||'<span class="note">Sin bosquejos registrados</span>'}</div></div></div>`});
+      ${x.tel?`<a class="wabtn" target="_blank" rel="noopener" href="${linkWa(x.tel)}" onclick="event.stopPropagation()">${I.wa}</a>`:""}<div class="chips">${x.bos.slice().sort((a,b)=>a-b).map(b=>`<span class="cn" title="${esc(tit(b))}">#${b}</span>`).join("")||'<span class="note">Sin bosquejos registrados</span>'}</div></div></div>`});
   h+=`</div>`;
   if(esAdmin())h+=`<div class="row" style="margin-top:12px"><button class="btn pri" id="a1">+ Orador</button><button class="btn line" id="a2">${I.paste} Pegar varios</button></div>`;
   $("#view").innerHTML=h;
