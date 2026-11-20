@@ -384,7 +384,7 @@ async function xlsPredicacion(X) {
 }
 /* Territorios */
 function vTerr() {
-  const ts = R("territorio").sort((a, b) => (+a.d.numero || 0) - (+b.d.numero || 0));
+  const ts = R("territorio").sort((a, b) => (+a.d.numero || 1e9) - (+b.d.numero || 1e9) || (tieneMapa(b) ? 1 : 0) - (tieneMapa(a) ? 1 : 0) || a.d.nombre.localeCompare(b.d.nombre));
   const vis = R("terr_visita");
   const ultima = id => vis.filter(v => v.d.territorio === id).map(v => v.k).sort().pop();
   const veces = id => vis.filter(v => v.d.territorio === id && v.k.startsWith(CG.mes)).length;
@@ -393,11 +393,12 @@ function vTerr() {
   h += `<div class="card" style="padding:8px"><div class="roles ctabs" style="margin:0 0 8px"><button class="chipo ${modoColorT === "terr" ? "" : "off"}" data-mc="terr">Color por territorio</button><button class="chipo ${modoColorT === "est" ? "" : "off"}" data-mc="est">Color por última vez</button></div><div class="tmap gen" id="tGen"></div><div class="tleg" id="tLeg"></div></div>`;
   h += `<div class="card note" style="display:flex;gap:10px;align-items:center"><span class="pill t-warn">En desarrollo</span><span>Toca un territorio en el mapa o en la lista. Dentro de cada uno se marca el límite sobre la foto satelital.</span></div>`;
   h += ts.length ? `<div class="tgrid">` + ts.map(t => { const u = ultima(t.id); const m = u ? Math.floor(dias(u, HOY) / 30.44) : null; const warn = !u || m >= 4; const im = CG.imgs[t.id];
-    return `<button class="card tcard" data-tid="${t.id}"><div class="timg">${im ? `<img src="${im}" alt="">` : `<span class="note">${CG.imgsOk ? "Sin imagen" : "Cargando…"}</span>`}<span class="tnum">${esc(t.d.numero || "—")}</span></div><div class="tinfo"><b>${esc(t.d.nombre)}</b><div class="note">${t.d.lamina ? "Lámina " + esc(t.d.lamina) + " · " : ""}${veces(t.id)}× este mes</div>${warn ? `<div class="note wtxt">${u ? "Hace " + m + " meses" : "Nunca trabajado"}</div>` : ""}</div></button>`; }).join("") + `</div>` : vacio("Agrega los territorios: número, nombre, lámina y la foto de la tarjeta.");
+    return `<button class="card tcard" data-tid="${t.id}"><div class="timg">${tieneMapa(t) ? `<div class="tmini" data-mini="${t.id}"></div>` : im ? `<img src="${im}" alt="">` : `<span class="note">${CG.imgsOk ? "Sin mapa ni imagen" : "Cargando…"}</span>`}<span class="tnum">${esc(t.d.numero || "—")}</span></div><div class="tinfo"><b>${esc(t.d.nombre)}</b><div class="note">${t.d.lamina ? "Lámina " + esc(t.d.lamina) + " · " : ""}${veces(t.id)}× este mes</div>${warn ? `<div class="note wtxt">${u ? "Hace " + m + " meses" : "Nunca trabajado"}</div>` : ""}</div></button>`; }).join("") + `</div>` : vacio("Agrega los territorios: número, nombre, lámina y la foto de la tarjeta.");
   h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn pri" id="nuevoT">+ Territorio</button>` : ""}${btnExcel("xlsTerr", "Excel de territorios")}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-tid]").forEach(b => b.onclick = () => fichaTerr(ts.find(t => t.id === b.dataset.tid)));
   if ($("#nuevoT")) $("#nuevoT").onclick = () => fichaTerr(null);
+  miniMapas(ts);
   document.querySelectorAll("[data-mc]").forEach(b => b.onclick = () => { modoColorT = b.dataset.mc; vTerr(); });
   if ($("#tGen")) mapaGeneral($("#tGen"), ts, ultima).then(ley => { const el = $("#tLeg"); if (!el) return;
     el.innerHTML = modoColorT === "terr" ? ley.map(x => `<span><i style="background:${x.col}"></i>${x.t.d.numero ? x.t.d.numero + " · " : ""}${esc(x.t.d.nombre)}</span>`).join("") + `<span class="nota">El puntico de cada etiqueta: 🟢 menos de 2 meses · 🟠 2 a 4 · 🔴 más de 4 o nunca</span>`
@@ -1133,6 +1134,21 @@ async function mapaTerritorio(box, d, editable, onCambio) {
     ir: (ll, z) => map.setView(ll, z || 18),
     datos: () => { const ms = todas(); const pts = ms.flat(); return { manzanas: ms, area: ms[0] || [], refs, calles: calles.filter(x => x.length >= 2), centro: centroDe(pts) || (refs[0] ? [refs[0].lat, refs[0].lng] : null) }; }
   };
+}
+const tieneMapa = t => (t.d.manzanas || []).length || (t.d.area || []).length >= 3;
+async function miniMapas(ts) {
+  const cajas = [...document.querySelectorAll("[data-mini]")]; if (!cajas.length) return;
+  let L; try { L = await cargarLeaflet(); } catch (e) { return; }
+  const con = ts.filter(tieneMapa); const colorDe = id => PALETA_T[Math.max(0, con.findIndex(x => x.id === id)) % PALETA_T.length];
+  cajas.forEach(box => { const t = ts.find(x => x.id === box.dataset.mini); if (!t || box._m) return;
+    const m = L.map(box, { zoomControl: false, attributionControl: false, dragging: false, touchZoom: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false });
+    box._m = m;
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19 }).addTo(m);
+    const col = colorDe(t.id);
+    const pg = L.polygon((t.d.manzanas && t.d.manzanas.length ? t.d.manzanas : [t.d.area]).map(a => [a]), { color: col, weight: 2.5, fillColor: col, fillOpacity: .35, interactive: false }).addTo(m);
+    (t.d.calles || []).forEach(c => L.polyline(c, { color: "#FFD200", weight: 3, interactive: false }).addTo(m));
+    m.fitBounds(pg.getBounds(), { padding: [8, 8] }); setTimeout(() => { m.invalidateSize(); m.fitBounds(pg.getBounds(), { padding: [8, 8] }); }, 200);
+  });
 }
 const PALETA_T = ["#2563EB", "#16A34A", "#9333EA", "#F59E0B", "#0891B2", "#DB2777", "#65A30D", "#7C3AED", "#0D9488", "#EA580C", "#4F46E5", "#CA8A04"];
 let modoColorT = "terr";
