@@ -48,7 +48,9 @@ button{font-family:var(--f)}
 .top h1{font-size:19px;font-weight:800;margin:0;letter-spacing:-.01em}
 .top .sub{font-size:12px;color:var(--muted);font-weight:600}
 .ico-btn{width:40px;height:40px;border-radius:50%;border:0;background:none;color:var(--accent);display:grid;place-items:center;cursor:pointer;position:relative}
-.ico-btn svg{width:23px;height:23px}
+.ico-btn svg{width:23px;height:23px;display:block}
+.ico-btn>span{position:absolute;inset:0;pointer-events:none}
+.hubicons .ico-btn{width:40px;height:40px}
 .ico-btn .b{position:absolute;top:4px;right:4px;background:var(--bad);color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:9px;display:grid;place-items:center;padding:0 4px}
 .roles{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;scrollbar-width:none}
 .chipo{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--accent-line);background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;border-radius:999px;padding:8px 14px;white-space:nowrap;cursor:pointer}
@@ -245,7 +247,7 @@ nav button{line-height:1.1}
 .hubtop{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:22px}
 .hubbrand{display:flex;align-items:center;gap:12px;min-width:0}
 .hubbrand b{display:block;font-size:20px;font-weight:800;letter-spacing:.04em;line-height:1.1}
-.hubbrand span{display:block;font-size:12.5px;color:var(--muted);font-weight:600}
+.hubbrand span{display:block;font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap}
 .hubicons{display:flex;gap:2px;background:var(--surface);border-radius:999px;padding:4px;box-shadow:var(--shadow)}
 .hubsub{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:var(--muted);font-weight:600;font-size:14px;margin:-8px 0 18px}
 .hubsub .pill{font-size:11.5px}
@@ -386,14 +388,14 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
   <div class="dots" id="dots"></div>
   <div class="err" id="err"></div>
   <div class="pad" id="pad"></div>
-  <div class="note" style="opacity:.6">v3.5</div>
+  <div class="note" style="opacity:.6">v3.6</div>
 </div>
 
 <div id="hub" hidden>
 <div class="wrap hubwrap">
   <div class="hubtop">
-    <div class="hubbrand"><div class="logo-s"><svg viewBox="0 0 64 64" class="crab"> <g fill="#fff" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">  <!-- patas -->  <g fill="none" stroke-width="3.2">   <path d="M20 38 L10 42 L6 50"/><path d="M21 43 L12 49 L10 56"/><path d="M24 46 L18 54"/>   <path d="M44 38 L54 42 L58 50"/><path d="M43 43 L52 49 L54 56"/><path d="M40 46 L46 54"/>   <!-- brazos -->   <path d="M22 32 C16 30 13 26 13 21"/><path d="M42 32 C48 30 51 26 51 21"/>   <!-- ojos -->   <path d="M27 28 L25 21"/><path d="M37 28 L39 21"/>  </g>  <!-- tenazas -->  <path stroke-width="1" d="M13 22 C6 21 4 14 8 9 C9 13 12 14 14 13 C13 10 14 8 16 7 C19 11 18 19 13 22 Z"/>  <path stroke-width="1" d="M51 22 C58 21 60 14 56 9 C55 13 52 14 50 13 C51 10 50 8 48 7 C45 11 46 19 51 22 Z"/>  <!-- cuerpo -->  <ellipse cx="32" cy="37" rx="15" ry="10" stroke-width="1"/>  <circle cx="25" cy="20" r="3" stroke-width="0"/><circle cx="39" cy="20" r="3" stroke-width="0"/> </g> <g fill="#3138e0"><circle cx="25.6" cy="19.6" r="1.3"/><circle cx="39.6" cy="19.6" r="1.3"/>  <path d="M26 39 Q32 43 38 39" fill="none" stroke="#3138e0" stroke-width="2.2" stroke-linecap="round"/></g></svg></div><div><b>CRABS</b><span>Congregación Tierra Baja</span></div></div>
-    <div class="hubicons"><button class="ico-btn btnTema" aria-label="Modo claro u oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button><button class="ico-btn" id="hubBell" aria-label="Notificaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><span id="hubnb"></span></button><button class="ico-btn" id="hubSalir" aria-label="Salir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/></svg></button></div>
+    <div class="hubbrand"><div class="logo-s"><svg viewBox="0 0 64 64" class="crab"> <g fill="#fff" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">  <!-- patas -->  <g fill="none" stroke-width="3.2">   <path d="M20 38 L10 42 L6 50"/><path d="M21 43 L12 49 L10 56"/><path d="M24 46 L18 54"/>   <path d="M44 38 L54 42 L58 50"/><path d="M43 43 L52 49 L54 56"/><path d="M40 46 L46 54"/>   <!-- brazos -->   <path d="M22 32 C16 30 13 26 13 21"/><path d="M42 32 C48 30 51 26 51 21"/>   <!-- ojos -->   <path d="M27 28 L25 21"/><path d="M37 28 L39 21"/>  </g>  <!-- tenazas -->  <path stroke-width="1" d="M13 22 C6 21 4 14 8 9 C9 13 12 14 14 13 C13 10 14 8 16 7 C19 11 18 19 13 22 Z"/>  <path stroke-width="1" d="M51 22 C58 21 60 14 56 9 C55 13 52 14 50 13 C51 10 50 8 48 7 C45 11 46 19 51 22 Z"/>  <!-- cuerpo -->  <ellipse cx="32" cy="37" rx="15" ry="10" stroke-width="1"/>  <circle cx="25" cy="20" r="3" stroke-width="0"/><circle cx="39" cy="20" r="3" stroke-width="0"/> </g> <g fill="#3138e0"><circle cx="25.6" cy="19.6" r="1.3"/><circle cx="39.6" cy="19.6" r="1.3"/>  <path d="M26 39 Q32 43 38 39" fill="none" stroke="#3138e0" stroke-width="2.2" stroke-linecap="round"/></g></svg></div><div><b>CRABS</b><span>Cong. Tierra Baja</span></div></div>
+    <div class="hubicons"><button class="ico-btn btnTema" aria-label="Modo claro u oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button><button class="ico-btn" id="hubBell" aria-label="Notificaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><span id="hubnb"></span></button><button class="ico-btn" id="hubSalir" aria-label="Salir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/></svg></button></div>
   </div>
   <h1 class="hubtitle" id="hello"></h1>
   <div class="hubsub" id="hubsub"></div>
@@ -405,7 +407,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div class="wrap">
   <div class="top">
     <div style="display:flex;align-items:center;gap:8px;min-width:0"><button class="ico-btn" id="cBack" aria-label="Volver al inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><div style="min-width:0"><div class="sub" id="csub"></div><h1 id="ctit"></h1></div></div>
-    <div style="display:flex;gap:2px"><button class="ico-btn btnTema" aria-label="Modo claro u oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button><button class="ico-btn" id="cBell" aria-label="Notificaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></button></div>
+    <div style="display:flex;gap:2px"><button class="ico-btn btnTema" aria-label="Modo claro u oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button><button class="ico-btn" id="cBell" aria-label="Notificaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></button></div>
   </div>
   <main id="cview"></main>
 </div>
@@ -416,7 +418,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
     <div><div class="sub" id="subt">Tierra Baja · Reunión del sábado</div><h1>Discursos Públicos</h1></div>
     <div style="display:flex;gap:2px">
       <button class="ico-btn" id="aInicio" aria-label="Inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/></svg></button>
-      <button class="ico-btn" id="tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
+      <button class="ico-btn" id="tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
       <button class="ico-btn" id="campana" aria-label="Avisos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><span id="nb"></span></button>
     </div>
   </div>
