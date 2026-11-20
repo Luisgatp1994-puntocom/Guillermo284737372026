@@ -14,7 +14,7 @@ const MODALIDADES = ["Predicación pública","Cartas y teléfono","Cartas, telé
 const MOD_NOMBRE = { disc:"Discursos", pub:"Publicadores", pred_salida:"Predicación", territorio:"Territorios", terr_visita:"Territorios", vmc:"Vida y Ministerio", acomod:"Acomodadores", aseo:"Aseo", informe:"Informes", evento:"Eventos", recordatorio:"Recordatorios" };
 
 const cAdmin = () => CG.me && CG.me.rol === "admin";
-const cSuper = () => CG.me && CG.me.super;
+const cSuper = () => cAdmin();
 const P = id => CG.personas.find(p => p.id === id);
 const nom = v => { if (!v) return ""; const p = P(v); return p ? p.nombre : String(v); };
 const nomCorto = v => { const n = nom(v); const a = n.split(" "); return a.length > 2 ? a[0] + " " + a[a.length - 1] : n; };
