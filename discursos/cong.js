@@ -390,13 +390,15 @@ function vTerr() {
   const veces = id => vis.filter(v => v.d.territorio === id && v.k.startsWith(CG.mes)).length;
   const ms = mesSelector(vTerr);
   let h = tabs(SEC.pred.tabs) + ms.html + `<div class="list">`;
-  h += `<div class="card note" style="display:flex;gap:10px;align-items:center"><span class="pill t-warn">En desarrollo</span><span>Por ahora cada territorio va con su foto o imagen de la tarjeta. Tócala para verla en grande.</span></div>`;
+  h += `<div class="card" style="padding:8px"><div class="tmap gen" id="tGen"></div><div class="tleg"><span><i style="background:#30A46C"></i>Trabajado hace menos de 2 meses</span><span><i style="background:#F5A524"></i>2 a 4 meses</span><span><i style="background:#E5484D"></i>Más de 4 meses o nunca</span></div></div>`;
+  h += `<div class="card note" style="display:flex;gap:10px;align-items:center"><span class="pill t-warn">En desarrollo</span><span>Toca un territorio en el mapa o en la lista. Dentro de cada uno se marca el límite sobre la foto satelital.</span></div>`;
   h += ts.length ? `<div class="tgrid">` + ts.map(t => { const u = ultima(t.id); const m = u ? Math.floor(dias(u, HOY) / 30.44) : null; const warn = !u || m >= 4; const im = CG.imgs[t.id];
     return `<button class="card tcard" data-tid="${t.id}"><div class="timg">${im ? `<img src="${im}" alt="">` : `<span class="note">${CG.imgsOk ? "Sin imagen" : "Cargando…"}</span>`}<span class="tnum">${esc(t.d.numero || "—")}</span></div><div class="tinfo"><b>${esc(t.d.nombre)}</b><div class="note">${t.d.lamina ? "Lámina " + esc(t.d.lamina) + " · " : ""}${veces(t.id)}× este mes</div>${warn ? `<div class="note wtxt">${u ? "Hace " + m + " meses" : "Nunca trabajado"}</div>` : ""}</div></button>`; }).join("") + `</div>` : vacio("Agrega los territorios: número, nombre, lámina y la foto de la tarjeta.");
   h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn pri" id="nuevoT">+ Territorio</button>` : ""}${btnExcel("xlsTerr", "Excel de territorios")}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-tid]").forEach(b => b.onclick = () => fichaTerr(ts.find(t => t.id === b.dataset.tid)));
   if ($("#nuevoT")) $("#nuevoT").onclick = () => fichaTerr(null);
+  if ($("#tGen")) mapaGeneral($("#tGen"), ts, ultima).catch(e => { $("#tGen").innerHTML = `<div class="note" style="padding:20px">${esc(e.message)}</div>`; });
   if (!CG.imgsOk && ts.length) cargarImgs().then(() => { if (CG.sec === "pred" && CG.tab === "terr") vTerr(); });
   $("#xlsTerr").onclick = () => conExcel(xlsTerritorios);
 }
@@ -407,6 +409,13 @@ function fichaTerr(t) {
   hoja(`<div class="shead"><h2>${t ? esc(d.nombre) : "Nuevo territorio"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
     <div class="grid2">${campo("Número", inp("tN", d.numero, "1", dis + ' inputmode="numeric"'))}${campo("Lámina", inp("tL", d.lamina, "A", dis))}</div>
     ${campo("Nombre / barrio", inp("tB", d.nombre, "Puerto Rey", dis))}
+    <span class="flab">Mapa del territorio</span>
+    <div class="tmap" id="tMap"><div class="note" style="padding:20px;text-align:center">Cargando mapa…</div></div>
+    <div class="note" id="tMapInfo" style="margin:4px 2px 0">${(d.area || []).length >= 3 ? "Límite marcado en azul." : "Todavía no tiene el límite marcado."}${ed ? " Usa los botones para marcarlo sobre la foto satelital." : ""}</div>
+    ${ed ? `<div class="tmbar" id="tBar"><button class="btn line" data-mm="area">✏️ Marcar límite</button><button class="btn line" data-mm="ref">📍 Referencia</button><button class="btn line" id="tYo">🎯 Estoy aquí</button></div>
+    <div class="tmbar" id="tBar2" hidden><button class="btn line" id="tUndo">↶ Deshacer punto</button><button class="btn line" id="tClear">🗑 Borrar límite</button><button class="btn pri" id="tFin">✓ Listo</button></div>
+    <div class="cf"><span class="flab">Ir a un punto (pega enlace o coordenadas de Google Maps)</span><div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input id="tIr" placeholder="10.5123, -75.4687" autocomplete="off"><button class="btn line" id="tIrB">Ir</button></div></div>` : ""}
+    ${(d.area || []).length || (d.refs || []).length || d.centro ? `<a class="btn ok" id="tNav" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${(d.centro || centroDe(d.area) || [d.refs[0].lat, d.refs[0].lng]).join(",")}">🧭 Cómo llegar (Google Maps)</a>` : ""}
     <span class="flab">Imagen del territorio</span>
     <div class="timg big" id="tImgBox">${t && CG.imgs[t.id] ? `<img src="${CG.imgs[t.id]}" alt="" id="tImg">` : `<span class="note">Sin imagen todavía</span>`}</div>
     ${ed ? `<label class="btn line" style="cursor:pointer">📷 ${t && CG.imgs[t.id] ? "Cambiar imagen" : "Subir foto o imagen"}<input type="file" accept="image/*" id="tFile" hidden></label>` : ""}
@@ -417,7 +426,18 @@ function fichaTerr(t) {
     ${t ? `<span class="flab">Registro de predicación (${vis.length})</span><div class="card" style="padding-block:6px">${vis.length ? vis.slice(0, 30).map(v => `<div class="vrow"><b>${corto(v.k)} ${fd(v.k).y}</b><span class="note">${esc(nomCorto(v.d.capitan))}</span></div>`).join("") : `<div class="note">Aún no se ha marcado ninguna salida en este territorio.</div>`}</div>` : ""}
     ${ed && t ? `<button class="btn bad" id="tDel">Borrar territorio</button>` : ""}`,
     (bg, close) => {
-      let nueva = null;
+      let nueva = null, M = null;
+      mapaTerritorio(bg.querySelector("#tMap"), d, ed, (a, r) => { const i = bg.querySelector("#tMapInfo"); if (i) i.textContent = a.length >= 3 ? `Límite con ${a.length} puntos. Dale Guardar abajo.` : a.length ? `Llevas ${a.length} punto${a.length > 1 ? "s" : ""}. Sigue tocando las esquinas del territorio.` : "Toca el mapa en cada esquina del territorio."; })
+        .then(m => { M = m;
+          if (!ed) return;
+          const q = x => bg.querySelector(x);
+          bg.querySelectorAll("[data-mm]").forEach(b => b.onclick = () => { M.modo(b.dataset.mm); q("#tBar").hidden = true; q("#tBar2").hidden = false; q("#tUndo").hidden = b.dataset.mm !== "area"; q("#tClear").hidden = b.dataset.mm !== "area";
+            q("#tMapInfo").textContent = b.dataset.mm === "area" ? "Toca el mapa en cada esquina del territorio, en orden." : "Toca donde está la referencia (una casa, una tienda…)."; q("#tMap").scrollIntoView({ block: "center", behavior: "smooth" }); });
+          q("#tFin").onclick = () => { M.modo(null); q("#tBar").hidden = false; q("#tBar2").hidden = true; };
+          q("#tUndo").onclick = () => M.deshacer(); q("#tClear").onclick = () => M.limpiar();
+          q("#tYo").onclick = () => { if (!navigator.geolocation) { toast("Tu teléfono no comparte ubicación"); return; } toast("Buscando tu ubicación…"); navigator.geolocation.getCurrentPosition(pp => M.ir([pp.coords.latitude, pp.coords.longitude], 19), () => toast("Activa la ubicación para la app"), { enableHighAccuracy: true, timeout: 12000 }); };
+          q("#tIrB").onclick = () => { const c = coordsDeTexto(val(bg, "tIr")); if (!c) { toast("No encontré coordenadas. En Google Maps deja el dedo sobre el sitio y copia los números."); return; } M.ir(c, 18); };
+        }).catch(e => { bg.querySelector("#tMap").innerHTML = `<div class="note" style="padding:20px">${esc(e.message)}</div>`; });
       const verImg = () => { const im = bg.querySelector("#tImg"); if (im) im.onclick = () => visor(im.src); };
       verImg();
       if (!ed) return;
@@ -426,7 +446,8 @@ function fichaTerr(t) {
         try { nueva = await comprimir(f); bg.querySelector("#tImgBox").innerHTML = `<img src="${nueva}" alt="" id="tImg">`; verImg(); toast("Imagen lista, dale Guardar"); } catch (er) { toast("No se pudo leer la imagen"); }
       };
       bg.querySelector("#tOk").onclick = async () => {
-        const nd = { numero: val(bg, "tN"), lamina: val(bg, "tL"), nombre: val(bg, "tB"), mapa: val(bg, "tM"), notas: val(bg, "tO") };
+        const md = M ? M.datos() : { area: d.area || [], refs: d.refs || [], centro: d.centro || null };
+        const nd = { numero: val(bg, "tN"), lamina: val(bg, "tL"), nombre: val(bg, "tB"), mapa: val(bg, "tM"), notas: val(bg, "tO"), area: md.area, refs: md.refs, centro: md.centro };
         if (!nd.nombre) { toast("Escribe el nombre"); return; }
         const tid = await cGuardar("territorio", nd.numero, t ? t.id : null, nd, t ? null : `Nuevo territorio: ${nd.numero} ${nd.nombre}`);
         if (nueva) { const id = t ? t.id : tid; const ya = CG.imgIds[id];
@@ -1036,3 +1057,66 @@ function abrirBuscador(sel) {
   document.addEventListener("mousedown", e => { const s = larga(e.target); if (!s) return; e.preventDefault(); abrirBuscador(s); }, true);
   document.addEventListener("keydown", e => { const s = larga(e.target); if (s && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); abrirBuscador(s); } }, true);
 })();
+
+/* ================= MAPA DE TERRITORIOS (Leaflet + satélite) ================= */
+const TB_CENTRO = [10.5125, -75.4690];
+let _lf = null;
+function cargarLeaflet() {
+  if (window.L && window.L.map) return Promise.resolve(window.L);
+  if (_lf) return _lf;
+  _lf = new Promise((ok, no) => {
+    const c = document.createElement("link"); c.rel = "stylesheet"; c.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"; document.head.appendChild(c);
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"; s.onload = () => ok(window.L); s.onerror = () => { _lf = null; no(new Error("No se pudo cargar el mapa. Revisa tu conexión.")); }; document.head.appendChild(s);
+  });
+  return _lf;
+}
+function capas(L, map) {
+  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, attribution: "Esri" });
+  const calles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 20, maxNativeZoom: 19, attribution: "© OpenStreetMap" });
+  sat.addTo(map); L.control.layers({ "Satélite": sat, "Calles": calles }, {}, { position: "topright" }).addTo(map);
+}
+const centroDe = a => { if (!a || !a.length) return null; const s = a.reduce((x, p) => [x[0] + p[0], x[1] + p[1]], [0, 0]); return [s[0] / a.length, s[1] / a.length]; };
+const coordsDeTexto = t => { const m = String(t || "").match(/(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/) || String(t || "").match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || String(t || "").match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/); return m ? [+m[1], +m[2]] : null; };
+const colorTerr = u => { if (!u) return "#E5484D"; const m = dias(u, HOY) / 30.44; return m < 2 ? "#30A46C" : m < 4 ? "#F5A524" : "#E5484D"; };
+async function mapaTerritorio(box, d, editable, onCambio) {
+  const L = await cargarLeaflet();
+  box.innerHTML = ""; const map = L.map(box, { zoomControl: true, attributionControl: true });
+  capas(L, map);
+  let area = (d.area || []).map(p => [+p[0], +p[1]]); let refs = (d.refs || []).map(r => ({ ...r }));
+  const capa = L.layerGroup().addTo(map); let modo = null;
+  const pinta = () => {
+    capa.clearLayers();
+    if (area.length >= 3) L.polygon(area, { color: "#3138e0", weight: 3, fillColor: "#3138e0", fillOpacity: .18 }).addTo(capa);
+    else if (area.length) L.polyline(area, { color: "#3138e0", weight: 3, dashArray: "6 6" }).addTo(capa);
+    if (modo === "area") area.forEach(p => L.circleMarker(p, { radius: 6, color: "#fff", weight: 2, fillColor: "#3138e0", fillOpacity: 1 }).addTo(capa));
+    refs.forEach((r, i) => { const m = L.marker([r.lat, r.lng], { icon: L.divIcon({ className: "tref", html: `<span>📍 ${esc(r.t)}</span>`, iconSize: null }) }).addTo(capa);
+      if (editable) m.on("click", () => { if (modo === "borrarRef") { refs.splice(i, 1); pinta(); onCambio && onCambio(area, refs); } }); });
+  };
+  const c = centroDe(area) || (refs[0] ? [refs[0].lat, refs[0].lng] : TB_CENTRO);
+  if (area.length >= 3) map.fitBounds(L.polygon(area).getBounds(), { padding: [20, 20] }); else map.setView(c, area.length || refs.length ? 18 : 16);
+  pinta(); setTimeout(() => map.invalidateSize(), 250);
+  map.on("click", e => {
+    if (modo === "area") { area.push([+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)]); pinta(); onCambio && onCambio(area, refs); }
+    else if (modo === "ref") { const t = (window.prompt("¿Qué hay aquí? (ej. Familia Lopera)") || "").trim(); if (t) { refs.push({ lat: +e.latlng.lat.toFixed(6), lng: +e.latlng.lng.toFixed(6), t }); pinta(); onCambio && onCambio(area, refs); } }
+  });
+  return {
+    map, modo: m => { modo = m; box.classList.toggle("dibujando", !!m); pinta(); },
+    deshacer: () => { area.pop(); pinta(); onCambio && onCambio(area, refs); },
+    limpiar: () => { area = []; pinta(); onCambio && onCambio(area, refs); },
+    ir: (ll, z) => map.setView(ll, z || 18),
+    datos: () => ({ area, refs, centro: centroDe(area) || (refs[0] ? [refs[0].lat, refs[0].lng] : null) })
+  };
+}
+async function mapaGeneral(box, ts, ultima) {
+  const L = await cargarLeaflet();
+  box.innerHTML = ""; const map = L.map(box, { zoomControl: true }); capas(L, map);
+  const g = L.featureGroup().addTo(map);
+  ts.filter(t => (t.d.area || []).length >= 3).forEach(t => {
+    const col = colorTerr(ultima(t.id));
+    const pol = L.polygon(t.d.area, { color: col, weight: 2.5, fillColor: col, fillOpacity: .28 }).addTo(g);
+    pol.bindTooltip(`${t.d.numero ? t.d.numero + " · " : ""}${esc(t.d.nombre)}`, { permanent: true, direction: "center", className: "tlab" });
+    pol.on("click", () => fichaTerr(t));
+  });
+  if (g.getLayers().length) map.fitBounds(g.getBounds(), { padding: [16, 16] }); else map.setView(TB_CENTRO, 15);
+  setTimeout(() => map.invalidateSize(), 250);
+}
