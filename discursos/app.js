@@ -61,7 +61,8 @@ const dias=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
 const ini=n=>n.split(" ").filter(Boolean).map(x=>x[0]).slice(0,2).join("").toUpperCase();
 const TONOS=["t-acc","t-ok","t-warn","t-bad","t-info","t-cyan"];
 const tono=id=>TONOS[[...String(id)].reduce((a,c)=>a+c.charCodeAt(0),0)%TONOS.length];
-const cname=id=>C(id)?.nombre||"Sin congregación";
+const cname=id=>{const c=C(id);if(!c)return"Sin congregación";return c.nombre+(c.ciudad&&!/tierra baja/i.test(c.nombre)?` (${c.ciudad})`:"")};
+const cancionDe=p=>p.c||(H(p.o)?.canc||{})[p.d]||null;
 function ultimaVez(n,excepto){return DB.prog.filter(x=>x.d===n&&x.f!==excepto&&x.e!=="sin").map(x=>x.f).sort().pop()||null}
 function toast(t){const el=document.createElement("div");el.className="toast";el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
 const $=s=>document.querySelector(s);
@@ -288,14 +289,14 @@ function chipsOradores(d,f,sel,excluir){
 }
 function msgRecordatorio(p){const o=H(p.o),F=fd(p.f),base=GRUPO.nombre.replace(/\s*\d.*$/,""),dd=dias(HOY,p.f),hora=String(GRUPO.hora||"").replace(/\.$/,"");
   const cuandoTxt=dd===0?`hoy sábado ${F.d}`:dd===1?`mañana sábado ${F.d}`:dd<=7?`este sábado ${F.d} de ${F.m}`:`el sábado ${F.d} de ${F.m}`;
-  const disc=p.d?` «${tit(p.d).replace(/[“”"«»]/g,"")}» (n.º ${p.d})`:"";const canc=p.c?` La canción de apertura es la ${p.c}.`:"";
+  const disc=p.d?` «${tit(p.d).replace(/[“”"«»]/g,"")}» (n.º ${p.d})`:"";const cc=cancionDe(p),canc=cc?` La canción de apertura es la ${cc}.`:"";
   return`Hola, hermano ${o.nombre.split(" ")[0]}, ¿cómo está? Le escribo para recordarle con cariño que ${cuandoTxt} nos acompaña con el discurso público${disc} en la congregación ${base}, en la reunión de las ${hora}.${canc}\n\n${p.d?"¿Nos confirma, por favor, si puede venir?":"¿Nos confirma, por favor, si puede venir y qué bosquejo va a presentar?"}\n\n¡Muchas gracias!`}
 function msgAncianos(p,estado){
   const F=fd(p.f),dd=dias(HOY,p.f),hora=String(GRUPO.hora||"").replace(/\.$/,"");
   const cuando=dd===0?`hoy sábado ${F.d}`:dd===1?`mañana sábado ${F.d}`:dd>1&&dd<=7?`este sábado ${F.d} de ${F.m}`:`el sábado ${F.d} de ${F.m}`;
   const o=H(p.o),s=H(p.s),de=h=>h&&C(h.cong)?`, de la congregación ${cname(h.cong)},`:"";
   const disc=p.d?`el discurso «${tit(p.d).replace(/[“”"«»]/g,"")}» (n.º ${p.d})`:"el discurso público";
-  const canc=p.c?` La canción de apertura es la ${p.c}.`:"";
+  const cc=cancionDe(p),canc=cc?` La canción de apertura es la ${cc}.`:"";
   const reu=`la reunión de las ${hora}`;
   let t="";
   if(estado==="conf")t=`Hola, hermanos. Les cuento que el hermano ${o.nombre}${de(o)} ya confirmó que nos acompaña ${cuando} en ${reu}. Presentará ${disc}.${canc}`;
@@ -329,8 +330,8 @@ function abrir(f){
   <h2>Sábado ${F.d} de ${F.m}</h2>
   ${p.e!=="sin"&&p.e!=="evento"?progreso(p.e):""}
   ${p.e==="evento"?"":`<div class="card"><div style="font-weight:800">${p.d?`<span style="color:var(--accent)">#${p.d}</span> ${esc(tit(p.d))}`:"Discurso por definir"}</div>
-  <div class="note" style="margin-top:6px">Orador: <b>${o?esc(o.nombre)+" · "+esc(cname(o.cong)):"—"}</b><br>Suplente: <b>${s?esc(s.nombre):"—"}</b>${!esAdmin()?`<br>Canción: <b>${p.c?"n.º "+p.c:"—"}</b>`:""}</div>
-  ${esAdmin()&&p.e!=="hecho"?`<div class="cancion"><span>🎵 Canción</span><input id="cNum" type="number" inputmode="numeric" min="1" max="200" placeholder="n.º" value="${p.c||""}"><button class="btn line" id="cOk">Guardar</button></div>`:""}</div>`}`;
+  <div class="note" style="margin-top:6px">Orador: <b>${o?esc(o.nombre)+" · "+esc(cname(o.cong)):"—"}</b><br>Suplente: <b>${s?esc(s.nombre):"—"}</b>${!esAdmin()?`<br>Canción: <b>${cancionDe(p)?"n.º "+cancionDe(p):"—"}</b>`:""}</div>
+  ${esAdmin()&&p.e!=="hecho"?`<div class="cancion"><span>🎵 Canción</span><input id="cNum" type="number" inputmode="numeric" min="1" max="200" placeholder="n.º" value="${cancionDe(p)||""}"><button class="btn line" id="cOk">Guardar</button></div>`:""}</div>`}`;
   if(esAdmin()&&p.e!=="hecho"&&o){
     const m=msgRecordatorio(p);
     const wa=`<div class="row"><a class="btn ok" target="_blank" rel="noopener" href="${linkWa(o.tel,m)}" id="waR">${I.wa} ${p.e==="porc"?"Reenviar recordatorio":"Enviar recordatorio"}</a><button class="btn line" id="cpR" style="flex:0 0 auto">${I.copy}</button></div>
@@ -355,7 +356,7 @@ function abrir(f){
     if(q("#siReu"))q("#siReu").onclick=async()=>{bg.remove();await guardarProg({...p,e:"sin"},`Sábado ${F.d} de ${F.m}: sí hay reunión, queda pendiente asignar.`,"sin")};
     if(q("#cOk"))q("#cOk").onclick=async()=>{const v=q("#cNum").value.trim();const c=v?parseInt(v,10):null;
       if(c!==null&&!(c>=1&&c<=200)){toast("Canción entre 1 y 200");return}
-      try{document.body.classList.add("loading");await rpc("app_save_cancion",{p_fecha:f,p_c:c});const x=DB.prog.find(z=>z.f===f);if(x)x.c=c;else DB.prog.push({...p,c,virtual:undefined});bg.remove();toast(c?`Canción n.º ${c} guardada`:"Canción quitada");abrir(f)}
+      try{document.body.classList.add("loading");await rpc("app_save_cancion",{p_fecha:f,p_c:c});if(c&&o&&p.d&&(o.canc||{})[p.d]!==c){const cc={...(o.canc||{}),[p.d]:c};rpc("app_save_hermano",{p_nombre:o.nombre,p_cong:o.cong||null,p_tel:o.tel||"",p_bos:o.bos||[],p_id:o.id,p_canc:cc}).then(()=>{o.canc=cc}).catch(()=>{})}const x=DB.prog.find(z=>z.f===f);if(x)x.c=c;else DB.prog.push({...p,c,virtual:undefined});bg.remove();toast(c?`Canción n.º ${c} guardada`:"Canción quitada");abrir(f)}
       catch(e){toast(e.message)}finally{document.body.classList.remove("loading")}};
     if(q("#grupo"))q("#grupo").onclick=()=>{bg.remove();avisarAncianos(msgAncianos(p,p.e))};
     if(q("#waR2"))q("#waR2").addEventListener("click",()=>{if(esUsuario(o.tel)){try{navigator.clipboard.writeText(msgRecordatorio(p)).catch(()=>{})}catch(e){}toast(`En WhatsApp busca a ${o.tel} y toca Enviar`)}});
@@ -415,25 +416,29 @@ function nuevoOrador(after,editar){
   const st={cong:h0?.cong||DB.congs[0]?.id,nuevaC:!DB.congs.length};
   const bg=hoja(`<div class="shead"><h2>${h0?"Editar orador":"Nuevo orador"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
     <div><span class="flab">Nombre</span><input id="nN" placeholder="Ej. Pedro Salas" autocomplete="off" value="${esc(h0?.nombre||"")}"></div>
-    <div><span class="flab">Congregación</span><div class="picks" id="pc"></div><input id="nC" placeholder="Nombre de la nueva congregación" ${st.nuevaC?"":"hidden"} style="margin-top:8px"></div>
+    <div><span class="flab">Congregación</span><div class="picks" id="pc"></div><div id="nCw" class="grid2" ${st.nuevaC?"":"hidden"} style="margin-top:8px"><input id="nC" placeholder="Congregación (ej. El Bosque)"><input id="nCc" placeholder="Ciudad" value="Cartagena"></div></div>
     <div><span class="flab">WhatsApp: celular o @usuario</span><input id="nT" autocapitalize="off" autocorrect="off" placeholder="300 000 0000 o @usuario" value="${esc(h0?.tel||"")}"></div>
-    <div><span class="flab">Bosquejos que tiene</span><input id="nB" inputmode="numeric" placeholder="Ej. 1, 23, 99" value="${esc((h0?.bos||[]).join(", "))}"><div class="chips" id="pb"></div></div>
+    <div><span class="flab">Bosquejos que tiene</span><input id="nB" inputmode="numeric" placeholder="Ej. 1, 23, 99" value="${esc((h0?.bos||[]).join(", "))}"><div id="pb" class="bcanc"></div></div>
     <button class="btn pri" id="ok">Guardar orador</button>
     ${h0?`<button class="btn bad" id="del">Quitar de la lista</button>`:""}`,(bg)=>{
     const q=x=>bg.querySelector(x);
-    const pc=()=>{q("#pc").innerHTML=DB.congs.map(c=>`<button class="pk ${!st.nuevaC&&st.cong===c.id?"on":""}" data-c="${c.id}">${esc(c.nombre)}</button>`).join("")+`<button class="pk star ${st.nuevaC?"on":""}" data-c="__n">+ Nueva</button>`;
-      q("#pc").querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{if(b.dataset.c==="__n"){st.nuevaC=true}else{st.nuevaC=false;st.cong=b.dataset.c}q("#nC").hidden=!st.nuevaC;pc();if(st.nuevaC)q("#nC").focus()})};
+    const pc=()=>{q("#pc").innerHTML=DB.congs.map(c=>`<button class="pk ${!st.nuevaC&&st.cong===c.id?"on":""}" data-c="${c.id}">${esc(c.nombre)}${c.ciudad&&!/tierra baja/i.test(c.nombre)?`<small class="ciu">${esc(c.ciudad)}</small>`:""}</button>`).join("")+`<button class="pk star ${st.nuevaC?"on":""}" data-c="__n">+ Nueva</button>`;
+      q("#pc").querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{if(b.dataset.c==="__n"){st.nuevaC=true}else{st.nuevaC=false;st.cong=b.dataset.c}q("#nCw").hidden=!st.nuevaC;pc();if(st.nuevaC)q("#nC").focus()})};
     pc();
     const nums=()=>[...new Set(q("#nB").value.split(/[^0-9]+/).map(Number).filter(x=>x>0&&x<=TITULOS.length&&!noUsar(x)))];
-    const pb=()=>{q("#pb").innerHTML=nums().map(n=>`<span class="cn" title="${esc(tit(n))}">#${n} ${esc(tit(n).slice(0,26))}${tit(n).length>26?"…":""}</span>`).join("")};
+    const canc={...(h0?.canc||{})};
+    const pb=()=>{q("#pb").querySelectorAll("[data-cn]").forEach(i=>{canc[i.dataset.cn]=i.value.trim()});
+      const ns=nums();q("#pb").innerHTML=ns.length?`<div class="note" style="margin:8px 2px 4px">Canción de apertura que usa en cada bosquejo (opcional):</div>`+ns.map(n=>`<div class="bc"><span class="cn" title="${esc(tit(n))}">#${n} ${esc(tit(n).slice(0,30))}${tit(n).length>30?"…":""}</span><label>🎵<input data-cn="${n}" inputmode="numeric" placeholder="n.º" value="${esc(canc[n]||"")}"></label></div>`).join(""):""};
     q("#nB").oninput=pb;pb();
     if(!h0)setTimeout(()=>q("#nN").focus(),250);
     q("#ok").onclick=async()=>{const n=q("#nN").value.trim();if(!n){toast("Escribe el nombre");q("#nN").focus();return}
       document.body.classList.add("loading");
       try{
         let cid=st.cong;
-        if(st.nuevaC){const cn=q("#nC").value.trim();if(!cn){toast("Escribe la congregación");return}cid=await rpc("app_save_cong",{p_nombre:cn,p_ciudad:""})}
-        await rpc("app_save_hermano",{p_nombre:n,p_cong:cid||null,p_tel:normContacto(q("#nT").value),p_bos:nums(),p_id:h0?.id||null});
+        if(st.nuevaC){const cn=q("#nC").value.trim();if(!cn){toast("Escribe la congregación");return}cid=await rpc("app_save_cong",{p_nombre:cn,p_ciudad:q("#nCc").value.trim()})}
+        q("#pb").querySelectorAll("[data-cn]").forEach(i=>{canc[i.dataset.cn]=i.value.trim()});
+        const cc={};nums().forEach(x=>{const v=parseInt(canc[x],10);if(v>=1&&v<=200)cc[x]=v});
+        await rpc("app_save_hermano",{p_nombre:n,p_cong:cid||null,p_tel:normContacto(q("#nT").value),p_bos:nums(),p_id:h0?.id||null,p_canc:cc});
         await cargar();bg.remove();toast(h0?"Orador actualizado":"Orador agregado");if(after)after();else render();
       }catch(e){toast(e.message)}finally{document.body.classList.remove("loading")}};
     if(q("#del"))q("#del").onclick=()=>{q("#del").outerHTML=`<div class="row"><button class="btn line" id="nod">Cancelar</button><button class="btn bad" id="sid">Sí, quitar a ${esc(h0.nombre.split(" ")[0])}</button></div>`;
