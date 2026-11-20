@@ -112,7 +112,7 @@ async function conExcel(fn) {
 /* ---------- Navegación ---------- */
 const SEC = {
   pub: { titulo: "Publicadores", sub: "Grupos de servicio", tabs: [["lista", "Por grupo"], ["usuarios", "Usuarios y PIN"]] },
-  pred: { titulo: "Predicación", sub: "Salidas y territorios", tabs: [["horario", "Horario del mes"], ["terr", "Territorios"]] },
+  pred: { titulo: "Predicación", sub: "Salidas y territorios", tabs: [["horario", "Horario"], ["terr", "Territorios"], ["stats", "📊 Estadísticas"]] },
   reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"]] },
   inf: { titulo: "Informes", sub: "Informe mensual por grupo", tabs: [] },
   rec: { titulo: "Recordatorios", sub: "Aseo, hospitalidad y eventos", tabs: [["aseo", "Aseo y hospitalidad"], ["eventos", "Eventos"]] },
@@ -258,6 +258,7 @@ const nomTerr = v => { if (!v) return ""; const t = R("territorio").find(x => x.
 function visitaDe(f, salidaId) { return R("terr_visita").find(v => v.k === f && v.d.salida === salidaId); }
 function vPred() {
   if (CG.tab === "terr") return vTerr();
+  if (CG.tab === "stats") return vStats();
   const ms = mesSelector(vPred);
   const fijas = R("pred_salida").filter(r => r.d.tipo === "fija").sort((a, b) => a.d.dia - b.d.dia || (a.d.turno === "Mañana" ? -1 : 1));
   const delMes = salidasDelMes(CG.mes);
@@ -1169,4 +1170,58 @@ async function mapaGeneral(box, ts, ultima) {
   if (g.getLayers().length) map.fitBounds(g.getBounds(), { padding: [16, 16] }); else map.setView(TB_CENTRO, 15);
   setTimeout(() => map.invalidateSize(), 250);
   return leyenda;
+}
+
+
+/* ================= ESTADÍSTICAS DE PREDICACIÓN ================= */
+function barras(items, opt = {}) {
+  const max = Math.max(1, ...items.map(x => x.v), ...(items.map(x => x.v2 || 0)));
+  return `<div class="sbars">${items.map(x => `<div class="sbar"><span class="sl">${x.l}</span><div class="st"><i style="width:${Math.max(x.v ? 4 : 0, x.v / max * 100)}%;background:${x.c || "var(--accent)"}"></i>${x.v2 != null ? `<i class="b2" style="width:${x.v2 / max * 100}%"></i>` : ""}</div><b>${x.txt != null ? x.txt : x.v}</b></div>`).join("")}</div>`;
+}
+function columnas(items, leyenda) {
+  const max = Math.max(1, ...items.flatMap(x => [x.a, x.b || 0]));
+  return `<div class="scols">${items.map(x => `<div class="scol"><div class="sc"><i class="ca" style="height:${x.a / max * 100}%" title="${x.a}"><em>${x.a || ""}</em></i>${x.b != null ? `<i class="cb" style="height:${x.b / max * 100}%"><em>${x.b || ""}</em></i>` : ""}</div><span>${x.l}</span></div>`).join("")}</div>${leyenda || ""}`;
+}
+function vStats() {
+  const ms = mesSelector(vStats);
+  const ym = CG.mes; const meses = [-5, -4, -3, -2, -1, 0].map(n => mesMas(ym, n));
+  const vis = R("terr_visita"); const ts = R("territorio");
+  const delMes = m => salidasDelMes(m);
+  const hechasMes = m => delMes(m).filter(x => visitaDe(x.f, x.r.id)).length;
+  const prog = delMes(ym), hechas = prog.filter(x => visitaDe(x.f, x.r.id)), pasadas = prog.filter(x => x.f < HOY);
+  const terrMes = new Set(vis.filter(v => v.k.startsWith(ym) && v.d.territorio && R("territorio").find(t => t.id === v.d.territorio)).map(v => v.d.territorio));
+  const hace4 = mesMas(ym, -3) + "-01";
+  const cubiertos = ts.filter(t => vis.some(v => v.d.territorio === t.id && v.k >= hace4 && v.k <= ym + "-31"));
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  let h = tabs(SEC.pred.tabs) + ms.html;
+  h += `<div class="kpis">${[[`${hechas.length}/${pasadas.length || prog.length}`, "Salidas realizadas"], [`${pct(hechas.length, pasadas.length)}%`, "Cumplimiento"], [`${terrMes.size}`, "Territorios este mes"], [`${pct(cubiertos.length, ts.length)}%`, "Cubierto en 4 meses"]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>`;
+  if (!vis.length) h += `<div class="card note" style="margin-top:10px">Las gráficas se llenan solas a medida que los capitanes toquen <b>Marcar</b> en cada salida realizada (en <b>Horario</b> → Próximas salidas). Por ahora muestro lo programado.</div>`;
+  // 1. Salidas programadas vs realizadas, últimos 6 meses
+  h += `<div class="label">Salidas por mes</div><div class="card spad">${columnas(meses.map(m => ({ l: MES[+m.slice(5) - 1].slice(0, 3), a: delMes(m).length, b: hechasMes(m) })), `<div class="sleg"><span><i class="ca"></i>Programadas</span><span><i class="cb"></i>Realizadas</span></div>`)}</div>`;
+  // 2. Por día de la semana (mes)
+  h += `<div class="label">Salidas por día · ${MES[+ym.slice(5) - 1]}</div><div class="card spad">${barras([1, 2, 3, 4, 5, 6, 7].map(dd => { const p = prog.filter(x => isoDia(x.f) === dd); return { l: DIAS[dd].slice(0, 3), v: p.length, v2: p.filter(x => visitaDe(x.f, x.r.id)).length, c: "#" + COLOR_DIA[dd], txt: `${p.filter(x => visitaDe(x.f, x.r.id)).length}/${p.length}` }; }))}<div class="note" style="margin-top:6px">Barra de color: programadas · franja oscura: realizadas</div></div>`;
+  // 3. Top capitanes (año de servicio) por salidas realizadas
+  const aS = anioServicio(ym), ini = `${aS - 1}-09-01`, fin = `${aS}-08-31`;
+  const visA = vis.filter(v => v.k >= ini && v.k <= fin);
+  const capCount = {}; prog.forEach(x => { const c = x.r.d.capitan; if (c) capCount[c] = capCount[c] || { p: 0, h: 0 }; if (c) capCount[c].p++; });
+  visA.forEach(v => { const c = v.d.capitan; if (!c) return; capCount[c] = capCount[c] || { p: 0, h: 0 }; capCount[c].h++; });
+  const topCap = Object.entries(capCount).sort((a, b) => b[1].h - a[1].h || b[1].p - a[1].p).slice(0, 8);
+  h += `<div class="label">Capitanes · año de servicio ${aS}</div><div class="card spad">${topCap.length ? barras(topCap.map(([id, x], i) => ({ l: `${i < 3 ? ["🥇", "🥈", "🥉"][i] + " " : ""}${esc(nomCorto(id))}`, v: x.h, txt: `${x.h} hecha${x.h === 1 ? "" : "s"} · ${x.p} este mes` }))) : `<div class="note">Sin capitanes asignados.</div>`}</div>`;
+  // 4. Territorios: más trabajados y los que llevan más tiempo sin trabajar
+  const ult = id => vis.filter(v => v.d.territorio === id).map(v => v.k).sort().pop();
+  const cuenta = id => visA.filter(v => v.d.territorio === id).length;
+  const mas = ts.map(t => ({ t, n: cuenta(t.id) })).filter(x => x.n).sort((a, b) => b.n - a.n).slice(0, 6);
+  const olvid = ts.map(t => ({ t, u: ult(t.id) })).sort((a, b) => (a.u || "") < (b.u || "") ? -1 : 1).slice(0, 6);
+  h += `<div class="label">Territorios más trabajados · ${aS}</div><div class="card spad">${mas.length ? barras(mas.map(x => ({ l: esc((x.t.d.numero ? x.t.d.numero + " · " : "") + x.t.d.nombre), v: x.n, c: "#30A46C", txt: `${x.n} ${x.n === 1 ? "vez" : "veces"}` }))) : `<div class="note">Todavía no hay salidas marcadas en territorios.</div>`}</div>`;
+  h += `<div class="label">Necesitan atención (más tiempo sin trabajar)</div><div class="card spad">${olvid.map(x => { const m = x.u ? Math.floor(dias(x.u, HOY) / 30.44) : null; return `<div class="vrow"><span>${esc((x.t.d.numero ? x.t.d.numero + " · " : "") + x.t.d.nombre)}</span><span class="pill ${!x.u || m >= 4 ? "t-bad" : m >= 2 ? "t-warn" : "t-ok"}">${x.u ? (m ? `hace ${m} ${m === 1 ? "mes" : "meses"}` : "este mes") : "nunca"}</span></div>`; }).join("")}</div>`;
+  // 5. Modalidades del mes
+  const mod = {}; prog.forEach(x => { const t = x.r.d.territorio; const k = R("territorio").find(r => r.id === t) ? "Casa en casa (territorio)" : (t || "Sin definir"); mod[k] = (mod[k] || 0) + 1; });
+  h += `<div class="label">Tipo de predicación · ${MES[+ym.slice(5) - 1]}</div><div class="card spad">${barras(Object.entries(mod).sort((a, b) => b[1] - a[1]).map(([k, v], i) => ({ l: esc(k), v, c: PALETA_T[i % PALETA_T.length] })))}</div>`;
+  // 6. Informes (solo admins): participación últimos 6 meses
+  if (cAdmin()) {
+    const inf = R("informe"); const tot = CG.personas.length;
+    const partMes = m => inf.filter(r => r.k.startsWith(m + "|") && r.d.participo).length;
+    if (inf.length) h += `<div class="label">Participación en el ministerio (informes)</div><div class="card spad">${columnas(meses.map(m => ({ l: MES[+m.slice(5) - 1].slice(0, 3), a: tot, b: partMes(m) })), `<div class="sleg"><span><i class="ca"></i>Publicadores</span><span><i class="cb"></i>Participaron</span></div>`)}</div>`;
+  }
+  $("#cview").innerHTML = h; ms.bind(); bindTabs();
 }
