@@ -287,10 +287,23 @@ function chipsOradores(d,f,sel,excluir){
   return l.map(({h,inf,tiene})=>`<button class="pk ${sel===h.id?"on":""} ${inf.nivel==="warn"?"warn":""} ${tiene?"":"star"}" data-h="${h.id}">${esc(h.nombre)}<small>${esc(cname(h.cong))}${tiene?" · lo tiene ✓":""}</small><small class="${inf.nivel==="warn"?"w":""}">${inf.nivel==="warn"?"⚠ ":""}${inf.txt}</small></button>`).join("");
 }
 function msgRecordatorio(p){const o=H(p.o),F=fd(p.f),base=GRUPO.nombre.replace(/\s*\d.*$/,""),dd=dias(HOY,p.f),hora=String(GRUPO.hora||"").replace(/\.$/,"");
-  const cuandoTxt=dd===0?`hoy sábado ${F.d} de ${F.m}`:dd===1?`mañana sábado ${F.d} de ${F.m}`:`este sábado ${F.d} de ${F.m}`;
-  const disc=p.d?` n.º ${p.d}: «${tit(p.d).replace(/[“”"]/g,"")}»`:"";const canc=p.c?` La canción que le corresponde es la n.º ${p.c}.`:"";
-  return`Buen día, hermano ${o.nombre.split(" ")[0]}. Le recuerdo con cariño que ${cuandoTxt} tiene a cargo el discurso público${disc} en la congregación ${base}, reunión de las ${hora}.${canc}\n\n${p.d?"":"¿Nos confirma el número de bosquejo que va a presentar?\n"}¿Nos confirma si puede venir?\n\n¡Muchas gracias!`}
-function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · ${GRUPO.nombre} · sáb. ${F.d} ${F.m}*\n${txt}${p.d?`\nDiscurso n.º ${p.d}: «${tit(p.d).replace(/[“”"]/g,"")}»`:""}${p.c?`\nCanción n.º ${p.c}`:""}`}
+  const cuandoTxt=dd===0?`hoy sábado ${F.d}`:dd===1?`mañana sábado ${F.d}`:dd<=7?`este sábado ${F.d} de ${F.m}`:`el sábado ${F.d} de ${F.m}`;
+  const disc=p.d?` «${tit(p.d).replace(/[“”"«»]/g,"")}» (n.º ${p.d})`:"";const canc=p.c?` La canción de apertura es la ${p.c}.`:"";
+  return`Hola, hermano ${o.nombre.split(" ")[0]}, ¿cómo está? Le escribo para recordarle con cariño que ${cuandoTxt} nos acompaña con el discurso público${disc} en la congregación ${base}, en la reunión de las ${hora}.${canc}\n\n${p.d?"¿Nos confirma, por favor, si puede venir?":"¿Nos confirma, por favor, si puede venir y qué bosquejo va a presentar?"}\n\n¡Muchas gracias!`}
+function msgAncianos(p,estado){
+  const F=fd(p.f),dd=dias(HOY,p.f),hora=String(GRUPO.hora||"").replace(/\.$/,"");
+  const cuando=dd===0?`hoy sábado ${F.d}`:dd===1?`mañana sábado ${F.d}`:dd>1&&dd<=7?`este sábado ${F.d} de ${F.m}`:`el sábado ${F.d} de ${F.m}`;
+  const o=H(p.o),s=H(p.s),de=h=>h&&C(h.cong)?`, de la congregación ${cname(h.cong)},`:"";
+  const disc=p.d?`el discurso «${tit(p.d).replace(/[“”"«»]/g,"")}» (n.º ${p.d})`:"el discurso público";
+  const canc=p.c?` La canción de apertura es la ${p.c}.`:"";
+  const reu=`la reunión de las ${hora}`;
+  let t="";
+  if(estado==="conf")t=`Hola, hermanos. Les cuento que el hermano ${o.nombre}${de(o)} ya confirmó que nos acompaña ${cuando} en ${reu}. Presentará ${disc}.${canc}`;
+  else if(estado==="planb")t=`Hola, hermanos. Les aviso que el hermano ${o?o.nombre:"asignado"} no podrá venir ${cuando}. ${s?`En su lugar nos acompañará el hermano ${s.nombre}${de(s)} con ${disc}.${canc}`:"Estamos buscando quién lo reemplace; apenas lo tengamos les cuento."}`;
+  else if(estado==="porc")t=`Hola, hermanos. Para ${cuando} en ${reu} tenemos al hermano ${o.nombre}${de(o)} con ${disc}. Ya le recordé y estoy esperando que me confirme.${canc}`;
+  else t=`Hola, hermanos. Para ${cuando} en ${reu} está asignado el hermano ${o?o.nombre:""}${de(o)} con ${disc}.${canc}`;
+  return t.replace(/\s+,/g,",").replace(/ {2,}/g," ")+`\n\n¡Gracias!`;
+}
 const normContacto=v=>{v=String(v||"").trim();if(!v)return"";if(/[a-zA-Z_]/.test(v)||v.startsWith("@"))return"@"+v.replace(/^@+/,"").replace(/\s+/g,"").toLowerCase();return v.replace(/\D/g,"")};
 const esUsuario=t=>String(t||"").startsWith("@");
 const telWa=t=>{t=String(t||"");if(esUsuario(t))return t.slice(1);t=t.replace(/\D/g,"");return t.length===10?"57"+t:t};
@@ -344,16 +357,16 @@ function abrir(f){
       if(c!==null&&!(c>=1&&c<=200)){toast("Canción entre 1 y 200");return}
       try{document.body.classList.add("loading");await rpc("app_save_cancion",{p_fecha:f,p_c:c});const x=DB.prog.find(z=>z.f===f);if(x)x.c=c;else DB.prog.push({...p,c,virtual:undefined});bg.remove();toast(c?`Canción n.º ${c} guardada`:"Canción quitada");abrir(f)}
       catch(e){toast(e.message)}finally{document.body.classList.remove("loading")}};
-    if(q("#grupo"))q("#grupo").onclick=()=>{const est={asig:"📌 Asignado, pendiente de recordar.",porc:`⏳ Se le recordó a ${o.nombre}; esperando confirmación.`,conf:`✅ ${o.nombre} (${cname(o.cong)}) CONFIRMÓ.`,planb:`⚠️ Plan B${s?": entra "+s.nombre:""}.`}[p.e]||"";bg.remove();avisarAncianos(msgAncianos(p,est))};
+    if(q("#grupo"))q("#grupo").onclick=()=>{bg.remove();avisarAncianos(msgAncianos(p,p.e))};
     if(q("#waR2"))q("#waR2").addEventListener("click",()=>{if(esUsuario(o.tel)){try{navigator.clipboard.writeText(msgRecordatorio(p)).catch(()=>{})}catch(e){}toast(`En WhatsApp busca a ${o.tel} y toca Enviar`)}});
     const marcarR=async()=>{if(p.e==="asig"){await guardarProg({...p,e:"porc"},`Recordatorio enviado a ${o.nombre}${p.d?" por el n.º "+p.d:""} del ${F.corto}.`,"porc")}};
     if(q("#cpR"))q("#cpR").onclick=()=>{q(".msgbox").open=true;copiar(q("#mR").textContent,q("#mR"));marcarR()};
     if(q("#waR"))q("#waR").addEventListener("click",()=>{if(esUsuario(o.tel)){try{navigator.clipboard.writeText(q("#mR").textContent).catch(()=>{})}catch(e){}toast(`En WhatsApp busca a ${o.tel} y toca Enviar`)}bg.remove();marcarR()});
     if(q("#si"))q("#si").onclick=async()=>{const plan=p.e==="planb",quien=plan?s:o;
       const np={...p,e:"conf",o:plan?p.s:p.o,s:plan?null:p.s};
-      const m=msgAncianos(np,`✅ ${quien.nombre} (${cname(quien.cong)}) CONFIRMÓ.`);
+      const m=msgAncianos(np,"conf");
       bg.remove();if(await guardarProg(np,m,"conf"))avisarAncianos(m)};
-    if(q("#no"))q("#no").onclick=async()=>{const m=msgAncianos(p,`⚠️ ${o.nombre} NO puede venir. ${s?"Entra el suplente: "+s.nombre+".":"Se está buscando reemplazo."}`);
+    if(q("#no"))q("#no").onclick=async()=>{const m=msgAncianos(p,"planb");
       bg.remove();if(await guardarProg({...p,e:"planb"},m,"planb"))avisarAncianos(m)};
     if(q("#hecho"))q("#hecho").onclick=()=>{bg.remove();guardarProg({...p,e:"hecho"},`Realizado${p.d?": n.º "+p.d:""} por ${o.nombre} (${cname(o.cong)}).`,"hecho")};
   });
