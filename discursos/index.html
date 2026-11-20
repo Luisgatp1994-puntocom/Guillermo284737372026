@@ -238,6 +238,30 @@ html.navegador nav{padding-bottom:calc(max(10px,env(safe-area-inset-bottom,0px))
 html.navegador .wrap{padding-bottom:180px}
 html.navegador .fab{bottom:calc(112px + env(safe-area-inset-bottom,0px))}
 nav button{line-height:1.1}
+
+/* Inicio */
+.hubwrap{padding-block:18px 40px}
+.hubtop{display:flex;justify-content:space-between;align-items:center}
+.logo-s{width:48px;height:48px;border-radius:16px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 12px 24px -10px rgba(49,56,224,.6)}
+.logo-s svg{width:26px;height:26px}
+.hello{margin-top:22px;color:var(--muted);font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.hubtitle{font-size:26px;font-weight:800;margin:6px 0 18px;letter-spacing:-.02em;text-wrap:balance}
+.hubgrid{display:grid;grid-template-columns:1fr;gap:12px}
+.hcard{position:relative;background:var(--surface);border:0;border-radius:24px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;cursor:pointer;color:var(--ink);min-height:170px}
+.hcard .tile{width:46px;height:46px;border-radius:15px}
+.hcard .tile svg{width:24px;height:24px}
+.hcard b{font-size:16.5px}
+.hcard small{color:var(--muted);font-weight:600;font-size:12.5px;line-height:1.35}
+.hcard .go{margin-top:auto;font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:4px}
+.hcard.soon{opacity:.72}
+.hcard .tag{position:absolute;top:14px;right:14px;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--idle-soft);color:var(--muted);border-radius:999px;padding:3px 8px}
+.hcard .tag.live{background:var(--ok-soft);color:var(--ok)}
+.hcard.wide{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;gap:14px}
+.hcard.main{padding:20px 18px;border:2px solid var(--accent-line)}
+.hcard.soon .tag{position:static;margin-left:auto;align-self:center}
+.hcard.main .tag{top:12px;right:12px}
+.hcard.main .txt{padding-right:56px}
+.hcard.wide .txt{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
 </style>
 </head>
 <body>
@@ -249,14 +273,27 @@ nav button{line-height:1.1}
   <div class="dots" id="dots"></div>
   <div class="err" id="err"></div>
   <div class="pad" id="pad"></div>
-  <div class="note" style="opacity:.6">v1.6.1</div>
+  <div class="note" style="opacity:.6">v1.7</div>
 </div>
 
+<div id="hub" hidden>
+<div class="wrap hubwrap">
+  <div class="hubtop">
+    <div class="logo-s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></div>
+    <button class="ico-btn" id="hubSalir" aria-label="Salir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/></svg></button>
+  </div>
+  <div class="hello" id="hello"></div>
+  <h1 class="hubtitle">¿Qué vamos a revisar hoy?</h1>
+  <div class="hubgrid" id="hubgrid"></div>
+  <p class="note" style="text-align:center;margin-top:18px" id="hubver"></p>
+</div>
+</div>
 <div id="app" hidden>
 <div class="wrap">
   <div class="top">
     <div><div class="sub" id="subt">Tierra Baja · Reunión del sábado</div><h1>Discursos Públicos</h1></div>
     <div style="display:flex;gap:2px">
+      <button class="ico-btn" id="aInicio" aria-label="Inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/></svg></button>
       <button class="ico-btn" id="tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
       <button class="ico-btn" id="campana" aria-label="Avisos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><span id="nb"></span></button>
     </div>

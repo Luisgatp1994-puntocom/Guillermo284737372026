@@ -80,7 +80,7 @@ const getSab=f=>sabados().find(x=>x.f===f)||{f,d:null,o:null,s:null,e:"sin"};
 /* ---------- Login con PIN ---------- */
 let entrada="";
 function pintaLogin(msg){
-  $("#login").hidden=false;$("#app").hidden=true;
+  $("#login").hidden=false;$("#app").hidden=true;$("#hub").hidden=true;
   $("#dots").innerHTML=Array.from({length:Math.max(4,entrada.length)},(_,i)=>`<i class="${i<entrada.length?"on":""}"></i>`).join("");
   $("#err").textContent=msg||"";
   $("#pad").innerHTML=[1,2,3,4,5,6,7,8,9,"borrar",0,"entrar"].map(k=>`<button data-k="${k}" class="${k==="borrar"?"ghost":k==="entrar"?"go":""}">${k==="borrar"?"Borrar":k==="entrar"?"Entrar":k}</button>`).join("");
@@ -102,7 +102,35 @@ function salir(){LS.del("dtb_pin");PIN=null;rol=null;entrada="";pintaLogin()}
 
 /* ---------- App ---------- */
 let vista="cal",filtroE=null;
-function iniciar(){
+const SECCIONES=[
+  {id:"disc",nombre:"Discursos públicos",desc:"Programa de los sábados, confirmaciones y plan B",tono:"t-acc",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',activa:true},
+  {id:"pred",nombre:"Predicación",desc:"Salidas, conductores, territorios y exhibidor",tono:"t-ok",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>'},
+  {id:"inf",nombre:"Informes",desc:"Tablero con gráficos y tablas del grupo",tono:"t-info",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>'},
+  {id:"rec",nombre:"Recordatorios",desc:"Temas, asignaciones y fechas importantes",tono:"t-warn",ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg>'}
+];
+function saludo(){const h=new Date().getHours();return h<12?"Buen día":h<19?"Buenas tardes":"Buenas noches"}
+function resumenDiscursos(){
+  const fut=sabados().filter(p=>p.f>=HOY);const prox=fut[0];if(!prox)return"";
+  const F=fd(prox.f),o=H(prox.o),dd=dias(HOY,prox.f),[et]=ESTADOS[prox.e];
+  return`${dd===0?"Hoy":dd===1?"Mañana":"Sáb. "+F.d+" "+F.m.slice(0,3)}: ${o?esc(o.nombre.split(" ").slice(0,2).join(" ")):"sin orador"} · ${et}`;
+}
+function mostrarInicio(){
+  $("#login").hidden=true;$("#app").hidden=true;$("#hub").hidden=false;$("#fab").hidden=true;
+  $("#hello").innerHTML=`${saludo()} · <span class="gchip g-${esc(GRUPO.id)}">${esc(GRUPO.hora||GRUPO.nombre)}</span> ${esc(GRUPO.nombre.replace(/\s*\d.*$/,""))} · ${esc(esAdmin()?ETIQ:"Consulta")}`;
+  const pend=sabados().filter(p=>p.f>=HOY&&p.e!=="conf"&&dias(HOY,p.f)<=14).length;
+  $("#hubgrid").innerHTML=SECCIONES.map((x,i)=>`<button class="hcard wide ${x.activa?"main":"soon"}" data-sec="${x.id}">
+    <span class="tile ${x.tono}">${x.ico}</span>
+    ${i===0?`<span class="txt"><b>${x.nombre}</b><small>${resumenDiscursos()||x.desc}</small>${pend?`<small style="color:var(--warn);font-weight:800">${pend} sábado${pend>1?"s":""} por cerrar en 2 semanas</small>`:""}</span><span class="go" style="color:var(--accent)">${I.arrow}</span>`
+      :`<span class="txt"><b>${x.nombre}</b><small>${x.desc}</small></span>`}
+    ${x.activa?`<span class="tag live">Activo</span>`:`<span class="tag">Pronto</span>`}
+  </button>`).join("");
+  document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{const x=SECCIONES.find(s=>s.id===b.dataset.sec);if(x.activa)abrirSeccion(x.id);else toast(`${x.nombre}: la estamos construyendo`)});
+  $("#hubver").textContent=document.querySelector(".login .note[style*='opacity']")?.textContent||"";
+  scrollTo(0,0);
+}
+function abrirSeccion(id){if(id==="disc"){$("#hub").hidden=true;iniciarDiscursos()}}
+function iniciar(){mostrarInicio()}
+function iniciarDiscursos(){
   $("#login").hidden=true;$("#app").hidden=false;
   $("#subt").innerHTML=`<span class="gchip g-${esc(GRUPO.id)}">${esc(GRUPO.hora||GRUPO.nombre)}</span> ${esc(GRUPO.nombre.replace(/\s*\d.*$/,""))} · ${esc(esAdmin()?ETIQ:"Consulta")}`;
   render();
@@ -110,11 +138,13 @@ function iniciar(){
 function setVista(v){vista=v;document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));if(v==="avisos"){LS.set("dtb_leidos_"+GRUPO.id,String(DB.log.length?DB.log[0].t:""))}render();scrollTo(0,0)}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>setVista(b.dataset.v));
 $("#campana").onclick=()=>setVista("avisos");
+$("#aInicio").onclick=()=>{refrescar();mostrarInicio()};
+$("#hubSalir").onclick=()=>salir();
 $("#tema").onclick=()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=dark?"light":"dark";LS.set("dtb_tema",r.dataset.theme)};
 {const t=LS.get("dtb_tema");if(t)document.documentElement.dataset.theme=t}
 function updBadge(){const ult=LS.get("dtb_leidos_"+GRUPO.id)||"";const n=DB.log.filter(l=>l.t>ult).length;$("#nb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""}
 function render(){
-  $("#fab").hidden=!esAdmin();
+  $("#fab").hidden=!esAdmin()||$("#app").hidden;
   updBadge();
   ({cal:vCal,disc:vDisc,her:vHer,cong:vCong,avisos:vAvisos})[vista]();
 }
