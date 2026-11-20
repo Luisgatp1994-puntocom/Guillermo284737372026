@@ -390,7 +390,7 @@ function vTerr() {
   const veces = id => vis.filter(v => v.d.territorio === id && v.k.startsWith(CG.mes)).length;
   const ms = mesSelector(vTerr);
   let h = tabs(SEC.pred.tabs) + ms.html + `<div class="list">`;
-  h += `<div class="card" style="padding:8px"><div class="tmap gen" id="tGen"></div><div class="tleg"><span><i style="background:#30A46C"></i>Trabajado hace menos de 2 meses</span><span><i style="background:#F5A524"></i>2 a 4 meses</span><span><i style="background:#E5484D"></i>Más de 4 meses o nunca</span></div></div>`;
+  h += `<div class="card" style="padding:8px"><div class="roles ctabs" style="margin:0 0 8px"><button class="chipo ${modoColorT === "terr" ? "" : "off"}" data-mc="terr">Color por territorio</button><button class="chipo ${modoColorT === "est" ? "" : "off"}" data-mc="est">Color por última vez</button></div><div class="tmap gen" id="tGen"></div><div class="tleg" id="tLeg"></div></div>`;
   h += `<div class="card note" style="display:flex;gap:10px;align-items:center"><span class="pill t-warn">En desarrollo</span><span>Toca un territorio en el mapa o en la lista. Dentro de cada uno se marca el límite sobre la foto satelital.</span></div>`;
   h += ts.length ? `<div class="tgrid">` + ts.map(t => { const u = ultima(t.id); const m = u ? Math.floor(dias(u, HOY) / 30.44) : null; const warn = !u || m >= 4; const im = CG.imgs[t.id];
     return `<button class="card tcard" data-tid="${t.id}"><div class="timg">${im ? `<img src="${im}" alt="">` : `<span class="note">${CG.imgsOk ? "Sin imagen" : "Cargando…"}</span>`}<span class="tnum">${esc(t.d.numero || "—")}</span></div><div class="tinfo"><b>${esc(t.d.nombre)}</b><div class="note">${t.d.lamina ? "Lámina " + esc(t.d.lamina) + " · " : ""}${veces(t.id)}× este mes</div>${warn ? `<div class="note wtxt">${u ? "Hace " + m + " meses" : "Nunca trabajado"}</div>` : ""}</div></button>`; }).join("") + `</div>` : vacio("Agrega los territorios: número, nombre, lámina y la foto de la tarjeta.");
@@ -398,7 +398,10 @@ function vTerr() {
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-tid]").forEach(b => b.onclick = () => fichaTerr(ts.find(t => t.id === b.dataset.tid)));
   if ($("#nuevoT")) $("#nuevoT").onclick = () => fichaTerr(null);
-  if ($("#tGen")) mapaGeneral($("#tGen"), ts, ultima).catch(e => { $("#tGen").innerHTML = `<div class="note" style="padding:20px">${esc(e.message)}</div>`; });
+  document.querySelectorAll("[data-mc]").forEach(b => b.onclick = () => { modoColorT = b.dataset.mc; vTerr(); });
+  if ($("#tGen")) mapaGeneral($("#tGen"), ts, ultima).then(ley => { const el = $("#tLeg"); if (!el) return;
+    el.innerHTML = modoColorT === "terr" ? ley.map(x => `<span><i style="background:${x.col}"></i>${x.t.d.numero ? x.t.d.numero + " · " : ""}${esc(x.t.d.nombre)}</span>`).join("") + `<span class="nota">El puntico de cada etiqueta: 🟢 menos de 2 meses · 🟠 2 a 4 · 🔴 más de 4 o nunca</span>`
+      : `<span><i style="background:#30A46C"></i>Menos de 2 meses</span><span><i style="background:#F5A524"></i>2 a 4 meses</span><span><i style="background:#E5484D"></i>Más de 4 meses o nunca</span>`; }).catch(e => { $("#tGen").innerHTML = `<div class="note" style="padding:20px">${esc(e.message)}</div>`; });
   if (!CG.imgsOk && ts.length) cargarImgs().then(() => { if (CG.sec === "pred" && CG.tab === "terr") vTerr(); });
   $("#xlsTerr").onclick = () => conExcel(xlsTerritorios);
 }
@@ -1131,17 +1134,23 @@ async function mapaTerritorio(box, d, editable, onCambio) {
     datos: () => { const ms = todas(); const pts = ms.flat(); return { manzanas: ms, area: ms[0] || [], refs, calles: calles.filter(x => x.length >= 2), centro: centroDe(pts) || (refs[0] ? [refs[0].lat, refs[0].lng] : null) }; }
   };
 }
+const PALETA_T = ["#2563EB", "#16A34A", "#9333EA", "#F59E0B", "#0891B2", "#DB2777", "#65A30D", "#7C3AED", "#0D9488", "#EA580C", "#4F46E5", "#CA8A04"];
+let modoColorT = "terr";
 async function mapaGeneral(box, ts, ultima) {
   const L = await cargarLeaflet();
   box.innerHTML = ""; const map = L.map(box, { zoomControl: true }); capas(L, map);
   const g = L.featureGroup().addTo(map);
-  ts.filter(t => (t.d.manzanas || []).length || (t.d.area || []).length >= 3).forEach(t => {
-    const col = colorTerr(ultima(t.id));
-    const pol = L.polygon((t.d.manzanas && t.d.manzanas.length ? t.d.manzanas : [t.d.area]).map(a => [a]), { color: col, weight: 2.5, fillColor: col, fillOpacity: .28 }).addTo(g);
-    pol.bindTooltip(`${t.d.numero ? t.d.numero + " · " : ""}${esc(t.d.nombre)}`, { permanent: true, direction: "center", className: "tlab" });
+  const con = ts.filter(t => (t.d.manzanas || []).length || (t.d.area || []).length >= 3);
+  const leyenda = [];
+  con.forEach((t, k) => {
+    const est = colorTerr(ultima(t.id)); const col = modoColorT === "terr" ? PALETA_T[k % PALETA_T.length] : est;
+    const pol = L.polygon((t.d.manzanas && t.d.manzanas.length ? t.d.manzanas : [t.d.area]).map(a => [a]), { color: col, weight: 3, fillColor: col, fillOpacity: .35 }).addTo(g);
+    pol.bindTooltip(`<i class="dot" style="background:${est}"></i>${t.d.numero ? t.d.numero + " · " : ""}${esc(t.d.nombre)}`, { permanent: true, direction: "center", className: "tlab" });
     pol.on("click", () => fichaTerr(t));
     (t.d.calles || []).forEach(c => L.polyline(c, { color: "#FFD200", weight: 4, opacity: .9, interactive: false }).addTo(g));
+    leyenda.push({ t, col, est });
   });
   if (g.getLayers().length) map.fitBounds(g.getBounds(), { padding: [16, 16] }); else map.setView(TB_CENTRO, 15);
   setTimeout(() => map.invalidateSize(), 250);
+  return leyenda;
 }
