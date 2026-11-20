@@ -149,6 +149,8 @@ $("#tema").onclick=()=>{const r=document.documentElement,dark=r.dataset.theme?r.
 {const t=LS.get("dtb_tema");if(t)document.documentElement.dataset.theme=t}
 function updBadge(){const ult=LS.get("dtb_leidos_"+GRUPO.id)||"";const n=DB.log.filter(l=>l.t>ult).length;$("#nb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""}
 function render(){
+  if($("#cong")&&!$("#cong").hidden){if(typeof cRender==="function")cRender();return}
+  if($("#app").hidden)return;
   $("#fab").hidden=!esAdmin()||$("#app").hidden;
   updBadge();
   ({cal:vCal,disc:vDisc,her:vHer,cong:vCong,avisos:vAvisos})[vista]();

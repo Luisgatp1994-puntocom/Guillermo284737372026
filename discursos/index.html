@@ -267,6 +267,23 @@ nav button{line-height:1.1}
 
 /* Congregación */
 #cong{min-height:100vh}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tcard{display:flex;flex-direction:column;padding:0;overflow:hidden;border:0;cursor:pointer;color:var(--ink);text-align:left}
+.timg{position:relative;aspect-ratio:4/3;background:var(--bg);display:grid;place-items:center;overflow:hidden;border-radius:14px}
+.tcard .timg{border-radius:0}
+.timg img{width:100%;height:100%;object-fit:cover;display:block}
+.timg.big{aspect-ratio:auto;min-height:120px;margin-bottom:8px;display:block;text-align:center;padding:0;flex:none}
+.timg.big .note{display:block;padding:48px 0}
+.timg.big img{width:100%;height:auto;max-height:none;object-fit:contain;cursor:zoom-in}
+.timg .tnum{position:absolute;top:8px;left:8px;width:34px;height:34px;font-size:14px;background:var(--surface);box-shadow:var(--shadow)}
+.tinfo{padding:10px 12px 12px;font-size:14px}
+.visor{position:fixed;inset:0;z-index:99;background:#0a0c1e;display:flex;flex-direction:column}
+.visor .x{position:absolute;top:calc(12px + env(safe-area-inset-top));right:14px;z-index:2;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:18px}
+.visor .vz{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center}
+.visor .vz img{max-width:100%;max-height:100%;cursor:zoom-in}
+.visor .vz.zoom{display:block}
+.visor .vz.zoom img{max-width:none;max-height:none;width:250%;cursor:zoom-out}
+.visor .vt{color:#fff;opacity:.6;text-align:center;font-size:12px;padding:10px 0 calc(14px + env(safe-area-inset-bottom))}
 #cong .wrap{padding-bottom:60px}
 .ctabs{margin-bottom:10px}
 .kpis.k3{grid-template-columns:repeat(3,1fr)}
@@ -323,7 +340,7 @@ nav button{line-height:1.1}
   <div class="dots" id="dots"></div>
   <div class="err" id="err"></div>
   <div class="pad" id="pad"></div>
-  <div class="note" style="opacity:.6">v2.0</div>
+  <div class="note" style="opacity:.6">v2.1</div>
 </div>
 
 <div id="hub" hidden>

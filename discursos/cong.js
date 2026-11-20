@@ -4,7 +4,7 @@
    Usa helpers de app.js: $, esc, toast, hoja, I, rpc, fd, MES, HOY, dias, copiar, linkWa, normContacto, LS */
 
 I.xls = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8.5 12.5l4 5M12.5 12.5l-4 5"/></svg>';
-const CG = { me:null, personas:[], reg:[], avisos:[], sec:null, tab:null, mes:null };
+const CG = { imgs:{}, imgIds:{}, imgsOk:false, me:null, personas:[], reg:[], avisos:[], sec:null, tab:null, mes:null };
 const HOR = { tb16:"4:00 PM", tb18:"6:15 PM" };
 const PRIV = { anciano:"Anciano", siervo:"Siervo ministerial", publicador:"Publicador", no_bautizado:"No bautizado" };
 const PREC = { no:"", regular:"Precursor regular", auxiliar:"Precursor auxiliar", especial:"Precursor especial" };
@@ -345,11 +345,14 @@ function vTerr() {
   const veces = id => vis.filter(v => v.d.territorio === id && v.k.startsWith(CG.mes)).length;
   const ms = mesSelector(vTerr);
   let h = tabs(SEC.pred.tabs) + ms.html + `<div class="list">`;
-  h += ts.length ? ts.map(t => { const u = ultima(t.id); const m = u ? Math.floor(dias(u, HOY) / 30.44) : null; const warn = !u || m >= 4; return `<button class="card trow" data-tid="${t.id}"><span class="tnum">${esc(t.d.numero || "—")}</span><div style="flex:1;min-width:0;text-align:left"><b>${esc(t.d.nombre)}</b><div class="note">${t.d.lamina ? "Lámina " + esc(t.d.lamina) + " · " : ""}${u ? "Última vez: " + corto(u) : "Sin registro"}</div></div><div style="text-align:right"><span class="pill ${veces(t.id) ? "t-ok" : "t-idle"}">${veces(t.id)}× este mes</span>${warn ? `<div class="note wtxt" style="margin-top:4px">${u ? m + " meses" : "Nunca"}</div>` : ""}</div></button>`; }).join("") : vacio("Agrega los territorios con su número, nombre, lámina y enlace de Google Maps.");
+  h += `<div class="card note" style="display:flex;gap:10px;align-items:center"><span class="pill t-warn">En desarrollo</span><span>Por ahora cada territorio va con su foto o imagen de la tarjeta. Tócala para verla en grande.</span></div>`;
+  h += ts.length ? `<div class="tgrid">` + ts.map(t => { const u = ultima(t.id); const m = u ? Math.floor(dias(u, HOY) / 30.44) : null; const warn = !u || m >= 4; const im = CG.imgs[t.id];
+    return `<button class="card tcard" data-tid="${t.id}"><div class="timg">${im ? `<img src="${im}" alt="">` : `<span class="note">${CG.imgsOk ? "Sin imagen" : "Cargando…"}</span>`}<span class="tnum">${esc(t.d.numero || "—")}</span></div><div class="tinfo"><b>${esc(t.d.nombre)}</b><div class="note">${t.d.lamina ? "Lámina " + esc(t.d.lamina) + " · " : ""}${veces(t.id)}× este mes</div>${warn ? `<div class="note wtxt">${u ? "Hace " + m + " meses" : "Nunca trabajado"}</div>` : ""}</div></button>`; }).join("") + `</div>` : vacio("Agrega los territorios: número, nombre, lámina y la foto de la tarjeta.");
   h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn pri" id="nuevoT">+ Territorio</button>` : ""}${btnExcel("xlsTerr", "Excel de territorios")}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-tid]").forEach(b => b.onclick = () => fichaTerr(ts.find(t => t.id === b.dataset.tid)));
   if ($("#nuevoT")) $("#nuevoT").onclick = () => fichaTerr(null);
+  if (!CG.imgsOk && ts.length) cargarImgs().then(() => { if (CG.sec === "pred" && CG.tab === "terr") vTerr(); });
   $("#xlsTerr").onclick = () => conExcel(xlsTerritorios);
 }
 function fichaTerr(t) {
@@ -359,6 +362,9 @@ function fichaTerr(t) {
   hoja(`<div class="shead"><h2>${t ? esc(d.nombre) : "Nuevo territorio"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
     <div class="grid2">${campo("Número", inp("tN", d.numero, "1", dis + ' inputmode="numeric"'))}${campo("Lámina", inp("tL", d.lamina, "A", dis))}</div>
     ${campo("Nombre / barrio", inp("tB", d.nombre, "Puerto Rey", dis))}
+    <span class="flab">Imagen del territorio</span>
+    <div class="timg big" id="tImgBox">${t && CG.imgs[t.id] ? `<img src="${CG.imgs[t.id]}" alt="" id="tImg">` : `<span class="note">Sin imagen todavía</span>`}</div>
+    ${ed ? `<label class="btn line" style="cursor:pointer">📷 ${t && CG.imgs[t.id] ? "Cambiar imagen" : "Subir foto o imagen"}<input type="file" accept="image/*" id="tFile" hidden></label>` : ""}
     ${campo("Enlace de Google Maps", inp("tM", d.mapa, "https://maps.app.goo.gl/…", dis))}
     ${d.mapa ? `<a class="btn line" href="${esc(d.mapa)}" target="_blank" rel="noopener">Abrir en Google Maps</a>` : ""}
     ${campo("Notas", inp("tO", d.notas, "Límites, calles, indicaciones", dis))}
@@ -366,14 +372,39 @@ function fichaTerr(t) {
     ${t ? `<span class="flab">Registro de predicación (${vis.length})</span><div class="card" style="padding-block:6px">${vis.length ? vis.slice(0, 30).map(v => `<div class="vrow"><b>${corto(v.k)} ${fd(v.k).y}</b><span class="note">${esc(nomCorto(v.d.capitan))}</span></div>`).join("") : `<div class="note">Aún no se ha marcado ninguna salida en este territorio.</div>`}</div>` : ""}
     ${ed && t ? `<button class="btn bad" id="tDel">Borrar territorio</button>` : ""}`,
     (bg, close) => {
+      let nueva = null;
+      const verImg = () => { const im = bg.querySelector("#tImg"); if (im) im.onclick = () => visor(im.src); };
+      verImg();
       if (!ed) return;
+      bg.querySelector("#tFile").onchange = async e => {
+        const f = e.target.files[0]; if (!f) return;
+        try { nueva = await comprimir(f); bg.querySelector("#tImgBox").innerHTML = `<img src="${nueva}" alt="" id="tImg">`; verImg(); toast("Imagen lista, dale Guardar"); } catch (er) { toast("No se pudo leer la imagen"); }
+      };
       bg.querySelector("#tOk").onclick = async () => {
         const nd = { numero: val(bg, "tN"), lamina: val(bg, "tL"), nombre: val(bg, "tB"), mapa: val(bg, "tM"), notas: val(bg, "tO") };
         if (!nd.nombre) { toast("Escribe el nombre"); return; }
-        await cGuardar("territorio", nd.numero, t ? t.id : null, nd, t ? null : `Nuevo territorio: ${nd.numero} ${nd.nombre}`); close(); toast("Territorio guardado");
+        const tid = await cGuardar("territorio", nd.numero, t ? t.id : null, nd, t ? null : `Nuevo territorio: ${nd.numero} ${nd.nombre}`);
+        if (nueva) { const id = t ? t.id : tid; const ya = CG.imgIds[id];
+          try { await rpc("cong_reg_guardar", { p_modulo: "terr_img", p_clave: id, p_id: ya || null, p_d: { img: nueva }, p_aviso: `Imagen del territorio ${nd.numero} ${nd.nombre} actualizada` }); CG.imgs[id] = nueva; } catch (er) { toast(er.message); return; } }
+        close(); toast("Territorio guardado");
       };
       const del = bg.querySelector("#tDel"); if (del) del.onclick = async () => { await cBorrar(t.id, `Se borró el territorio ${d.nombre}`); close(); };
     });
+}
+async function cargarImgs() {
+  try { const d = await rpc("cong_data", { p_modulos: ["terr_img"] }); (d.reg || []).forEach(r => { CG.imgs[r.k] = r.d.img; CG.imgIds[r.k] = r.id; }); } catch (e) {}
+  CG.imgsOk = true;
+}
+function comprimir(file, max = 1600, q = 0.75) {
+  return new Promise((ok, mal) => { const r = new FileReader(); r.onerror = mal; r.onload = () => { const im = new Image(); im.onerror = mal; im.onload = () => {
+    const k = Math.min(1, max / Math.max(im.width, im.height)); const c = document.createElement("canvas"); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+    c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL("image/jpeg", q)); }; im.src = r.result; }; r.readAsDataURL(file); });
+}
+function visor(src) {
+  const v = document.createElement("div"); v.className = "visor"; v.innerHTML = `<button class="x" aria-label="Cerrar">✕</button><div class="vz"><img src="${src}" alt=""></div><div class="vt">Toca la imagen para acercar</div>`;
+  document.body.appendChild(v); const z = v.querySelector(".vz");
+  z.querySelector("img").onclick = () => z.classList.toggle("zoom");
+  v.querySelector(".x").onclick = () => v.remove();
 }
 async function xlsTerritorios(X) {
   const wb = new X.Workbook();
