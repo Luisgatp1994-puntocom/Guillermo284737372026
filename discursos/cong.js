@@ -7,10 +7,10 @@ I.xls = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width
 const CG = { imgs:{}, imgIds:{}, imgsOk:false, me:null, personas:[], reg:[], avisos:[], sec:null, tab:null, mes:null };
 const HOR = { tb16:"4:00 PM", tb18:"6:15 PM" };
 const PRIV = { anciano:"Anciano", siervo:"Siervo ministerial", publicador:"Publicador", no_bautizado:"No bautizado" };
-const PREC = { no:"", regular:"Precursor regular", auxiliar:"Precursor auxiliar", especial:"Precursor especial" };
+const PREC = { no:"", regular:"Precursor regular", auxiliar:"Precursor auxiliar", especial:"Precursor especial", misionero:"Misionero en el campo" };
 const DIAS = ["","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-const COLOR_DIA = { 1:"E6C9F2", 2:"F08A6E", 3:"9CCB79", 4:"5AA4E0", 5:"E0524F", 6:"EFE6DD", 7:"FFE24D" };
-const MODALIDADES = ["Predicación pública","Cartas y teléfono"];
+const COLOR_DIA = { 1:"D9BDE8", 2:"E8604C", 3:"8DC66B", 4:"C9372C", 5:"7CC8EC", 6:"F3DDD3", 7:"FFD200" };
+const MODALIDADES = ["Predicación pública","Cartas y teléfono","Cartas, teléfono y Zoom"];
 const MOD_NOMBRE = { disc:"Discursos", pub:"Publicadores", pred_salida:"Predicación", territorio:"Territorios", terr_visita:"Territorios", vmc:"Vida y Ministerio", acomod:"Acomodadores", aseo:"Aseo", informe:"Informes", evento:"Eventos", recordatorio:"Recordatorios" };
 
 const cAdmin = () => CG.me && CG.me.rol === "admin";
@@ -30,7 +30,7 @@ const corto = f => { const F = fd(f); return F.d + " " + F.m.slice(0, 3); };
 
 /* ---------- Datos ---------- */
 async function cCargar(mods) {
-  const d = await rpc("cong_data", { p_modulos: mods || ["pred_salida","territorio","terr_visita","vmc","acomod","aseo","informe","evento","recordatorio"] });
+  const d = await rpc("cong_data", { p_modulos: mods || ["pred_salida","territorio","terr_visita","vmc","acomod","aseo","informe","evento","recordatorio","pred_nota"] });
   CG.me = d.me; CG.personas = d.personas || []; CG.reg = d.reg || [];
 }
 async function cGuardar(m, clave, id, datos, aviso) {
@@ -60,8 +60,9 @@ const val = (bg, id) => { const e = bg.querySelector("#" + id); return e ? e.val
 const campo = (lab, html) => `<div class="cf"><span class="flab">${lab}</span>${html}</div>`;
 const inp = (id, v, ph, extra) => `<input id="${id}" value="${esc(v || "")}" placeholder="${esc(ph || "")}" ${extra || ""}>`;
 function mesSelector(onCambio) {
-  return { html: `<div class="mesnav"><button class="x" data-mes="-1" aria-label="Mes anterior">‹</button><b>${mesNombre(CG.mes)}</b><button class="x" data-mes="1" aria-label="Mes siguiente">›</button></div>`,
-    bind: () => document.querySelectorAll("[data-mes]").forEach(b => b.onclick = () => { CG.mes = mesMas(CG.mes, +b.dataset.mes); onCambio(); }) };
+  return { html: `<div class="mesnav"><button class="x" data-mes="-1" aria-label="Mes anterior">‹</button><label class="mespick"><b>${mesNombre(CG.mes)} ▾</b><input type="month" id="mesPick" value="${CG.mes}"></label><button class="x" data-mes="1" aria-label="Mes siguiente">›</button></div>`,
+    bind: () => { document.querySelectorAll("[data-mes]").forEach(b => b.onclick = () => { CG.mes = mesMas(CG.mes, +b.dataset.mes); onCambio(); });
+      const mp = document.querySelector("#mesPick"); if (mp) mp.onchange = () => { if (/^\d{4}-\d{2}$/.test(mp.value)) { CG.mes = mp.value; onCambio(); } }; } };
 }
 function tabs(lista) {
   return `<div class="roles ctabs">${lista.map(([k, l]) => `<button class="chipo ${CG.tab === k ? "" : "off"}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
@@ -179,11 +180,15 @@ function fichaPersona(id) {
     <div class="grid2">${campo("Sexo", `<select id="pfS" class="csel" ${dis}>${opt({ H: "Hermano", M: "Hermana" }, p.sexo)}</select>`)}${campo("Horario del sábado", `<select id="pfH" class="csel" ${dis}>${opt(HOR, p.horario)}</select>`)}</div>
     <div class="grid2">${campo("Grupo de servicio", `<select id="pfG" class="csel" ${dis}>${[1, 2, 3].map(g => `<option ${p.grupo === g ? "selected" : ""}>${g}</option>`).join("")}</select>`)}${campo("En el grupo", `<select id="pfE" class="csel" ${dis}>${opt({ "": "Integrante", encargado: "Encargado", auxiliar: "Auxiliar" }, p.encargado)}</select>`)}</div>
     <div class="grid2">${campo("Privilegio", `<select id="pfP" class="csel" ${dis}>${opt(PRIV, p.privilegio)}</select>`)}${campo("Precursor", `<select id="pfR" class="csel" ${dis}>${opt(PREC, p.precursor)}</select>`)}</div>
+    ${cAdmin() ? `<div class="grid2">${campo("Fecha de nacimiento", `<input id="pfNa" type="date" value="${esc(p.nacimiento || "")}" ${dis}>`)}${campo("Fecha de bautismo", `<input id="pfBa" type="date" value="${esc(p.bautismo || "")}" ${dis}>`)}</div>
+    ${campo("Esperanza", `<select id="pfU" class="csel" ${dis}><option value="0" ${p.ungido ? "" : "selected"}>Otras ovejas</option><option value="1" ${p.ungido ? "selected" : ""}>Ungido</option></select>`)}` : ""}
     ${cAdmin() ? campo("WhatsApp (celular o @usuario)", inp("pfT", p.tel, "300 000 0000", dis)) + campo("Notas", inp("pfO", p.notas, "", dis)) : ""}
+    ${cAdmin() && id ? `<button class="btn line" id="pfS21">📄 Tarjeta S-21 (año de servicio ${anioServicio(CG.mes || mesActual())})</button>` : ""}
     ${ed ? `<button class="btn pri" id="pfOk">Guardar</button>${id ? `<button class="btn bad" id="pfDel">Quitar de la lista</button>` : ""}` : `<p class="note">Solo el super administrador puede editar.</p>`}`,
     (bg, close) => {
+      const s21 = bg.querySelector("#pfS21"); if (s21) s21.onclick = () => exportarS21([P(id)], anioServicio(CG.mes || mesActual()), `S-21 ${p.nombre} ${anioServicio(CG.mes || mesActual())}`);
       if (!ed) return;
-      const datos = () => ({ nombre: val(bg, "pfN"), sexo: val(bg, "pfS"), horario: val(bg, "pfH"), grupo: +val(bg, "pfG"), encargado: val(bg, "pfE"), privilegio: val(bg, "pfP"), precursor: val(bg, "pfR"), tel: normContacto(val(bg, "pfT")), notas: val(bg, "pfO") });
+      const datos = () => ({ nacimiento: val(bg, "pfNa"), bautismo: val(bg, "pfBa"), ungido: val(bg, "pfU") === "1", nombre: val(bg, "pfN"), sexo: val(bg, "pfS"), horario: val(bg, "pfH"), grupo: +val(bg, "pfG"), encargado: val(bg, "pfE"), privilegio: val(bg, "pfP"), precursor: val(bg, "pfR"), tel: normContacto(val(bg, "pfT")), notas: val(bg, "pfO") });
       bg.querySelector("#pfOk").onclick = async () => {
         const d = datos(); if (!d.nombre) { toast("Escribe el nombre"); return; }
         if (id && (d.grupo !== p.grupo || d.horario !== p.horario)) d.aviso = `${d.nombre} pasó al grupo ${d.grupo} (${HOR[d.horario]})`;
@@ -263,21 +268,27 @@ function vPred() {
   h += `<div class="label">Salidas por fecha · ${mesNombre(CG.mes)}</div><div class="list">${fechas.length ? fechas.map(r => filaSalida(r, r.d.fecha)).join("") : vacio("Sábados, domingos y visitas del superintendente van aquí.")}</div>`;
   const prox = delMes.filter(s => s.f >= HOY).slice(0, 6);
   if (prox.length) h += `<div class="label">Próximas salidas</div><div class="list">${prox.map(s => { const v = visitaDe(s.f, s.r.id); return `<div class="card srow"><div class="dbox t-acc" style="background:#${COLOR_DIA[isoDia(s.f)]};color:#111"><div class="d">${fd(s.f).d}</div><div class="w">${DIAS[isoDia(s.f)].slice(0, 3)}</div></div><div style="min-width:0;flex:1"><b>${esc([s.r.d.turno,s.r.d.hora].filter(Boolean).join(" · "))}</b><div class="note">${esc(nomCorto(s.r.d.capitan) || "Sin capitán")} · ${esc(s.r.d.lugar || "")} · ${esc(nomTerr(s.r.d.territorio))}</div></div>${cAdmin() ? `<button class="chipo mini ${v ? "" : "off"}" data-hecha="${s.f}|${s.r.id}">${v ? "✓ Realizada" : "Marcar"}</button>` : v ? `<span class="pill t-ok">✓</span>` : ""}</div>`; }).join("")}</div>`;
-  h += `<div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn pri" id="nuevaS">+ Salida</button>` : ""}${btnExcel("xlsPred", "Excel del mes")}</div>`;
+  const nota = R("pred_nota").find(x => x.k === CG.mes);
+  h += `<div class="label">Nota del mes (sale al pie del Excel)</div><button class="card srow" id="pNota"><span style="flex:1;text-align:left;font-weight:700;color:${nota && nota.d.texto ? "#C0392B" : "var(--muted)"}">${nota && nota.d.texto ? esc(nota.d.texto) : "Sin nota. Ej: Van a haber cambios en los territorios."}</span></button>`;
+  h += `<div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn pri" id="nuevaS">+ Salida</button><button class="btn line" id="copiaMes">⧉ Copiar fines de semana de ${MES[+mesMas(CG.mes, -1).slice(5) - 1]}</button>` : ""}${btnExcel("xlsPred", "Excel del mes")}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-sid]").forEach(b => b.onclick = () => fichaSalida(R("pred_salida").find(r => r.id === b.dataset.sid)));
   document.querySelectorAll("[data-hecha]").forEach(b => b.onclick = () => marcarHecha(...b.dataset.hecha.split("|")));
   if ($("#nuevaS")) $("#nuevaS").onclick = () => fichaSalida(null);
   $("#xlsPred").onclick = () => conExcel(xlsPredicacion);
+  $("#pNota").onclick = () => { if (!cAdmin()) return; hoja(`<div class="shead"><h2>Nota de ${mesNombre(CG.mes)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>${campo("Nota en rojo al pie", inp("nT", nota ? nota.d.texto : "", "Van a haber cambios en los territorios"))}${campo("Nota pequeña (columna territorio)", inp("nE", nota ? nota.d.extra : "", "Manzanillo / Puerto Rey"))}<button class="btn pri" id="nOk">Guardar</button>`, (bg, close) => { bg.querySelector("#nOk").onclick = async () => { await cGuardar("pred_nota", CG.mes, nota ? nota.id : null, { texto: val(bg, "nT"), extra: val(bg, "nE") }); close(); toast("Nota guardada"); }; }); };
+  if ($("#copiaMes")) $("#copiaMes").onclick = copiarFinesDeSemana;
 }
 function filaSalida(r, f) {
   const d = r.d; const dia = f ? isoDia(f) : +d.dia;
   return `<button class="card srow" data-sid="${r.id}"><span class="dpill" style="background:#${COLOR_DIA[dia]}">${f ? DIAS[dia].slice(0, 3) + " " + fd(f).d : DIAS[dia]}</span><div style="min-width:0;flex:1;text-align:left"><b>${esc([d.turno,d.hora].filter(Boolean).join(" · "))}</b>${d.nota ? ` <span class="pill t-warn">${esc(d.nota)}</span>` : ""}<div class="note">${esc(nomCorto(d.capitan) || "Sin capitán")} · ${esc(d.lugar || "—")} · ${esc(nomTerr(d.territorio) || "—")}</div></div></button>`;
 }
 function selTerritorio(id, v) {
-  const ts = R("territorio").sort((a, b) => (+a.d.numero || 0) - (+b.d.numero || 0));
-  return `<select id="${id}" class="csel"><option value="">—</option><optgroup label="Territorios">${ts.map(t => `<option value="${t.id}" ${v === t.id ? "selected" : ""}>${esc(nomTerr(t.id))}</option>`).join("")}</optgroup><optgroup label="Modalidades">${MODALIDADES.map(m => `<option ${v === m ? "selected" : ""}>${m}</option>`).join("")}</optgroup></select>`;
+  const ts = R("territorio").sort((a, b) => (+a.d.numero || 0) - (+b.d.numero || 0) || a.d.nombre.localeCompare(b.d.nombre));
+  return `<input id="${id}" list="${id}L" value="${esc(nomTerr(v))}" placeholder="Escribe o escoge: Puerto Rey, Cartas y teléfono…" autocomplete="off"><datalist id="${id}L">${ts.map(t => `<option value="${esc(nomTerr(t.id))}">`).join("")}${MODALIDADES.map(m => `<option value="${m}">`).join("")}</datalist>`;
 }
+const terrDeTexto = t => { t = (t || "").trim(); if (!t) return ""; const n = norm(t); const x = R("territorio").find(r => norm(nomTerr(r.id)) === n || norm(r.d.nombre) === n || (r.d.numero && norm(r.d.numero) === n)); return x ? x.id : t; };
+const lugaresUsados = () => [...new Set(["Salón del Reino", ...R("pred_salida").map(r => r.d.lugar).filter(Boolean)])];
 function fichaSalida(r) {
   const d = r ? r.d : { tipo: "fija", dia: 1, turno: "Mañana", hora: "8:15", capitan: "", lugar: "Salón del Reino", territorio: "", fecha: HOY, nota: "" };
   if (!cAdmin()) { toast("Solo los administradores pueden editar"); return; }
@@ -287,7 +298,7 @@ function fichaSalida(r) {
     <div id="sFecha" ${d.tipo === "fecha" ? "" : "hidden"}>${campo("Fecha", `<input id="sF" type="date" value="${esc(d.fecha || HOY)}">`)}</div>
     <div class="grid2">${campo("Turno", `<select id="sT" class="csel">${["Mañana", "Tarde"].map(x => `<option ${d.turno === x ? "selected" : ""}>${x}</option>`).join("")}</select>`)}${campo("Hora", inp("sH", d.hora, "8:15"))}</div>
     ${campo("Capitán", selPersona("sC", d.capitan, esHermano))}
-    ${campo("Lugar de encuentro", inp("sL", d.lugar, "Salón del Reino, Familia Gómez…"))}
+    ${campo("Lugar de encuentro", inp("sL", d.lugar, "Salón del Reino, Familia Gómez…", 'list="sLL" autocomplete="off"') + `<datalist id="sLL">${lugaresUsados().map(x => `<option value="${esc(x)}">`).join("")}</datalist>`)}
     ${campo("Territorio", selTerritorio("sR", d.territorio))}
     ${campo("Nota (opcional)", inp("sN", d.nota, "Visita del superintendente, Grupo 3…"))}
     <button class="btn pri" id="sOk">Guardar</button>${r ? `<button class="btn bad" id="sDel">Borrar salida</button>` : ""}`,
@@ -295,13 +306,38 @@ function fichaSalida(r) {
       let tipo = d.tipo;
       bg.querySelectorAll("[data-tipo]").forEach(b => b.onclick = () => { tipo = b.dataset.tipo; bg.querySelectorAll("[data-tipo]").forEach(x => x.classList.toggle("on", x === b)); bg.querySelector("#sDia").hidden = tipo !== "fija"; bg.querySelector("#sFecha").hidden = tipo !== "fecha"; });
       bg.querySelector("#sOk").onclick = async () => {
-        const nd = { tipo, dia: +val(bg, "sD"), fecha: tipo === "fecha" ? val(bg, "sF") : "", turno: val(bg, "sT"), hora: val(bg, "sH"), capitan: val(bg, "sC"), lugar: val(bg, "sL"), territorio: val(bg, "sR"), nota: val(bg, "sN") };
+        const nd = { tipo, dia: +val(bg, "sD"), fecha: tipo === "fecha" ? val(bg, "sF") : "", turno: val(bg, "sT"), hora: val(bg, "sH"), capitan: val(bg, "sC"), lugar: val(bg, "sL"), territorio: terrDeTexto(val(bg, "sR")), nota: val(bg, "sN") };
         const quien = tipo === "fija" ? DIAS[nd.dia] + " " + nd.turno.toLowerCase() : corto(nd.fecha);
         const aviso = r && r.d.capitan !== nd.capitan ? `Predicación ${quien}: capitán ahora ${nom(nd.capitan) || "sin asignar"}` : r ? `Predicación ${quien}: salida actualizada` : `Nueva salida de predicación: ${quien}`;
         await cGuardar("pred_salida", tipo === "fija" ? "fija" : nd.fecha.slice(0, 7), r ? r.id : null, nd, aviso); close(); toast("Salida guardada");
       };
       const del = bg.querySelector("#sDel"); if (del) del.onclick = async () => { await cBorrar(r.id, "Se borró una salida de predicación"); close(); };
     });
+}
+async function copiarFinesDeSemana() {
+  const ant = mesMas(CG.mes, -1);
+  const origen = R("pred_salida").filter(r => r.d.tipo === "fecha" && r.d.fecha.startsWith(ant));
+  if (!origen.length) { toast(`${mesNombre(ant)} no tiene salidas por fecha`); return; }
+  const ya = R("pred_salida").filter(r => r.d.tipo === "fecha" && r.d.fecha.startsWith(CG.mes));
+  const asam = new Set(R("vmc").filter(r => r.d && /Asamblea/i.test(r.d.evento || "")).flatMap(r => [sumDias(r.k, 5), sumDias(r.k, 6)]));
+  const porDia = (ym, dd) => diasMes(ym).filter(f => isoDia(f) === dd);
+  let n = 0, salt = []; const nuevos = [];
+  for (const dd of [1, 2, 3, 4, 5, 6, 7]) {
+    const src = origen.filter(r => isoDia(r.d.fecha) === dd).sort((a, b) => a.d.fecha < b.d.fecha ? -1 : 1); if (!src.length) continue;
+    const fechasO = [...new Set(src.map(r => r.d.fecha))];
+    porDia(CG.mes, dd).forEach((f, i) => {
+      if (ya.some(r => r.d.fecha === f)) return;
+      if (asam.has(f)) { salt.push(corto(f)); return; }
+      const fo = fechasO[i % fechasO.length];
+      src.filter(r => r.d.fecha === fo).forEach(r => nuevos.push({ ...r.d, fecha: f }));
+    });
+  }
+  if (!nuevos.length) { toast("No hay nada nuevo que copiar"); return; }
+  document.body.classList.add("loading");
+  try { for (const d of nuevos) { await rpc("cong_reg_guardar", { p_modulo: "pred_salida", p_clave: CG.mes, p_id: null, p_d: d, p_aviso: n ? null : `Predicación: se copiaron los fines de semana de ${mesNombre(ant)} a ${mesNombre(CG.mes)}` }); n++; } }
+  catch (e) { toast(e.message); }
+  await cCargar(); document.body.classList.remove("loading"); vPred();
+  toast(`Copiadas ${n} salidas${salt.length ? ". Sin salida por asamblea: " + salt.join(", ") : ""}`);
 }
 async function marcarHecha(f, sid) {
   const s = R("pred_salida").find(r => r.id === sid); const v = visitaDe(f, sid);
@@ -311,23 +347,32 @@ async function marcarHecha(f, sid) {
 }
 async function xlsPredicacion(X) {
   const wb = new X.Workbook(); const ws = wb.addWorksheet("Predicación", { views: [{ showGridLines: false }] });
-  ws.columns = [{ width: 14 }, { width: 14 }, { width: 11 }, { width: 24 }, { width: 24 }, { width: 28 }];
-  ws.mergeCells("A1:F1"); celda(ws, "A1", "PREDICACIÓN SEMANAL", { bold: true, size: 12, align: "center", color: "C0392B", fill: "FFE24D" });
-  ws.mergeCells("A2:F2"); celda(ws, "A2", `${mesNombre(CG.mes).toUpperCase()} - HORARIO DE PREDICACIÓN`, { bold: true, size: 16, align: "center", color: "C0392B", fill: "FFE24D" });
-  ["Día", "Mañana y tarde", "Horario", "Capitán", "Lugar", "Territorio"].forEach((t, i) => celda(ws, String.fromCharCode(65 + i) + "3", t, { bold: true, align: "center", fill: "FFE24D", color: "C0392B" }));
+  ws.columns = [{ width: 15 }, { width: 17 }, { width: 18 }, { width: 19 }, { width: 19 }, { width: 23 }];
+  const fino = { style: "thin", color: { argb: "FF333333" } }; const caja = { top: fino, left: fino, bottom: fino, right: fino };
+  const put = (ref, v, o = {}) => { const c = ws.getCell(ref); c.value = v; c.font = { name: o.font || "Arial", size: o.size || 11, bold: !!o.bold, color: { argb: "FF" + (o.color || "111111") } }; c.alignment = { vertical: "middle", horizontal: o.align || "center", shrinkToFit: true }; if (o.fill) c.fill = relleno(o.fill); if (o.box !== false) c.border = caja; return c; };
+  const MX = t => String(t || "").toUpperCase();
+  ws.mergeCells("A1:F1"); put("A1", "Horarios De Predicacion", { bold: true, size: 14, fill: "E7E6E6", box: false }); ws.getRow(1).height = 24;
+  ws.mergeCells("A2:F2"); put("A2", `${MX(MES[+CG.mes.slice(5) - 1])}  HORARIO DE PREDICACION`, { bold: true, size: 22, color: "D0021B", fill: "FFD200", font: "Arial Black" }); ws.getRow(2).height = 34;
+  ["Dia", "MAÑANA Y TARDE", "Horario", "Capitan", "Lugar", "Territorio"].forEach((t, i) => put(String.fromCharCode(65 + i) + "3", t, { bold: true, size: 9, color: "D0021B", fill: "FFD200" })); ws.getRow(3).height = 20;
   let row = 4;
-  const fijas = R("pred_salida").filter(r => r.d.tipo === "fija").sort((a, b) => a.d.dia - b.d.dia || (a.d.turno === "Mañana" ? -1 : 1));
-  const fechas = R("pred_salida").filter(r => r.d.tipo === "fecha" && r.d.fecha.startsWith(CG.mes) && !r.d.nota).sort((a, b) => (isoDia(a.d.fecha) - isoDia(b.d.fecha)) || (a.d.fecha < b.d.fecha ? -1 : 1));
-  const linea = (dia, etiqueta, d) => { const fill = COLOR_DIA[dia]; [etiqueta, (d.turno||"").toUpperCase(), d.hora, nom(d.capitan).toUpperCase(), (d.lugar || "").toUpperCase(), nomTerr(d.territorio).toUpperCase()].forEach((v, i) => celda(ws, String.fromCharCode(65 + i) + row, v, { fill, align: i === 0 ? "right" : "center", bold: i === 0 })); row++; };
-  fijas.forEach(r => linea(+r.d.dia, DIAS[r.d.dia].toUpperCase(), r.d));
-  fechas.forEach(r => linea(isoDia(r.d.fecha), `${DIAS[isoDia(r.d.fecha)].toUpperCase()} (${fd(r.d.fecha).d})`, r.d));
-  const esp = R("pred_salida").filter(r => r.d.tipo === "fecha" && r.d.fecha.startsWith(CG.mes) && r.d.nota);
-  if (esp.length) {
-    row++; ws.mergeCells(`A${row}:F${row}`); celda(ws, "A" + row, "VISITA DEL SUPERINTENDENTE / ESPECIALES", { bold: true, align: "center", color: "C0392B" }); row++;
-    esp.forEach(r => linea(isoDia(r.d.fecha), `${DIAS[isoDia(r.d.fecha)].toUpperCase()} ${fd(r.d.fecha).d}`, { ...r.d, turno: r.d.nota }));
-  }
-  hojaImprimible(ws, false);
-  // Hoja 2: resumen de territorios del mes
+  const fila = (dia, etiqueta, d) => { const fill = COLOR_DIA[dia];
+    put("A" + row, etiqueta, { fill, bold: true, align: "right", size: 11 }); put("B" + row, MX(d.turno), { fill, bold: true }); put("C" + row, d.hora, { fill });
+    put("D" + row, MX(nom(d.capitan)), { fill }); put("E" + row, MX(d.lugar), { fill, size: 10 }); put("F" + row, MX(nomTerr(d.territorio)), { fill, size: 10.5 }); ws.getRow(row).height = 21; row++; };
+  const vacia = dia => { ["A", "B", "C", "D", "E", "F"].forEach(c => put(c + row, "", { fill: COLOR_DIA[dia] })); ws.getRow(row).height = 21; row++; };
+  const ord = (a, b) => (a.r.d.turno === "Mañana" ? 0 : 1) - (b.r.d.turno === "Mañana" ? 0 : 1);
+  const fijas = R("pred_salida").filter(r => r.d.tipo === "fija" && +r.d.dia <= 5 && (!r.d.hasta || r.d.hasta >= CG.mes + "-01") && (!r.d.desde || r.d.desde <= CG.mes + "-31")).sort((a, b) => a.d.dia - b.d.dia || (a.d.turno === "Mañana" ? -1 : 1));
+  fijas.forEach(r => fila(+r.d.dia, MX(DIAS[r.d.dia]).normalize("NFD").replace(/[\u0300-\u036f]/g, ""), r.d));
+  const mes = salidasDelMes(CG.mes);
+  const otros = mes.filter(s => !s.fija && isoDia(s.f) <= 5);
+  otros.forEach(s => fila(isoDia(s.f), `${MX(DIAS[isoDia(s.f)]).normalize("NFD").replace(/[\u0300-\u036f]/g, "")} ${fd(s.f).d}`, { ...s.r.d, turno: s.r.d.nota || s.r.d.turno }));
+  const sab = mes.filter(s => isoDia(s.f) === 6).sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : ord(a, b));
+  const dom = mes.filter(s => isoDia(s.f) === 7).sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : ord(a, b));
+  sab.forEach(s => fila(6, `Sabado ${fd(s.f).d}`, s.r.d)); vacia(6);
+  dom.forEach(s => fila(7, `DOMINGO ${fd(s.f).d}`, s.r.d)); vacia(7);
+  const nota = R("pred_nota").find(x => x.k === CG.mes);
+  put("A" + row, "", { fill: "F3DDD3" }); ws.mergeCells(`B${row}:E${row}`); put("B" + row, MX(nota ? nota.d.texto : ""), { bold: true, size: 10, color: "E0245E" }); put("F" + row, nota ? nota.d.extra : "", { size: 7, fill: "E7E6E6" });
+  ws.pageSetup = { paperSize: 1, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+  // Hoja 2: territorios trabajados en el mes
   const w2 = wb.addWorksheet("Territorios del mes", { views: [{ showGridLines: false }] });
   w2.columns = [{ width: 10 }, { width: 30 }, { width: 14 }, { width: 40 }];
   w2.mergeCells("A1:D1"); celda(w2, "A1", `TERRITORIOS TRABAJADOS · ${mesNombre(CG.mes).toUpperCase()}`, { bold: true, size: 13, align: "center", border: false });
@@ -441,112 +486,221 @@ async function xlsTerritorios(X) {
 
 /* ================= REUNIONES ================= */
 function vReu() { return CG.tab === "acomod" ? vAcomod() : vVmc(); }
-const VMC_BASE = () => ({ lectura: "", c1: "", oracion1: "", intro: "", t1: { titulo: "", p: "" }, t2: { titulo: "Busquemos perlas escondidas", p: "" }, lect: { cita: "", p: "", a: "" }, consejero: "", maestros: [{ titulo: "", min: "", p: "", pa: "", a: "", aa: "" }, { titulo: "", min: "", p: "", pa: "", a: "", aa: "" }, { titulo: "", min: "", p: "", pa: "", a: "", aa: "" }], c2: "", vida: [{ titulo: "", min: "15", p: "" }], estudio: { p: "", lector: "" }, c3: "", oracion2: "", evento: "" });
+const VMC_BASE = () => ({ evento: "", eventoTema: "", lectura: "", c1: "", oracion1: "", intro: "", t1: { titulo: "", min: "10", p: "" }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: "" }, lect: { cita: "", p: "", a: "" }, consejero: "", maestros: [{ titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }, { titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }, { titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }], c2: "", vida: [{ titulo: "", min: "15", p: "" }], estudio: { p: "", lector: "", ref: "" }, c3: "", oracion2: "" });
+const EVENTOS_VMC = ["Asamblea regional", "Asamblea de circuito", "Visita del superintendente de circuito", "Conmemoración", "Otro (sin reunión)"];
+const sinReunion = d => d && d.evento && d.evento !== "Visita del superintendente de circuito";
 function semanasMes(ym) { const out = []; let l = lunesDe(ym + "-01"); if (l.slice(0, 7) < ym) l = sumDias(l, 7); while (l.slice(0, 7) === ym) { out.push(l); l = sumDias(l, 7); } return out; }
+const tituloSemana = l => { const fin = sumDias(l, 6); const a = fd(l), b = fd(fin); return a.m === b.m ? `${a.d}-${b.d} de ${b.m}` : `${a.d} de ${a.m} - ${b.d} de ${b.m}`; };
+const asignVmc = d => d && d.t1 ? [d.oracion1, d.intro, d.t1.p, d.t2.p, d.lect.p, d.lect.a, d.consejero, ...d.maestros.flatMap(m => [m.p, m.pa, m.a, m.aa]), ...d.vida.map(v => v.p), d.estudio.p, d.estudio.lector, d.oracion2].filter(Boolean) : [];
+// Última vez que cada hermano tuvo una asignación en Vida y Ministerio (para repartir parejo)
+function ultimasVmc(antesDe) { const u = {}; R("vmc").filter(r => r.k < antesDe).sort((a, b) => a.k < b.k ? -1 : 1).forEach(r => asignVmc(r.d).forEach(id => u[id] = r.k)); return u; }
+function hace(k, l) { if (!k) return "nunca"; const s = Math.round(dias(k, l) / 7); return s <= 0 ? "esta semana" : s === 1 ? "hace 1 sem" : `hace ${s} sem`; }
+function selSug(id, v, sug, soloH, ult, l) {
+  const act = CG.personas;
+  const op = p => `<option value="${p.id}" ${v === p.id ? "selected" : ""}>${esc(p.nombre)}${ult ? " · " + hace(ult[p.id], l) : ""}</option>`;
+  const s = act.filter(p => (!soloH || p.sexo === "H") && sug && sug(p));
+  const resto = act.filter(p => !s.includes(p));
+  const Hs = resto.filter(p => p.sexo === "H"), Ms = soloH ? [] : resto.filter(p => p.sexo === "M");
+  const fuera = v && !act.find(p => p.id === v) ? `<option value="${esc(v)}" selected>${esc(nom(v))}</option>` : "";
+  const fueraM = soloH && v && P(v) && P(v).sexo === "M" ? `<option value="${v}" selected>${esc(P(v).nombre)}</option>` : "";
+  return `<select id="${id}" class="csel">${`<option value="">— Sin asignar —</option>`}${fuera}${fueraM}${s.length ? `<optgroup label="Sugeridos">${s.map(op).join("")}</optgroup>` : ""}${Hs.length ? `<optgroup label="Hermanos">${Hs.map(op).join("")}</optgroup>` : ""}${Ms.length ? `<optgroup label="Hermanas">${Ms.map(op).join("")}</optgroup>` : ""}</select>`;
+}
+async function traerJW(l) {
+  const r = await fetch(`/api/jw?fecha=${l}`); const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "JW no respondió");
+  return j;
+}
+function aplicarJW(d, j) {
+  const tes = j.partes.filter(p => p.sec === "tesoros"), mae = j.partes.filter(p => p.sec === "maestros"), vid = j.partes.filter(p => p.sec === "vida");
+  d.lectura = j.lectura || d.lectura; d.c1 = j.c1 || d.c1; d.c2 = j.c2 || d.c2; d.c3 = j.c3 || d.c3;
+  if (tes[0]) { d.t1.titulo = tes[0].titulo; d.t1.min = tes[0].min || "10"; }
+  if (tes[1]) { d.t2.titulo = tes[1].titulo; d.t2.min = tes[1].min || "10"; }
+  if (tes[2]) d.lect.cita = tes[2].ref;
+  d.maestros = mae.map((p, i) => ({ ...(d.maestros[i] || { p: "", pa: "", a: "", aa: "" }), titulo: p.titulo, min: p.min, ref: p.ref }));
+  const est = vid.find(p => /Estudio b[ií]blico/i.test(p.titulo)); const otras = vid.filter(p => p !== est);
+  d.vida = otras.map((p, i) => ({ ...(d.vida[i] || { p: "" }), titulo: p.titulo, min: p.min || "15" }));
+  if (est) d.estudio.ref = est.ref;
+  d.jw = j.fuente; return d;
+}
 function vVmc() {
   const ms = mesSelector(vVmc);
   let h = tabs(SEC.reu.tabs) + ms.html + `<div class="list">`;
   for (const l of semanasMes(CG.mes)) {
     const r = R("vmc").find(x => x.k === l); const d = r ? r.d : null;
-    const fin = sumDias(l, 6);
-    const asign = d ? [d.intro, d.t1.p, d.t2.p, d.lect.p, ...d.maestros.map(m => m.p), ...d.vida.map(v => v.p), d.estudio.p].filter(Boolean).length : 0;
-    h += `<button class="card trow" data-sem="${l}"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)">${fd(l).d}–${fd(fin).d}</span><div style="flex:1;min-width:0;text-align:left"><b>Semana ${fd(l).d} al ${fd(fin).d} de ${fd(fin).m}</b><div class="note">${d ? (d.evento ? esc(d.evento) : `${esc(d.lectura || "Sin lectura")} · ${asign} asignaciones`) : "Sin programa"}</div></div><span class="pill ${d ? (d.evento ? "t-warn" : "t-ok") : "t-idle"}">${d ? (d.evento ? "Evento" : "Listo") : "Vacío"}</span></button>`;
+    const n = asignVmc(d).length;
+    const est = !d ? ["Vacío", "t-idle"] : sinReunion(d) ? ["Sin reunión", "t-warn"] : n >= 15 ? ["Completo", "t-ok"] : n ? [`${n} asignados`, "t-info"] : ["Falta asignar", "t-bad"];
+    h += `<button class="card trow" data-sem="${l}"><span class="dpill" style="background:${sinReunion(d) ? "var(--warn-soft);color:var(--warn)" : "var(--accent-soft);color:var(--accent)"}">${fd(l).d}–${fd(sumDias(l, 6)).d}</span><div style="flex:1;min-width:0;text-align:left"><b>Semana ${tituloSemana(l)}</b><div class="note">${d ? (sinReunion(d) ? esc(d.evento + (d.eventoTema ? " · " + d.eventoTema : "")) + " · no hay reunión" : esc(d.lectura || "Sin lectura") + (d.t1.titulo ? " · " + esc(d.t1.titulo) : "")) : "Sin programa"}</div></div><span class="pill ${est[1]}">${est[0]}</span></button>`;
   }
-  h += `</div><div class="row" style="margin-top:12px">${btnExcel("xlsVmc", "Excel del mes")}</div>`;
+  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}${btnExcel("xlsVmc", "Excel del mes")}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-sem]").forEach(b => b.onclick = () => fichaVmc(b.dataset.sem));
   $("#xlsVmc").onclick = () => conExcel(xlsVmc);
+  if ($("#jwMes")) $("#jwMes").onclick = async () => {
+    const b = $("#jwMes"); b.disabled = true; let ok = 0, falla = [];
+    for (const l of semanasMes(CG.mes)) {
+      const r = R("vmc").find(x => x.k === l); if (r && sinReunion(r.d)) continue;
+      b.textContent = `Trayendo ${corto(l)}…`;
+      try { const j = await traerJW(l); const d = aplicarJW(r ? JSON.parse(JSON.stringify(r.d)) : VMC_BASE(), j);
+        await rpc("cong_reg_guardar", { p_modulo: "vmc", p_clave: l, p_id: r ? r.id : null, p_d: d, p_aviso: ok ? null : `Vida y Ministerio: se trajo de JW el programa de ${mesNombre(CG.mes)}` }); ok++; } catch (e) { falla.push(corto(l)); }
+    }
+    await cCargar(); vVmc(); toast(falla.length ? `Listo ${ok}. No publicadas aún: ${falla.join(", ")}` : `Listo: ${ok} semanas cargadas desde JW`);
+  };
 }
 function fichaVmc(l) {
-  const r = R("vmc").find(x => x.k === l); const d = r ? JSON.parse(JSON.stringify(r.d)) : VMC_BASE();
-  const ed = cAdmin();
-  const sp = (id, v, f) => selPersona(id, v, f || esHermano);
-  const usados = () => { const s = {}; return s; };
-  const m = (i, x) => `<div class="card vpart"><div class="grid2">${campo("Parte " + (4 + i), inp("mT" + i, x.titulo, "Empecemos conversaciones"))}${campo("Min.", inp("mM" + i, x.min, "3", 'inputmode="numeric"'))}</div>
-    <div class="grid2">${campo("Sala princ.", sp("mP" + i, x.p, () => true))}${campo("Ayudante", sp("mPA" + i, x.pa, () => true))}</div>
-    <div class="grid2">${campo("Sala aux.", sp("mA" + i, x.a, () => true))}${campo("Ayudante", sp("mAA" + i, x.aa, () => true))}</div></div>`;
-  hoja(`<div class="shead"><h2>Semana ${fd(l).d}–${fd(sumDias(l, 6)).d} de ${fd(sumDias(l, 6)).m}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
-    ${campo("Evento especial (deja vacío si hay reunión normal)", `<select id="vE" class="csel">${["", "Asamblea regional", "Asamblea de circuito", "Visita del superintendente de circuito", "Conmemoración"].map(x => `<option ${d.evento === x ? "selected" : ""} value="${x}">${x || "Reunión normal"}</option>`).join("")}</select>`)}
-    <div id="vCuerpo">
-    ${campo("Lectura semanal de la Biblia", inp("vL", d.lectura, "Lamentaciones 1, 2"))}
-    <div class="grid2">${campo("Canción inicial", inp("vC1", d.c1, "28", 'inputmode="numeric"'))}${campo("Oración", sp("vO1", d.oracion1))}</div>
-    ${campo("Palabras de introducción (presidente)", sp("vI", d.intro, esNombrado))}
-    <div class="vsec" style="background:#2A7F7F">TESOROS DE LA BIBLIA</div>
-    <div class="grid2">${campo("1. Título", inp("vT1", d.t1.titulo, ""))}${campo("Discursante", sp("vT1p", d.t1.p, esNombrado))}</div>
-    <div class="grid2">${campo("2. Perlas escondidas", inp("vT2", d.t2.titulo, ""))}${campo("Conductor", sp("vT2p", d.t2.p, esNombrado))}</div>
-    ${campo("3. Lectura de la Biblia (cita)", inp("vLc", d.lect.cita, "Lam 1:8-18 (th 10)"))}
-    <div class="grid2">${campo("Sala princ.", sp("vLp", d.lect.p))}${campo("Sala aux.", sp("vLa", d.lect.a))}</div>
-    ${campo("Consejero sala auxiliar", sp("vCo", d.consejero, esNombrado))}
-    <div class="vsec" style="background:#B8860B">SEAMOS MEJORES MAESTROS</div>
-    <div id="vMae">${d.maestros.map(m).join("")}</div>
-    <div class="row"><button class="btn line" id="vMas">+ Parte</button><button class="btn line" id="vMenos">− Parte</button></div>
-    <div class="vsec" style="background:#8B1A1A">NUESTRA VIDA CRISTIANA</div>
-    ${campo("Canción", inp("vC2", d.c2, "90", 'inputmode="numeric"'))}
-    <div id="vVida">${d.vida.map((v, i) => `<div class="grid2">${campo("Parte (" + (v.min || "15") + " min)", inp("vV" + i, v.titulo, ""))}${campo("Encargado", sp("vVp" + i, v.p, esNombrado))}</div>`).join("")}</div>
-    <div class="row"><button class="btn line" id="vVMas">+ Parte</button></div>
-    <div class="grid2">${campo("Estudio bíblico (conductor)", sp("vEc", d.estudio.p, esNombrado))}${campo("Lector", sp("vEl", d.estudio.lector))}</div>
-    <div class="grid2">${campo("Canción final", inp("vC3", d.c3, "75", 'inputmode="numeric"'))}${campo("Oración final", sp("vO2", d.oracion2))}</div>
+  const r = R("vmc").find(x => x.k === l); let d = r ? JSON.parse(JSON.stringify(r.d)) : VMC_BASE();
+  d = { ...VMC_BASE(), ...d }; d.maestros = d.maestros.map(m => ({ ref: "", ...m })); d.estudio = { ref: "", ...d.estudio };
+  const ed = cAdmin(); const ult = ultimasVmc(l);
+  const S = (id, v, sug, soloH) => selSug(id, v, sug, soloH, ult, l);
+  const nomb = p => p.privilegio === "anciano" || p.privilegio === "siervo";
+  const anc = p => p.privilegio === "anciano";
+  const H = p => p.sexo === "H";
+  const pub = p => p.privilegio !== "no_bautizado";
+  const parte = (n, titulo, min, extra) => `<div class="vptit"><span class="vn">${n}.</span> ${titulo}${min ? ` <small>(${min} mins)</small>` : ""}${extra || ""}</div>`;
+  const cuerpo = () => {
+    const nM = 4 + d.maestros.length;
+    const maestro = (m, i) => { const disc = /^Discurso/i.test(m.titulo);
+      return `<div class="card vpart"><div class="vptit"><span class="vn" style="color:#A0701B">${4 + i}.</span> <input class="tin" id="mT${i}" value="${esc(m.titulo)}" placeholder="Título de la parte"> <input class="tin min" id="mM${i}" value="${esc(m.min)}" placeholder="min" inputmode="numeric"> <input class="tin ref" id="mR${i}" value="${esc(m.ref)}" placeholder="(lmd 2/4)"></div>
+      <div class="vsala"><span>S. Princ.</span>${S("mP" + i, m.p, disc ? H : pub, disc)}${disc ? "" : `<span>Ayudante</span>${S("mPA" + i, m.pa, pub)}`}</div>
+      <div class="vsala"><span>S. Aux.</span>${S("mA" + i, m.a, disc ? H : pub, disc)}${disc ? "" : `<span>Ayudante</span>${S("mAA" + i, m.aa, pub)}`}</div></div>`; };
+    return `
+    <div class="vhead"><span>🎵 Canción</span><input class="tin min" id="vC1" value="${esc(d.c1)}" inputmode="numeric"><span>y oración</span>${S("vO1", d.oracion1, nomb, true)}</div>
+    <div class="vhead"><span>Presidente · Palabras de introd. (1 min)</span>${S("vI", d.intro, anc, true)}</div>
+    <div class="vsec" style="background:#067876">TESOROS DE LA BIBLIA</div>
+    <div class="card vpart"><div class="vptit"><span class="vn" style="color:#067876">1.</span> <input class="tin" id="vT1" value="${esc(d.t1.titulo)}" placeholder="Título del discurso"> <small>(10 mins)</small></div>${S("vT1p", d.t1.p, nomb, true)}</div>
+    <div class="card vpart">${parte('<span style="color:#067876">2</span>', "Busquemos perlas escondidas", "10")}${S("vT2p", d.t2.p, nomb, true)}</div>
+    <div class="card vpart"><div class="vptit"><span class="vn" style="color:#067876">3.</span> Lectura de la Biblia <small>(4 mins)</small>: <input class="tin" id="vLc" value="${esc(d.lect.cita)}" placeholder="Lam 1:8-18 (th 10)"></div>
+      <div class="vsala"><span>S. Princ.</span>${S("vLp", d.lect.p, p => H(p) && !nomb(p), true)}</div><div class="vsala"><span>S. Aux.</span>${S("vLa", d.lect.a, p => H(p) && !nomb(p), true)}</div><div class="vsala"><span>Cons. aux.</span>${S("vCo", d.consejero, anc, true)}</div></div>
+    <div class="vsec" style="background:#A0701B">SEAMOS MEJORES MAESTROS</div>
+    <div id="vMae">${d.maestros.map(maestro).join("")}</div>
+    ${ed ? `<div class="row"><button class="btn line" id="vMas">+ Parte</button><button class="btn line" id="vMenos">− Parte</button></div>` : ""}
+    <div class="vsec" style="background:#8A0B14">NUESTRA VIDA CRISTIANA</div>
+    <div class="vhead"><span>🎵 Canción</span><input class="tin min" id="vC2" value="${esc(d.c2)}" inputmode="numeric"></div>
+    <div id="vVida">${d.vida.map((v, i) => `<div class="card vpart"><div class="vptit"><span class="vn" style="color:#8A0B14">${nM + i}.</span> <input class="tin" id="vV${i}" value="${esc(v.titulo)}" placeholder="Título"> <input class="tin min" id="vVm${i}" value="${esc(v.min || "15")}" inputmode="numeric"></div>${S("vVp" + i, v.p, nomb, true)}</div>`).join("")}</div>
+    ${ed ? `<div class="row"><button class="btn line" id="vVMas">+ Parte</button><button class="btn line" id="vVMenos">− Parte</button></div>` : ""}
+    <div class="card vpart">${parte(`<span style="color:#8A0B14">${nM + d.vida.length}</span>`, "Estudio bíblico de la congregación", "30", d.estudio.ref ? ` <small>${esc(d.estudio.ref)}</small>` : "")}<div class="vsala"><span>Conductor</span>${S("vEc", d.estudio.p, anc, true)}</div><div class="vsala"><span>Lector</span>${S("vEl", d.estudio.lector, H, true)}</div></div>
+    <div class="vhead" style="color:#8A0B14"><span>Palabras de conclusión · 🎵 Canción</span><input class="tin min" id="vC3" value="${esc(d.c3)}" inputmode="numeric"><span>y oración</span>${S("vO2", d.oracion2, nomb, true)}</div>`;
+  };
+  hoja(`<div class="shead"><h2>Semana ${tituloSemana(l)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
+    <div class="picks" id="vTipo"><button class="pk ${sinReunion(d) ? "" : "on"}" data-ev="">Hay reunión</button><button class="pk ${sinReunion(d) ? "on" : ""}" data-ev="1">No hay reunión (asamblea, evento)</button></div>
+    <div id="vEv" ${sinReunion(d) ? "" : "hidden"}>
+      ${campo("¿Qué hay esa semana?", `<select id="vE" class="csel">${EVENTOS_VMC.filter(x => !x.startsWith("Visita")).map(x => `<option ${d.evento === x ? "selected" : ""}>${x}</option>`).join("")}</select>`)}
+      ${campo("Tema (opcional)", inp("vEt", d.eventoTema, "Felices para siempre"))}
+      <div class="aviso">${I.alert}<span>Esa semana no se arma programa ni hay asignaciones. En el Excel sale la franja con el evento.</span></div></div>
+    ${campo("Lectura semanal de la Biblia", inp("vL", d.lectura, "LAMENTACIONES 3-5"))}
+    <div id="vNormal" ${sinReunion(d) ? "hidden" : ""}>
+      ${ed ? `<div class="row"><button class="btn line" id="vJW">⬇ Traer programa de JW</button><button class="btn line" id="vSug">✨ Sugerir los vacíos</button></div>` : ""}
+      <label class="ic chk" style="margin:4px 0 8px"><input type="checkbox" id="vVisita" ${d.evento === "Visita del superintendente de circuito" ? "checked" : ""}> Visita del superintendente esta semana</label>
+      <div id="vCuerpo">${cuerpo()}</div>
     </div>
     <div id="vAviso"></div>
     ${ed ? `<button class="btn pri" id="vOk">Guardar semana</button>` : `<p class="note">Solo los administradores pueden editar.</p>`}`,
     (bg, close) => {
       const q = s => bg.querySelector(s);
+      if (!ed) bg.querySelectorAll("input,select").forEach(x => x.disabled = true);
+      let sinR = sinReunion(d);
+      bg.querySelectorAll("[data-ev]").forEach(b => b.onclick = () => { sinR = !!b.dataset.ev; bg.querySelectorAll("[data-ev]").forEach(x => x.classList.toggle("on", x === b)); q("#vEv").hidden = !sinR; q("#vNormal").hidden = sinR; });
       const leer = () => {
-        const nd = { evento: val(bg, "vE"), lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), p: val(bg, "vT1p") }, t2: { titulo: val(bg, "vT2"), p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl") }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
-        bg.querySelectorAll("#vMae .vpart").forEach((_, i) => nd.maestros.push({ titulo: val(bg, "mT" + i), min: val(bg, "mM" + i), p: val(bg, "mP" + i), pa: val(bg, "mPA" + i), a: val(bg, "mA" + i), aa: val(bg, "mAA" + i) }));
-        let i = 0; while (q("#vV" + i)) { nd.vida.push({ titulo: val(bg, "vV" + i), min: (d.vida[i] || {}).min || "15", p: val(bg, "vVp" + i) }); i++; }
+        if (sinR) return { ...d, evento: val(bg, "vE"), eventoTema: val(bg, "vEt"), lectura: val(bg, "vL") };
+        const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "" }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
+        bg.querySelectorAll("#vMae .vpart").forEach((_, i) => nd.maestros.push({ titulo: val(bg, "mT" + i), min: val(bg, "mM" + i), ref: val(bg, "mR" + i), p: val(bg, "mP" + i), pa: val(bg, "mPA" + i), a: val(bg, "mA" + i), aa: val(bg, "mAA" + i) }));
+        let i = 0; while (q("#vV" + i)) { nd.vida.push({ titulo: val(bg, "vV" + i), min: val(bg, "vVm" + i) || "15", p: val(bg, "vVp" + i) }); i++; }
         return nd;
       };
-      const evento = () => { q("#vCuerpo").hidden = !!val(bg, "vE"); };
-      q("#vE").onchange = evento; evento();
-      const dupl = () => { const nd = leer(); const ids = [nd.intro, nd.t1.p, nd.t2.p, nd.lect.p, nd.lect.a, ...nd.maestros.flatMap(x => [x.p, x.pa, x.a, x.aa]), ...nd.vida.map(v => v.p), nd.estudio.p, nd.estudio.lector].filter(Boolean); const c = {}; ids.forEach(x => c[x] = (c[x] || 0) + 1); const rep = Object.keys(c).filter(k => c[k] > 1); q("#vAviso").innerHTML = rep.length ? `<div class="aviso warn">${I.alert}<span>Con más de una asignación esta semana: <b>${rep.map(nomCorto).map(esc).join(", ")}</b>.</span></div>` : ""; };
-      bg.querySelectorAll("select").forEach(s => s.addEventListener("change", dupl)); dupl();
-      q("#vMas").onclick = () => { const i = bg.querySelectorAll("#vMae .vpart").length; q("#vMae").insertAdjacentHTML("beforeend", m(i, { titulo: "", min: "", p: "", pa: "", a: "", aa: "" })); bg.querySelectorAll("#vMae select").forEach(s => s.onchange = dupl); };
-      q("#vMenos").onclick = () => { const l2 = bg.querySelectorAll("#vMae .vpart"); if (l2.length > 1) l2[l2.length - 1].remove(); };
-      q("#vVMas").onclick = () => { let i = 0; while (q("#vV" + i)) i++; q("#vVida").insertAdjacentHTML("beforeend", `<div class="grid2">${campo("Parte", inp("vV" + i, "", ""))}${campo("Encargado", sp("vVp" + i, "", esNombrado))}</div>`); };
+      const repintar = () => { d = leer(); q("#vCuerpo").innerHTML = cuerpo(); enlazar(); };
+      const dupl = () => { const ids = asignVmc(leer()).filter((x, i, a) => true); const c = {}; ids.forEach(x => c[x] = (c[x] || 0) + 1); const rep = Object.keys(c).filter(k => c[k] > 1); q("#vAviso").innerHTML = rep.length && !sinR ? `<div class="aviso warn">${I.alert}<span>Con más de una asignación esta semana: <b>${rep.map(nomCorto).map(esc).join(", ")}</b>.</span></div>` : ""; };
+      const enlazar = () => {
+        bg.querySelectorAll("#vCuerpo select").forEach(s => s.addEventListener("change", dupl)); dupl();
+        if (q("#vMas")) q("#vMas").onclick = () => { d = leer(); d.maestros.push({ titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }); repintar(); };
+        if (q("#vMenos")) q("#vMenos").onclick = () => { d = leer(); if (d.maestros.length > 1) d.maestros.pop(); repintar(); };
+        if (q("#vVMas")) q("#vVMas").onclick = () => { d = leer(); d.vida.push({ titulo: "", min: "15", p: "" }); repintar(); };
+        if (q("#vVMenos")) q("#vVMenos").onclick = () => { d = leer(); if (d.vida.length > 1) d.vida.pop(); repintar(); };
+        if (!ed) bg.querySelectorAll("#vCuerpo input,#vCuerpo select").forEach(x => x.disabled = true);
+      };
+      enlazar();
+      if (q("#vJW")) q("#vJW").onclick = async () => { const b = q("#vJW"); b.disabled = true; b.textContent = "Trayendo…";
+        try { d = aplicarJW(leer(), await traerJW(l)); q("#vL").value = d.lectura; q("#vCuerpo").innerHTML = cuerpo(); enlazar(); toast("Programa traído de JW. Revisa y asigna."); }
+        catch (e) { toast(e.message); } b.disabled = false; b.textContent = "⬇ Traer programa de JW"; };
+      if (q("#vSug")) q("#vSug").onclick = () => {
+        d = leer(); const usados = new Set(asignVmc(d));
+        const elegir = (filtro, sexo) => { const c = CG.personas.filter(p => filtro(p) && !usados.has(p.id) && (!sexo || p.sexo === sexo)).sort((a, b) => (ult[a.id] || "") < (ult[b.id] || "") ? -1 : (ult[a.id] || "") > (ult[b.id] || "") ? 1 : a.nombre.localeCompare(b.nombre)); const x = c[0]; if (x) usados.add(x.id); return x ? x.id : ""; };
+        const llena = (o, k, f, sx) => { if (!o[k]) o[k] = elegir(f, sx); };
+        llena(d, "intro", anc); llena(d, "oracion1", p => nomb(p)); llena(d.t1, "p", nomb); llena(d.t2, "p", nomb);
+        llena(d.lect, "p", p => H(p) && !nomb(p)); llena(d.lect, "a", p => H(p) && !nomb(p)); llena(d, "consejero", anc);
+        d.maestros.forEach(m => { const disc = /^Discurso/i.test(m.titulo); llena(m, "p", disc ? H : pub); llena(m, "a", disc ? H : pub);
+          if (!disc) { const sx = id => (P(id) || {}).sexo; llena(m, "pa", pub, sx(m.p)); llena(m, "aa", pub, sx(m.a)); } });
+        d.vida.forEach(v => llena(v, "p", nomb)); llena(d.estudio, "p", anc); llena(d.estudio, "lector", H); llena(d, "oracion2", nomb);
+        q("#vCuerpo").innerHTML = cuerpo(); enlazar(); toast("Sugerí a quienes llevan más tiempo sin parte. Revisa antes de guardar.");
+      };
       const ok = q("#vOk"); if (ok) ok.onclick = async () => {
         const nd = leer();
-        let aviso = r ? null : `Programa de Vida y Ministerio cargado: semana del ${corto(l)}`;
-        if (r) { const cambios = []; const cmp = (a, b, t) => { if ((a || "") !== (b || "")) cambios.push(`${t}: ${nomCorto(b) || "sin asignar"}`); };
-          cmp(r.d.intro, nd.intro, "presidente"); cmp(r.d.t1.p, nd.t1.p, "discurso de Tesoros"); cmp(r.d.t2.p, nd.t2.p, "perlas escondidas"); cmp(r.d.lect.p, nd.lect.p, "lectura de la Biblia"); cmp(r.d.estudio.p, nd.estudio.p, "estudio bíblico"); cmp(r.d.estudio.lector, nd.estudio.lector, "lector");
-          nd.maestros.forEach((x, i) => cmp((r.d.maestros[i] || {}).p, x.p, `parte ${4 + i}`));
-          aviso = cambios.length ? `Vida y Ministerio ${corto(l)} · cambió ${cambios.join("; ")}` : `Vida y Ministerio ${corto(l)}: programa actualizado`; }
+        let aviso = r ? null : `Vida y Ministerio: programa de la semana ${tituloSemana(l)} cargado`;
+        if (r && sinR) aviso = `Vida y Ministerio ${tituloSemana(l)}: no hay reunión (${nd.evento})`;
+        else if (r) { const cambios = []; const cmp = (a, b, t) => { if ((a || "") !== (b || "")) cambios.push(`${t}: ${nomCorto(b) || "sin asignar"}`); };
+          const o = { ...VMC_BASE(), ...r.d };
+          cmp(o.intro, nd.intro, "presidente"); cmp(o.oracion1, nd.oracion1, "oración inicial"); cmp(o.t1.p, nd.t1.p, "discurso de Tesoros"); cmp(o.t2.p, nd.t2.p, "perlas escondidas"); cmp(o.lect.p, nd.lect.p, "lectura de la Biblia"); cmp(o.lect.a, nd.lect.a, "lectura sala aux."); cmp(o.consejero, nd.consejero, "consejero aux.");
+          nd.maestros.forEach((x, i) => { const y = o.maestros[i] || {}; cmp(y.p, x.p, `parte ${4 + i}`); cmp(y.pa, x.pa, `ayudante parte ${4 + i}`); cmp(y.a, x.a, `parte ${4 + i} sala aux.`); cmp(y.aa, x.aa, `ayudante ${4 + i} sala aux.`); });
+          nd.vida.forEach((x, i) => cmp((o.vida[i] || {}).p, x.p, `parte ${4 + nd.maestros.length + i}`));
+          cmp(o.estudio.p, nd.estudio.p, "estudio bíblico"); cmp(o.estudio.lector, nd.estudio.lector, "lector"); cmp(o.oracion2, nd.oracion2, "oración final");
+          aviso = cambios.length ? `Vida y Ministerio ${tituloSemana(l)} · cambió ${cambios.join("; ")}` : `Vida y Ministerio ${tituloSemana(l)}: programa actualizado`; }
         await cGuardar("vmc", l, r ? r.id : null, nd, aviso); close(); toast("Semana guardada");
       };
     });
 }
 async function xlsVmc(X) {
   const wb = new X.Workbook(); const ws = wb.addWorksheet("Vida y Ministerio", { views: [{ showGridLines: false }] });
-  ws.columns = [{ width: 50 }, { width: 10 }, { width: 24 }, { width: 10 }, { width: 24 }];
-  const MX = s => s.toUpperCase();
-  ws.mergeCells("A1:E1"); celda(ws, "A1", "VIDA Y MINISTERIO CRISTIANOS", { bold: true, size: 18, align: "center", color: "1F2A5A", border: false });
-  ws.mergeCells("A2:E2"); celda(ws, "A2", `${mesNombre(CG.mes)}  ·  Congregación: TIERRA BAJA`, { size: 12, align: "center", color: "1F2A5A", border: false });
-  let r = 4;
-  const bar = (t, fill) => { ws.mergeCells(`A${r}:E${r}`); celda(ws, "A" + r, t, { bold: true, align: "center", color: "FFFFFF", fill }); r++; };
-  const fila = (t, nombre, color, extra) => { ws.mergeCells(`A${r}:${extra ? "C" : "D"}${r}`); celda(ws, "A" + r, t, { color: color || "2A7F7F", bold: true }); if (extra) { celda(ws, "D" + r, extra[0], { size: 8, align: "right", border: false }); } celda(ws, "E" + r, nombre ? MX(nom(nombre)) : "", { bold: true, align: "center" }); r++; };
-  const sala = (p, a, lab) => { celda(ws, "A" + r, "", { border: false }); celda(ws, "B" + r, lab || "S. Princ.:", { size: 9, align: "right", border: false }); celda(ws, "C" + r, p ? MX(nom(p)) : "", { bold: true, align: "center" }); celda(ws, "D" + r, lab ? "Ayudante:" : "S. Aux.:", { size: 9, align: "right", border: false }); celda(ws, "E" + r, a ? MX(nom(a)) : "", { bold: true, align: "center" }); r++; };
+  ws.columns = [{ width: 36 }, { width: 31 }, { width: 12 }, { width: 21 }, { width: 15 }, { width: 35 }];
+  const NEGRO = "000000", VERDE = "2E6E4E", TEAL = "067876", ORO = "A0701B", ROJO = "8A0B14", GRIS = "8C8C8C";
+  const F = (o = {}) => ({ name: "Arial", size: o.size || 10.5, bold: o.bold !== false, italic: !!o.italic, color: { argb: "FF" + (o.color || NEGRO) } });
+  const fino = { style: "thin", color: { argb: "FF000000" } }, grueso = { style: "medium", color: { argb: "FF000000" } };
+  const caja = { top: fino, left: fino, bottom: fino, right: fino };
+  const MX = s => String(s || "").toUpperCase();
+  const N = id => MX(nom(id));
+  let r = 1;
+  const put = (ref, v, o = {}) => { const c = ws.getCell(ref); c.value = v; c.font = F(o); c.alignment = { vertical: "middle", horizontal: o.align || "left", wrapText: false, shrinkToFit: !!o.shrink, indent: o.indent || 0 }; if (o.fill) c.fill = relleno(o.fill); if (o.box) c.border = caja; return c; };
+  const rich = (ref, partes, o = {}) => { const c = ws.getCell(ref); c.value = { richText: partes.map(([t, f]) => ({ text: t, font: F(f) })) }; c.alignment = { vertical: "middle", horizontal: o.align || "left", shrinkToFit: true }; return c; };
+  const merge = (a, b) => ws.mergeCells(`${a}${r}:${b}${r}`);
+  const nombre = (col, id, o = {}) => put(col + r, N(id), { align: "center", box: true, fill: o.fill, shrink: true });
+  const barra = (t, fill) => { merge("A", "F"); put("A" + r, t, { align: "center", color: "FFFFFF", fill, size: 11 }); r++; };
+  const sala = (lab1, p, lab2, a, chico) => { put("B" + r, lab1, { bold: false, align: "right", size: chico ? 9 : 10.5 }); merge("C", "D"); nombre("C", p); put("E" + r, lab2, { bold: false, align: "right", size: chico ? 9 : 10.5 }); nombre("F", a); r++; };
+  const linea = row => ["A", "B", "C", "D", "E", "F"].forEach(c => { const x = ws.getCell(c + row); x.border = { ...(x.border || {}), bottom: fino }; });
   for (const l of semanasMes(CG.mes)) {
-    const rr = R("vmc").find(x => x.k === l); const fin = sumDias(l, 6);
-    ws.mergeCells(`A${r}:C${r}`); celda(ws, "A" + r, `SEMANA ${fd(l).d}-${fd(fin).d} DE ${MX(fd(fin).m)}`, { bold: true });
-    ws.mergeCells(`D${r}:E${r}`); celda(ws, "D" + r, `Lectura semanal de la Biblia: ${rr ? MX(rr.d.lectura || "") : ""}`, { bold: true, size: 9 }); r++;
-    if (!rr) { bar("SIN PROGRAMA", "999999"); r++; continue; }
-    const d = rr.d;
-    if (d.evento) { bar(MX(d.evento), "2A7F7F"); r++; continue; }
-    ws.mergeCells(`A${r}:B${r}`); celda(ws, "A" + r, `•  Canción ${d.c1} y oración:`, { bold: true, align: "right", border: false }); celda(ws, "C" + r, MX(nom(d.oracion1)), { bold: true, align: "center" }); celda(ws, "D" + r, "Palabras de introd.:", { size: 8, align: "right", border: false }); celda(ws, "E" + r, MX(nom(d.intro)), { bold: true, align: "center" }); r++;
-    bar("TESOROS DE LA BIBLIA", "2A7F7F");
-    fila("1. " + d.t1.titulo + " (10 mins)", d.t1.p); fila("2. " + (d.t2.titulo || "Busquemos perlas escondidas") + " (10 mins)", d.t2.p);
-    fila("3. Lectura de la Biblia (4 mins): " + d.lect.cita, d.consejero, null, ["Cons. aux."]); sala(d.lect.p, d.lect.a);
-    bar("SEAMOS MEJORES MAESTROS", "B8860B");
-    d.maestros.forEach((m, i) => { ws.mergeCells(`A${r}:E${r}`); celda(ws, "A" + r, `${4 + i}. ${m.titulo}${m.min ? " (" + m.min + " mins)" : ""}`, { bold: true, color: "B8860B" }); r++; sala(m.p, m.a); if (m.pa || m.aa) { celda(ws, "A" + r, "", { border: false }); celda(ws, "B" + r, "Ayudante:", { size: 9, align: "right", border: false }); celda(ws, "C" + r, MX(nom(m.pa)), { bold: true, align: "center" }); celda(ws, "D" + r, "Ayudante:", { size: 9, align: "right", border: false }); celda(ws, "E" + r, MX(nom(m.aa)), { bold: true, align: "center" }); r++; } });
-    bar("NUESTRA VIDA CRISTIANA", "8B1A1A");
-    ws.mergeCells(`A${r}:E${r}`); celda(ws, "A" + r, "•  Canción " + d.c2, { bold: true, color: "8B1A1A" }); r++;
-    const n0 = 4 + d.maestros.length;
-    d.vida.forEach((v, i) => fila(`${n0 + i}. ${v.titulo} (${v.min || 15} mins)`, v.p, "8B1A1A"));
-    ws.mergeCells(`A${r}:B${r}`); celda(ws, "A" + r, `${n0 + d.vida.length}. Estudio bíblico de la congregación (30 mins)`, { bold: true, color: "8B1A1A" }); celda(ws, "C" + r, MX(nom(d.estudio.p)), { bold: true, align: "center" }); celda(ws, "D" + r, "Lector:", { size: 9, align: "right", border: false }); celda(ws, "E" + r, MX(nom(d.estudio.lector)), { bold: true, align: "center" }); r++;
-    ws.mergeCells(`A${r}:B${r}`); celda(ws, "A" + r, "•  Palabras de conclusión (3 mins)", { bold: true, color: "8B1A1A" }); ws.mergeCells(`C${r}:D${r}`); celda(ws, "C" + r, `•  Canción ${d.c3} y oración`, { bold: true, color: "8B1A1A", align: "right" }); celda(ws, "E" + r, MX(nom(d.oracion2)), { bold: true, align: "center" }); r++;
+    const rr = R("vmc").find(x => x.k === l); const d = rr ? { ...VMC_BASE(), ...rr.d } : null; const r0 = r;
+    merge("A", "C"); put("A" + r, `SEMANA ${MX(tituloSemana(l))}`, { size: 11 }); merge("D", "E"); put("D" + r, "Lectura semanal de la Biblia:", { size: 10.5 }); put("F" + r, MX(d ? d.lectura : ""), { align: "center", shrink: true }); r++;
+    if (!d) { barra("PROGRAMA PENDIENTE", "9E9E9E"); }
+    else if (sinReunion(d)) { barra(MX(d.evento) + (d.eventoTema ? ` (${MX(d.eventoTema)})` : ""), TEAL); }
+    else {
+      rich("A" + r, [["● ", { color: GRIS }], [`Canción ${d.c1} y oración:`, {}]], { align: "right" }); nombre("B", d.oracion1);
+      merge("C", "E"); rich("C" + r, [["● ", { color: GRIS }], ["Palabras de introd. ", {}], ["(1 min)", { size: 9 }], [":", {}]], { align: "right" }); nombre("F", d.intro); r++;
+      barra("TESOROS DE LA BIBLIA", TEAL);
+      merge("A", "E"); rich("A" + r, [["1. ", { color: TEAL }], [d.t1.titulo, { color: VERDE }], [` (${d.t1.min || 10} mins)`, { color: VERDE, size: 9 }]]); nombre("F", d.t1.p); r++;
+      merge("A", "E"); rich("A" + r, [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", { color: VERDE }], [" (10 mins)", { color: VERDE, size: 9 }]]); nombre("F", d.t2.p); r++;
+      const cita = (d.lect.cita || "").match(/^(.*?)\s*(\(th[^)]*\))?\s*$/) || ["", d.lect.cita, ""];
+      merge("A", "D"); rich("A" + r, [["3. ", { color: TEAL }], ["Lectura de la Biblia", { color: VERDE }], [" (4 mins)", { color: VERDE, size: 9 }], [":" + (cita[1] || ""), { color: VERDE }], ...(cita[2] ? [[" " + cita[2], { color: VERDE, size: 9 }]] : [])]);
+      put("E" + r, "Cons. aux.", { align: "right", size: 9 }); nombre("F", d.consejero, { fill: "D8D8D8" }); r++;
+      sala("S. Princ.:", d.lect.p, "S. Aux.:", d.lect.a);
+      barra("SEAMOS MEJORES MAESTROS", ORO);
+      d.maestros.forEach((m, i) => {
+        merge("A", "F"); rich("A" + r, [[`${4 + i}. `, { color: ORO }], [m.titulo, { color: VERDE }], [` (${m.min} mins)`, { color: VERDE, size: 9 }], ...(m.ref ? [[": ", { color: VERDE, size: 9 }], [m.ref, { color: VERDE, size: 9, italic: true }]] : [])]); r++;
+        sala("S. Princ.:", m.p, "S. Aux.:", m.a);
+        if (m.pa || m.aa) sala("Ayudante:", m.pa, "Ayudante:", m.aa, true);
+        linea(r - 1);
+      });
+      barra("NUESTRA VIDA CRISTIANA", ROJO);
+      merge("A", "F"); rich("A" + r, [["● ", { color: ROJO }], [`Canción ${d.c2}`, { color: VERDE }]]); r++;
+      const n0 = 4 + d.maestros.length;
+      d.vida.forEach((v, i) => { merge("A", "E"); rich("A" + r, [[`${n0 + i}. `, { color: ROJO }], [v.titulo, { color: VERDE }], [` (${v.min || 15} mins)`, { color: VERDE, size: 9 }]]); nombre("F", v.p); r++; });
+      merge("A", "B"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", { color: VERDE }], [" (30 mins)", { color: VERDE, size: 9 }]]);
+      merge("C", "D"); nombre("C", d.estudio.p); put("E" + r, "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", d.estudio.lector); r++;
+      merge("A", "B"); rich("A" + r, [["● ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
+      merge("C", "E"); rich("C" + r, [["● ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", d.oracion2); r++;
+    }
+    // marco grueso de la semana
+    for (let k = r0; k < r; k++) { const a = ws.getCell("A" + k), f = ws.getCell("F" + k); a.border = { ...(a.border || {}), left: grueso }; f.border = { ...(f.border || {}), right: grueso }; ws.getRow(k).height = 17; }
+    ["A", "B", "C", "D", "E", "F"].forEach(c => { const t = ws.getCell(c + r0); t.border = { ...(t.border || {}), top: grueso }; const b = ws.getCell(c + (r - 1)); b.border = { ...(b.border || {}), bottom: grueso }; });
     r++;
   }
-  hojaImprimible(ws, false);
+  ws.pageSetup = { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } };
+  ws.headerFooter = { oddFooter: "&L&8CRABS · Congregación Tierra Baja&R&8Página &P de &N" };
   await descargar(wb, `Vida y Ministerio ${mesNombre(CG.mes)}.xlsx`);
 }
 /* Acomodadores, micrófonos y plataforma */
@@ -625,20 +779,24 @@ function vInf() {
   <div class="kpis">${[[`${hechos}/${lista.length}`, "Entregados"], [part, "Participaron"], [cursos, "Cursos"], [horas, "Horas prec."]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>
   <div class="bar" style="margin:10px 2px"><i style="width:${lista.length ? Math.round(hechos / lista.length * 100) : 0}%;background:var(--ok)"></i></div>
   <p class="note" style="margin:0 4px 10px">Toca <b>Sí</b> o <b>No</b> para marcar si participó. Las horas solo aplican a precursores (y a quien fue auxiliar ese mes).</p><div class="list">`;
-  h += lista.map(p => { const r = inf(p.id); const d = r ? r.d : {}; const prec = p.precursor !== "no" || d.aux;
-    return `<div class="card irow" data-ip="${p.id}"><div class="ihead"><b>${esc(p.nombre)}</b><span class="pchips">${p.precursor !== "no" ? `<span class="pill t-ok">${p.precursor === "auxiliar" ? "PA" : "PR"}</span>` : ""}${r ? "" : `<span class="pill t-warn">Falta</span>`}</span></div>
+  h += lista.map(p => { const r = inf(p.id); const d = r ? r.d : {}; const prec = ["regular", "especial", "misionero"].includes(p.precursor) || d.aux;
+    return `<div class="card irow" data-ip="${p.id}"><div class="ihead"><b>${esc(p.nombre)}</b><span class="pchips">${p.precursor !== "no" ? `<span class="pill t-ok">${{ auxiliar: "PA", regular: "PR", especial: "PE", misionero: "MC" }[p.precursor]}</span>` : ""}<button class="chipo mini off" data-s21="${p.id}">S-21</button>${r ? "" : `<span class="pill t-warn">Falta</span>`}</span></div>
       <div class="icontrols"><div class="seg2"><button class="${d.participo === true ? "on" : ""}" data-v="si">Sí</button><button class="${d.participo === false ? "on no" : ""}" data-v="no">No</button></div>
       <label class="ic">Cursos <input type="number" min="0" inputmode="numeric" value="${d.cursos ?? ""}" data-f="cursos"></label>
-      ${prec ? `<label class="ic">Horas <input type="number" min="0" inputmode="numeric" value="${d.horas ?? ""}" data-f="horas"></label>` : `<label class="ic chk"><input type="checkbox" data-f="aux" ${d.aux ? "checked" : ""}> Auxiliar</label>`}</div></div>`; }).join("");
-  h += `</div><div class="row" style="margin-top:12px">${btnExcel("xlsInf", "Excel del mes")}</div>`;
+      ${prec ? `<label class="ic">Horas <input type="number" min="0" inputmode="numeric" value="${d.horas ?? ""}" data-f="horas"></label>` : ""}${p.precursor === "no" || p.precursor === "auxiliar" ? `<label class="ic chk"><input type="checkbox" data-f="aux" ${d.aux ? "checked" : ""}> Auxiliar</label>` : ""}</div>
+      <input class="tin inota" placeholder="Notas (sale en la tarjeta S-21)" value="${esc(d.nota || "")}" data-f="nota"></div>`; }).join("");
+  const aS = anioServicio(CG.mes);
+  h += `</div><div class="row" style="margin-top:12px">${btnExcel("xlsInf", "Excel del mes")}<button class="btn line" id="s21G">📄 Tarjetas S-21 ${gInf === "todos" ? "de todos" : "del grupo"} (${aS})</button></div>`;
   $("#cview").innerHTML = h; ms.bind();
+  $("#s21G").onclick = () => { const [hh, g] = gInf.split("|"); exportarS21(lista, aS, gInf === "todos" ? `Tarjetas S-21 Tierra Baja ${aS}` : `Tarjetas S-21 Grupo ${g} ${HOR[hh]} ${aS}`.replace(":", "."));};
+  document.querySelectorAll("[data-s21]").forEach(b => b.onclick = e => { e.stopPropagation(); const pp = P(b.dataset.s21); exportarS21([pp], aS, `S-21 ${pp.nombre} ${aS}`); });
   document.querySelectorAll("[data-gi]").forEach(b => b.onclick = () => { gInf = b.dataset.gi; vInf(); });
   document.querySelectorAll("[data-ip]").forEach(card => {
     const pid = card.dataset.ip;
     const guardar = async cambio => { const r = inf(pid); const nd = Object.assign({ persona: pid, mes: CG.mes, participo: null, cursos: 0, horas: null, aux: false }, r ? r.d : {}, cambio);
       try { await rpc("cong_reg_guardar", { p_modulo: "informe", p_clave: CG.mes + "|" + pid, p_id: r ? r.id : null, p_d: nd, p_aviso: null }); await cCargar(); vInf(); } catch (e) { toast(e.message); } };
     card.querySelectorAll("[data-v]").forEach(b => b.onclick = () => guardar({ participo: b.dataset.v === "si" }));
-    card.querySelectorAll("[data-f]").forEach(i => i.onchange = () => guardar({ [i.dataset.f]: i.type === "checkbox" ? i.checked : (i.value === "" ? null : Math.max(0, +i.value)) }));
+    card.querySelectorAll("[data-f]").forEach(i => i.onchange = () => guardar({ [i.dataset.f]: i.type === "checkbox" ? i.checked : i.dataset.f === "nota" ? i.value.trim() : (i.value === "" ? null : Math.max(0, +i.value)) }));
   });
   $("#xlsInf").onclick = () => conExcel(xlsInformes);
 }
@@ -740,4 +898,87 @@ function vAvi() {
 }
 async function contarAvisos() {
   try { CG.avisos = await rpc("cong_avisos", {}); const ult = LS.get("crabs_avisos_vistos") || ""; return CG.avisos.filter(a => a.t > ult).length; } catch (e) { return 0; }
+}
+
+/* ================= TARJETA S-21 (Registro de publicador de la congregación) ================= */
+let _pdflib = null;
+function cargarPdfLib() {
+  if (window.PDFLib) return Promise.resolve(window.PDFLib);
+  if (_pdflib) return _pdflib;
+  _pdflib = new Promise((ok, no) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"; s.onload = () => ok(window.PDFLib); s.onerror = () => { _pdflib = null; no(new Error("No se pudo cargar el generador de PDF. Revisa tu conexión.")); }; document.head.appendChild(s); });
+  return _pdflib;
+}
+const anioServicio = ym => { const [y, m] = ym.split("-").map(Number); return m >= 9 ? y + 1 : y; };
+const mesesServicio = a => [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8].map(m => `${m >= 9 ? a - 1 : a}-${String(m).padStart(2, "0")}`);
+const MESES_S21 = ["Septiembre", "Octubre", "Noviembre", "Diciembre", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto"];
+function fechaS21(f) { f = String(f || "").trim(); const m = f.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[1]}/${m[2]}/${m[3]}` : f; }
+async function paginaS21(pdf, F, p, anio, infs) {
+  const { rgb } = window.PDFLib;
+  const pg = pdf.addPage([595.2, 841.9]); const H = 841.9, K = rgb(0, 0, 0);
+  const y = t => H - t;
+  const txt = (s, x, t, o = {}) => { s = String(s ?? ""); if (!s) return; const f = o.f || F.reg; let size = o.size || 10; if (o.max) while (size > 5 && f.widthOfTextAtSize(s, size) > o.max) size -= 0.25; const w = f.widthOfTextAtSize(s, size); const xx = o.align === "center" ? x - w / 2 : o.align === "right" ? x - w : x; pg.drawText(s, { x: xx, y: y(t), size, font: f, color: K }); };
+  const caja = (x, t, chk, s = 8.6) => { pg.drawRectangle({ x, y: y(t) - s, width: s, height: s, borderColor: K, borderWidth: 0.7 }); if (chk) pg.drawText("\u2714", { x: x + 1.2, y: y(t) - s + 1.6, size: s - 1.4, font: F.zapf, color: K }); };
+  const linea = (x1, t1, x2, t2, w = 0.6) => pg.drawLine({ start: { x: x1, y: y(t1) }, end: { x: x2, y: y(t2) }, thickness: w, color: K });
+  // Encabezado
+  const tit = "REGISTRO DE PUBLICADOR DE LA CONGREGACIÓN"; const ts = 350 / F.bold.widthOfTextAtSize(tit, 1);
+  txt(tit, 297.6, 53.6, { f: F.bold, size: ts, align: "center" });
+  txt("Nombre:", 17, 77.6, { f: F.bold, size: 10.2 }); txt(String(p.nombre || "").toUpperCase(), 17 + F.bold.widthOfTextAtSize("Nombre: ", 10.2), 76.4, { size: 11.5 });
+  txt("Fecha de nacimiento:", 17, 93.6, { f: F.bold, size: 10.2 }); txt(fechaS21(p.nacimiento), 17 + F.bold.widthOfTextAtSize("Fecha de nacimiento: ", 10.2), 92.4, { size: 11.5 });
+  txt("Fecha de bautismo:", 17, 109.6, { f: F.bold, size: 10.2 }); txt(fechaS21(p.bautismo), 17 + F.bold.widthOfTextAtSize("Fecha de bautismo: ", 10.2), 108.4, { size: 11.5 });
+  const bautizado = p.privilegio !== "no_bautizado";
+  caja(385, 85.5, p.sexo === "H"); txt("Hombre", 397, 93.6, { f: F.bold, size: 10.2 });
+  caja(486, 85.5, p.sexo === "M"); txt("Mujer", 498.5, 93.6, { f: F.bold, size: 10.2 });
+  caja(385, 101.5, bautizado && !p.ungido); txt("Otras ovejas", 397, 109.6, { f: F.bold, size: 10.2 });
+  caja(486, 101.5, bautizado && !!p.ungido); txt("Ungido", 498.5, 109.6, { f: F.bold, size: 10.2 });
+  [[17.5, "Anciano", p.privilegio === "anciano"], [81, "Siervo ministerial", p.privilegio === "siervo"], [202, "Precursor regular", p.precursor === "regular"], [327, "Precursor especial", p.precursor === "especial"], [453, "Misionero que sirve", p.precursor === "misionero"]]
+    .forEach(([x, l, c]) => { caja(x, 117.5, c); txt(l, x + 12.4, 125.6, { f: F.bold, size: 10.2 }); });
+  txt("en el campo", 465.4, 138.4, { f: F.bold, size: 10.2 });
+  // Tabla
+  const X = [17, 101, 172, 242.5, 313, 412, 577], T0 = 144.5, T1 = 199.5, RH = (438 - 199.5) / 12;
+  linea(X[0], T0, X[6], T0, 1.1); linea(X[0], 438, X[6], 438, 1.1); linea(X[0], T1, X[6], T1, 0.6);
+  X.forEach((x, i) => linea(x, T0, x, 438, i === 0 || i === 6 ? 1.1 : 0.6));
+  for (let i = 1; i < 12; i++) linea(X[0], T1 + RH * i, X[6], T1 + RH * i, 0.6);
+  const c = i => (X[i] + X[i + 1]) / 2;
+  txt("Año de servicio", c(0), 167, { f: F.bold, size: 9.6, align: "center" }); txt(String(anio), c(0), 185.5, { size: 11.5, align: "center" });
+  ["Participación", "en el", "ministerio"].forEach((s, k) => txt(s, c(1), 160.5 + k * 11.6, { f: F.bold, size: 9.6, align: "center" }));
+  ["Cursos", "bíblicos"].forEach((s, k) => txt(s, c(2), 169.5 + k * 11.6, { f: F.bold, size: 9.6, align: "center" }));
+  ["Precursor", "auxiliar"].forEach((s, k) => txt(s, c(3), 169.5 + k * 11.6, { f: F.bold, size: 9.6, align: "center" }));
+  txt("Horas", c(4), 157.5, { f: F.bold, size: 9.6, align: "center" });
+  ["(Si es precursor o", "misionero que", "sirve en el campo)"].forEach((s, k) => txt(s, c(4), 169.5 + k * 12.2, { size: 9.6, align: "center" }));
+  txt("Notas", c(5), 175.5, { f: F.bold, size: 9.6, align: "center" });
+  let total = 0; const conHoras = ["regular", "especial", "misionero"].includes(p.precursor);
+  mesesServicio(anio).forEach((ym, i) => {
+    const t = T1 + RH * i, base = t + 13.6; const d = infs[ym] || {};
+    txt(MESES_S21[i], 21, base, { size: 10.2 });
+    caja(c(1) - 4.9, t + 5.4, d.participo === true, 9.8);
+    if (d.cursos) txt(String(d.cursos), c(2), base, { size: 11.5, align: "center" });
+    caja(c(3) - 4.9, t + 5.4, !!d.aux, 9.8);
+    if (d.horas != null && d.horas !== "" && (conHoras || d.aux)) { txt(String(d.horas), c(4), base, { size: 11.5, align: "center" }); total += +d.horas || 0; }
+    if (d.nota) txt(d.nota, X[5] + 4, base - 0.5, { size: 8.5, max: X[6] - X[5] - 8 });
+  });
+  // Total
+  linea(X[4], 438, X[4], 457.5, 1.1); linea(X[4], 457.5, X[6], 457.5, 1.1); linea(X[6], 438, X[6], 457.5, 1.1); linea(X[5], 438, X[5], 457.5, 1.1);
+  txt("Total", X[4] - 6, 452, { f: F.bold, size: 9.6, align: "right" });
+  if (total) txt(String(total), c(4), 452.4, { size: 11.5, align: "center" });
+  txt("S-21-S    11/23", 17, 799, { size: 6.8 });
+}
+async function exportarS21(personas, anio, nombreArchivo) {
+  if (!personas.length) { toast("No hay publicadores para exportar"); return; }
+  document.body.classList.add("loading");
+  try {
+    await cCargar(); const L = await cargarPdfLib();
+    const pdf = await L.PDFDocument.create(); pdf.setTitle(nombreArchivo); pdf.setAuthor("CRABS · Congregación Tierra Baja");
+    const F = { reg: await pdf.embedFont(L.StandardFonts.Helvetica), bold: await pdf.embedFont(L.StandardFonts.HelveticaBold), zapf: await pdf.embedFont(L.StandardFonts.ZapfDingbats) };
+    const meses = mesesServicio(anio);
+    for (const p of personas) {
+      const infs = {}; R("informe").filter(r => r.d.persona === p.id && meses.includes(r.d.mes || r.k.split("|")[0])).forEach(r => infs[r.d.mes || r.k.split("|")[0]] = r.d);
+      await paginaS21(pdf, F, p, anio, infs);
+    }
+    const bytes = await pdf.save(); const nombre = nombreArchivo.normalize("NFD").replace(/[̀-ͯ]/g, "") + ".pdf";
+    const blob = new Blob([bytes], { type: "application/pdf" }); const file = new File([blob], nombre, { type: "application/pdf" });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nombre }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    toast(personas.length > 1 ? `${personas.length} tarjetas listas` : "Tarjeta lista");
+  } catch (e) { toast(e.message); }
+  finally { document.body.classList.remove("loading"); }
 }

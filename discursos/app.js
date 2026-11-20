@@ -6,7 +6,7 @@ const SB_KEY="sb_publishable_s77cAYroy7Q5XSZsvslQCQ_vHEAmk12";
 const tit=n=>TITULOS[n-1]||"";
 const noUsar=n=>tit(n)==="(No usar)";
 const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
-const ESTADOS={sin:["Sin asignar","t-idle"],asig:["Asignado","t-info"],porc:["Por confirmar","t-warn"],conf:["Confirmado","t-ok"],planb:["Plan B","t-bad"],hecho:["Realizado","t-idle"]};
+const ESTADOS={sin:["Sin asignar","t-idle"],asig:["Asignado","t-info"],porc:["Por confirmar","t-warn"],conf:["Confirmado","t-ok"],planb:["Plan B","t-bad"],hecho:["Realizado","t-idle"],evento:["Sin reunión","t-warn"]};
 const hoyBogota=()=>new Date(Date.now()-5*3600e3).toISOString().slice(0,10);
 let HOY=hoyBogota();
 
@@ -219,6 +219,7 @@ function vCal(){
   lista.forEach(p=>{
     const F=fd(p.f),o=H(p.o),[et,ec]=ESTADOS[p.e];
     if(!filtroE&&F.m!==mesAnt){h+=`<div class="mes">${F.m} ${F.y}</div>`;mesAnt=F.m}
+    if(p.e==="evento"){h+=`<button class="sat" data-f="${p.f}"><div class="dbox t-warn"><div class="d">${F.d}</div><div class="w">${F.m.slice(0,3)}</div></div><div class="tt"><span class="pill t-warn">Sin reunión</span><div class="ttl">Asamblea / evento</div><div class="who">No se asigna discurso</div></div></button>`;return}
     if(p.e==="sin"){
       h+=`<button class="sat vacio" ${esAdmin()?`data-asig="${p.f}"`:`data-f="${p.f}"`}><div class="dbox t-idle"><div class="d">${F.d}</div><div class="w">${F.m.slice(0,3)}</div></div><span class="vtxt">Sin asignar</span>${esAdmin()?`<span class="vadd">+ Asignar</span>`:""}</button>`;
       return;
@@ -313,7 +314,7 @@ function abrir(f){
   const edit=esAdmin()&&p.e!=="hecho";
   let h=`<div class="shead"><span class="pill ${ESTADOS[p.e][1]}">${ESTADOS[p.e][0]}</span><button class="x" data-close aria-label="Cerrar">✕</button></div>
   <h2>Sábado ${F.d} de ${F.m}</h2>
-  ${p.e!=="sin"?progreso(p.e):""}
+  ${p.e!=="sin"&&p.e!=="evento"?progreso(p.e):""}
   <div class="card"><div style="font-weight:800">${p.d?`<span style="color:var(--accent)">#${p.d}</span> ${esc(tit(p.d))}`:"Discurso por definir"}</div>
   <div class="note" style="margin-top:6px">Orador: <b>${o?esc(o.nombre)+" · "+esc(cname(o.cong)):"—"}</b><br>Suplente: <b>${s?esc(s.nombre):"—"}</b>${!esAdmin()?`<br>Canción: <b>${p.c?"n.º "+p.c:"—"}</b>`:""}</div>
   ${esAdmin()&&p.e!=="hecho"?`<div class="cancion"><span>🎵 Canción</span><input id="cNum" type="number" inputmode="numeric" min="1" max="200" placeholder="n.º" value="${p.c||""}"><button class="btn line" id="cOk">Guardar</button></div>`:""}</div>`;
@@ -331,9 +332,14 @@ function abrir(f){
   }
   if(edit)h+=`<button class="btn line" id="cambiar">${p.d?"Cambiar asignación":p.o?"Poner número de discurso":"Asignar ahora"}</button>`;
   if(p.e==="hecho")h+=`<div class="note">Este discurso ya se pronunció.</div>`;
+  if(p.e==="evento")h+=`<div class="aviso warn">${I.alert}<span><b>No hay reunión este sábado</b>${p.ev?` · ${esc(p.ev)}`:""}. No se asigna discurso.</span></div>${esAdmin()?`<button class="btn line" id="siReu">Sí hay reunión (quitar)</button>`:""}`;
+  else if(esAdmin()&&p.e!=="hecho")h+=`<button class="btn line" id="noReu">🏟 No hay reunión (asamblea / evento)</button>`;
   hoja(h,(bg,close)=>{
     const q=x=>bg.querySelector(x);
     if(q("#cambiar"))q("#cambiar").onclick=()=>{bg.remove();asignar(f)};
+    if(q("#noReu"))q("#noReu").onclick=()=>{bg.remove();hoja(`<div class="shead"><h2>Sábado ${F.d} sin reunión</h2><button class="x" data-close aria-label="Cerrar">✕</button></div><div class="picks" id="evs">${["Asamblea regional","Asamblea de circuito","Otro evento"].map((x,i)=>`<button class="pk ${i?"":"on"}" data-v="${x}">${x}</button>`).join("")}</div><div class="note">Ese sábado queda marcado sin discurso y no sale en las alertas de “sin asignar”.${o?` <b>Ojo:</b> se quita la asignación de ${esc(o.nombre)}.`:""}</div><button class="btn pri" id="evOk">Confirmar</button>`,(b2,c2)=>{let v="Asamblea regional";b2.querySelectorAll("[data-v]").forEach(x=>x.onclick=()=>{v=x.dataset.v;b2.querySelectorAll("[data-v]").forEach(y=>y.classList.toggle("on",y===x))});
+      b2.querySelector("#evOk").onclick=async()=>{b2.remove();if(await guardarProg({...p,d:null,o:null,s:null,e:"evento"},`Sábado ${F.d} de ${F.m}: no hay reunión (${v}).`,"evento"))toast("Marcado sin reunión")}})};
+    if(q("#siReu"))q("#siReu").onclick=async()=>{bg.remove();await guardarProg({...p,e:"sin"},`Sábado ${F.d} de ${F.m}: sí hay reunión, queda pendiente asignar.`,"sin")};
     if(q("#cOk"))q("#cOk").onclick=async()=>{const v=q("#cNum").value.trim();const c=v?parseInt(v,10):null;
       if(c!==null&&!(c>=1&&c<=200)){toast("Canción entre 1 y 200");return}
       try{document.body.classList.add("loading");await rpc("app_save_cancion",{p_fecha:f,p_c:c});const x=DB.prog.find(z=>z.f===f);if(x)x.c=c;else DB.prog.push({...p,c,virtual:undefined});bg.remove();toast(c?`Canción n.º ${c} guardada`:"Canción quitada");abrir(f)}
