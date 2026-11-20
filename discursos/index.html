@@ -267,6 +267,17 @@ nav button{line-height:1.1}
 
 /* Congregación */
 #cong{min-height:100vh}
+.bus-bg{position:fixed;inset:0;z-index:120;background:rgba(15,18,40,.45);display:flex;align-items:flex-end;justify-content:center}
+.bus{width:100%;max-width:560px;height:82vh;background:var(--bg);border-radius:26px 26px 0 0;display:flex;flex-direction:column;padding:14px 14px 0;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+.bus-h{display:flex;gap:8px;align-items:center;padding-bottom:10px}
+.bus-h input{flex:1;font-size:17px;padding:13px 14px;border-radius:14px}
+.bus-l{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+.bus-g{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:14px 6px 6px}
+.bus-i{display:flex;align-items:center;gap:8px;width:100%;border:0;background:var(--surface);color:var(--ink);font:600 16px var(--f);padding:14px;border-radius:14px;margin-bottom:6px;text-align:left;cursor:pointer}
+.bus-i span{flex:1}
+.bus-i small{font-size:12px;color:var(--muted);font-weight:700}
+.bus-i.on{box-shadow:inset 0 0 0 2px var(--accent);color:var(--accent)}
+.bus-i b{color:var(--accent)}
 .sheet{overflow-x:hidden;touch-action:pan-y}
 .grid2>*{min-width:0}
 input[type=date],input[type=month]{-webkit-appearance:none;appearance:none;display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;min-height:48px;text-align:left}
@@ -368,7 +379,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
   <div class="dots" id="dots"></div>
   <div class="err" id="err"></div>
   <div class="pad" id="pad"></div>
-  <div class="note" style="opacity:.6">v3.0</div>
+  <div class="note" style="opacity:.6">v3.1</div>
 </div>
 
 <div id="hub" hidden>

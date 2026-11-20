@@ -1002,3 +1002,37 @@ async function exportarS21(personas, anio, nombreArchivo) {
   } catch (e) { toast(e.message); }
   finally { document.body.classList.remove("loading"); }
 }
+
+/* ================= Buscador en las listas de hermanos ================= */
+// Cualquier lista larga (más de 10 opciones) se abre como una hoja con buscador en vez del selector del teléfono.
+function abrirBuscador(sel) {
+  if (sel.disabled) return;
+  const items = []; let grupo = "";
+  [...sel.children].forEach(n => { if (n.tagName === "OPTGROUP") [...n.children].forEach(o => items.push({ v: o.value, t: o.textContent, g: n.label })); else items.push({ v: n.value, t: n.textContent, g: "" }); });
+  const lab = (sel.closest(".cf,.vsala,.vhead,.card") || {}).querySelector?.(".flab,span")?.textContent || "Escoger";
+  const bg = document.createElement("div"); bg.className = "bus-bg";
+  bg.innerHTML = `<div class="bus" role="dialog"><div class="bus-h"><input type="search" id="busQ" placeholder="Buscar hermano…" autocomplete="off" autocorrect="off" autocapitalize="off"><button class="x" aria-label="Cerrar">✕</button></div><div class="bus-l" id="busL"></div></div>`;
+  document.body.appendChild(bg);
+  const L = bg.querySelector("#busL"), Q = bg.querySelector("#busQ");
+  const cerrar = () => bg.remove();
+  const pinta = () => {
+    const q = norm(Q.value.trim()); let html = "", g0 = null;
+    const lista = items.filter(it => !q || norm(it.t).includes(q) || it.v === "");
+    lista.forEach(it => { if (it.g !== g0) { g0 = it.g; if (it.g) html += `<div class="bus-g">${esc(it.g)}</div>`; }
+      const [n, extra] = it.t.split(" · ");
+      html += `<button class="bus-i ${it.v === sel.value ? "on" : ""}" data-v="${esc(it.v)}"><span>${esc(n)}</span>${extra ? `<small>${esc(extra)}</small>` : ""}${it.v === sel.value ? "<b>✓</b>" : ""}</button>`; });
+    L.innerHTML = html || `<div class="note" style="padding:16px">No hay nadie con ese nombre</div>`;
+    L.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { sel.value = b.dataset.v; sel.dispatchEvent(new Event("change", { bubbles: true })); cerrar(); });
+  };
+  Q.oninput = pinta; pinta();
+  bg.querySelector(".x").onclick = cerrar; bg.onclick = e => { if (e.target === bg) cerrar(); };
+  setTimeout(() => Q.focus(), 60);
+}
+(() => {
+  const larga = t => { const s = t && t.closest && t.closest("select.csel"); return s && s.options.length > 10 ? s : null; };
+  let x0 = 0, y0 = 0;
+  document.addEventListener("touchstart", e => { const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; }, { passive: true, capture: true });
+  document.addEventListener("touchend", e => { const s = larga(e.target); if (!s) return; const t = e.changedTouches[0]; if (Math.abs(t.clientX - x0) > 10 || Math.abs(t.clientY - y0) > 10) return; e.preventDefault(); s.blur(); abrirBuscador(s); }, { capture: true });
+  document.addEventListener("mousedown", e => { const s = larga(e.target); if (!s) return; e.preventDefault(); abrirBuscador(s); }, true);
+  document.addEventListener("keydown", e => { const s = larga(e.target); if (s && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); abrirBuscador(s); } }, true);
+})();
