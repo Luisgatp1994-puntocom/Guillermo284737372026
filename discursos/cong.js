@@ -172,19 +172,19 @@ function vPub() {
 }
 function fichaPersona(id) {
   const p = id ? P(id) : { nombre: "", sexo: "H", horario: "tb16", grupo: 1, privilegio: "publicador", precursor: "no", encargado: "", tel: "", notas: "" };
-  const ed = cSuper();
+  const ed = cAdmin(), sup = cSuper();
   const opt = (o, v) => Object.entries(o).map(([k, l]) => `<option value="${k}" ${v === k ? "selected" : ""}>${l || "No"}</option>`).join("");
-  const dis = ed ? "" : "disabled";
+  const dis = ed ? "" : "disabled", disS = sup ? "" : "disabled";
   hoja(`<div class="shead"><h2>${id ? esc(p.nombre) : "Nuevo publicador"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
-    ${campo("Nombre", inp("pfN", p.nombre, "Nombre y apellido", dis))}
-    <div class="grid2">${campo("Sexo", `<select id="pfS" class="csel" ${dis}>${opt({ H: "Hermano", M: "Hermana" }, p.sexo)}</select>`)}${campo("Horario del sábado", `<select id="pfH" class="csel" ${dis}>${opt(HOR, p.horario)}</select>`)}</div>
-    <div class="grid2">${campo("Grupo de servicio", `<select id="pfG" class="csel" ${dis}>${[1, 2, 3].map(g => `<option ${p.grupo === g ? "selected" : ""}>${g}</option>`).join("")}</select>`)}${campo("En el grupo", `<select id="pfE" class="csel" ${dis}>${opt({ "": "Integrante", encargado: "Encargado", auxiliar: "Auxiliar" }, p.encargado)}</select>`)}</div>
+    ${campo("Nombre", inp("pfN", p.nombre, "Nombre y apellido", disS))}
+    <div class="grid2">${campo("Sexo", `<select id="pfS" class="csel" ${dis}>${opt({ H: "Hermano", M: "Hermana" }, p.sexo)}</select>`)}${campo("Horario del sábado", `<select id="pfH" class="csel" ${disS}>${opt(HOR, p.horario)}</select>`)}</div>
+    <div class="grid2">${campo("Grupo de servicio", `<select id="pfG" class="csel" ${disS}>${[1, 2, 3].map(g => `<option ${p.grupo === g ? "selected" : ""}>${g}</option>`).join("")}</select>`)}${campo("En el grupo", `<select id="pfE" class="csel" ${dis}>${opt({ "": "Integrante", encargado: "Encargado", auxiliar: "Auxiliar" }, p.encargado)}</select>`)}</div>
     <div class="grid2">${campo("Privilegio", `<select id="pfP" class="csel" ${dis}>${opt(PRIV, p.privilegio)}</select>`)}${campo("Precursor", `<select id="pfR" class="csel" ${dis}>${opt(PREC, p.precursor)}</select>`)}</div>
     ${cAdmin() ? `<div class="grid2">${campo("Fecha de nacimiento", `<input id="pfNa" type="date" value="${esc(p.nacimiento || "")}" ${dis}>`)}${campo("Fecha de bautismo", `<input id="pfBa" type="date" value="${esc(p.bautismo || "")}" ${dis}>`)}</div>
     ${campo("Esperanza", `<select id="pfU" class="csel" ${dis}><option value="0" ${p.ungido ? "" : "selected"}>Otras ovejas</option><option value="1" ${p.ungido ? "selected" : ""}>Ungido</option></select>`)}` : ""}
     ${cAdmin() ? campo("WhatsApp (celular o @usuario)", inp("pfT", p.tel, "300 000 0000", dis)) + campo("Notas", inp("pfO", p.notas, "", dis)) : ""}
     ${cAdmin() && id ? `<button class="btn line" id="pfS21">📄 Tarjeta S-21 (año de servicio ${anioServicio(CG.mes || mesActual())})</button>` : ""}
-    ${ed ? `<button class="btn pri" id="pfOk">Guardar</button>${id ? `<button class="btn bad" id="pfDel">Quitar de la lista</button>` : ""}` : `<p class="note">Solo el super administrador puede editar.</p>`}`,
+    ${!sup && ed ? `<p class="note">Nombre, horario y grupo solo los cambia el super administrador.</p>` : ""}${ed ? `<button class="btn pri" id="pfOk">Guardar</button>${id && sup ? `<button class="btn bad" id="pfDel">Quitar de la lista</button>` : ""}` : `<p class="note">Solo los administradores pueden editar.</p>`}`,
     (bg, close) => {
       const s21 = bg.querySelector("#pfS21"); if (s21) s21.onclick = () => exportarS21([P(id)], anioServicio(CG.mes || mesActual()), `S-21 ${p.nombre} ${anioServicio(CG.mes || mesActual())}`);
       if (!ed) return;
