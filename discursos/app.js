@@ -137,7 +137,7 @@ function abrirSeccion(id){if(id==="disc"){$("#hub").hidden=true;iniciarDiscursos
 function iniciar(){mostrarInicio()}
 function iniciarDiscursos(){
   $("#login").hidden=true;$("#app").hidden=false;
-  $("#subt").innerHTML=`<span class="gchip g-${esc(GRUPO.id)}">${esc(GRUPO.hora||GRUPO.nombre)}</span> ${esc(GRUPO.nombre.replace(/\s*\d.*$/,""))} · ${esc(esAdmin()?ETIQ:"Consulta")}`;
+  $("#subt").textContent=`Reunión del sábado · ${GRUPO.hora||""}`;
   render();
 }
 function setVista(v){vista=v;document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));if(v==="avisos"){LS.set("dtb_leidos_"+GRUPO.id,String(DB.log.length?DB.log[0].t:""))}render();scrollTo(0,0)}

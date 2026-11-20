@@ -113,7 +113,7 @@ async function conExcel(fn) {
 const SEC = {
   pub: { titulo: "Publicadores", sub: "Grupos de servicio", tabs: [["lista", "Por grupo"], ["usuarios", "Usuarios y PIN"]] },
   pred: { titulo: "Predicación", sub: "Salidas y territorios", tabs: [["horario", "Horario del mes"], ["terr", "Territorios"]] },
-  reu: { titulo: "Reuniones", sub: "Vida y Ministerio · Acomodadores", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"]] },
+  reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"]] },
   inf: { titulo: "Informes", sub: "Informe mensual por grupo", tabs: [] },
   rec: { titulo: "Recordatorios", sub: "Aseo, hospitalidad y eventos", tabs: [["aseo", "Aseo y hospitalidad"], ["eventos", "Eventos"]] },
   avi: { titulo: "Notificaciones", sub: "Cambios de toda la congregación", tabs: [] }

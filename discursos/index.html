@@ -276,6 +276,7 @@ nav button{line-height:1.1}
 
 /* Congregación */
 #cong{min-height:100vh}
+.top .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bus-bg{position:fixed;inset:0;z-index:120;background:rgba(15,18,40,.45);display:flex;align-items:flex-end;justify-content:center}
 .bus{width:100%;max-width:560px;height:82vh;background:var(--bg);border-radius:26px 26px 0 0;display:flex;flex-direction:column;padding:14px 14px 0;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
 .bus-h{display:flex;gap:8px;align-items:center;padding-bottom:10px}
@@ -388,7 +389,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
   <div class="dots" id="dots"></div>
   <div class="err" id="err"></div>
   <div class="pad" id="pad"></div>
-  <div class="note" style="opacity:.6">v3.6</div>
+  <div class="note" style="opacity:.6">v3.7</div>
 </div>
 
 <div id="hub" hidden>
@@ -415,9 +416,8 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 <div id="app" hidden>
 <div class="wrap">
   <div class="top">
-    <div><div class="sub" id="subt">Tierra Baja · Reunión del sábado</div><h1>Discursos Públicos</h1></div>
+    <div style="display:flex;align-items:center;gap:8px;min-width:0"><button class="ico-btn" id="aInicio" aria-label="Volver al inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><div style="min-width:0"><div class="sub" id="subt">Sábado · Tierra Baja</div><h1>Discursos públicos</h1></div></div>
     <div style="display:flex;gap:2px">
-      <button class="ico-btn" id="aInicio" aria-label="Inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/></svg></button>
       <button class="ico-btn" id="tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
       <button class="ico-btn" id="campana" aria-label="Avisos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><span id="nb"></span></button>
     </div>
