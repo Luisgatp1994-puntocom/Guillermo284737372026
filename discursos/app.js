@@ -256,7 +256,8 @@ function msgAncianos(p,txt){const F=fd(p.f);return`*Discursos públicos · ${GRU
 const normContacto=v=>{v=String(v||"").trim();if(!v)return"";if(/[a-zA-Z_]/.test(v)||v.startsWith("@"))return"@"+v.replace(/^@+/,"").replace(/\s+/g,"").toLowerCase();return v.replace(/\D/g,"")};
 const esUsuario=t=>String(t||"").startsWith("@");
 const telWa=t=>{t=String(t||"");if(esUsuario(t))return t.slice(1);t=t.replace(/\D/g,"");return t.length===10?"57"+t:t};
-const linkWa=(t,msg)=>`https://wa.me/${telWa(t)}${msg?`?text=${encodeURIComponent(msg)}`:""}`;
+// Con @usuario WhatsApp aún no abre el chat por enlace: se abre "Enviar a…" con el mensaje listo para escoger al hermano
+const linkWa=(t,msg)=>esUsuario(t)?`https://wa.me/?text=${encodeURIComponent(msg||"")}`:`https://wa.me/${telWa(t)}${msg?`?text=${encodeURIComponent(msg)}`:""}`;
 
 function avisarAncianos(m){
   hoja(`<div class="shead"><h2>Avisar a los ancianos</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
@@ -281,7 +282,7 @@ function abrir(f){
   if(esAdmin()&&p.e!=="hecho"&&o){
     const m=msgRecordatorio(p);
     const wa=`<div class="row"><a class="btn ok" target="_blank" rel="noopener" href="${linkWa(o.tel,m)}" id="waR">${I.wa} ${p.e==="porc"?"Reenviar recordatorio":"Enviar recordatorio"}</a><button class="btn line" id="cpR" style="flex:0 0 auto">${I.copy}</button></div>
-      ${!o.tel?`<div class="aviso warn">${I.alert}<span>Este orador no tiene WhatsApp registrado. Agrégale el celular o el @usuario en Oradores.</span></div>`:esUsuario(o.tel)?`<div class="note">Contacto por usuario ${esc(o.tel)}: al tocar el botón se copia el mensaje, por si WhatsApp no lo deja escrito.</div>`:""}
+      ${!o.tel?`<div class="aviso warn">${I.alert}<span>Este orador no tiene WhatsApp registrado. Agrégale el celular o el @usuario en Oradores.</span></div>`:esUsuario(o.tel)?`<div class="note">Contacto por usuario <b>${esc(o.tel)}</b>: WhatsApp abrirá “Enviar a…” con el mensaje ya escrito; busca ahí a ${esc(o.tel)} y envía.</div>`:""}
       <details class="msgbox"><summary>Ver mensaje</summary><div class="wmsg" id="mR">${esc(m)}</div></details>`;
     const resp=`<span class="flab">¿Qué respondió ${esc(o.nombre.split(" ")[0])}?</span><div class="row"><button class="btn pri" id="si">${I.check} Confirmó</button><button class="btn bad" id="no">No puede</button></div>`;
     if(p.e==="asig")h+=`<span class="flab">Paso 1 · Recordatorio</span>${wa}${resp}`;
@@ -296,7 +297,7 @@ function abrir(f){
     if(q("#cambiar"))q("#cambiar").onclick=()=>{bg.remove();asignar(f)};
     const marcarR=async()=>{if(p.e==="asig"){await guardarProg({...p,e:"porc"},`Recordatorio enviado a ${o.nombre}${p.d?" por el n.º "+p.d:""} del ${F.corto}.`,"porc")}};
     if(q("#cpR"))q("#cpR").onclick=()=>{q(".msgbox").open=true;copiar(q("#mR").textContent,q("#mR"));marcarR()};
-    if(q("#waR"))q("#waR").addEventListener("click",()=>{if(esUsuario(o.tel)){try{navigator.clipboard.writeText(q("#mR").textContent).catch(()=>{})}catch(e){}toast("Mensaje copiado: si no aparece escrito en WhatsApp, pégalo")}bg.remove();marcarR()});
+    if(q("#waR"))q("#waR").addEventListener("click",()=>{if(esUsuario(o.tel)){try{navigator.clipboard.writeText(q("#mR").textContent).catch(()=>{})}catch(e){}toast(`En WhatsApp busca a ${o.tel} y toca Enviar`)}bg.remove();marcarR()});
     if(q("#si"))q("#si").onclick=async()=>{const plan=p.e==="planb",quien=plan?s:o;
       const np={...p,e:"conf",o:plan?p.s:p.o,s:plan?null:p.s};
       const m=msgAncianos(np,`✅ ${quien.nombre} (${cname(quien.cong)}) CONFIRMÓ.`);
@@ -448,12 +449,13 @@ function vHer(){
     h+=`<div class="card person" ${esAdmin()?`data-eh="${x.id}" style="cursor:pointer"`:""}><span class="av ${tono(x.id)}">${esc(ini(x.nombre))}</span><div style="min-width:0">
       <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(x.nombre)}</b>${n?`<span class="pill t-info">${n} próximo${n===1?"":"s"}</span>`:""}</div>
       <div class="note">${esc(cname(x.cong))}${x.tel?" · "+esc(x.tel):""}</div><div class="note ${infoOrador(x.id,HOY).nivel==="warn"?"wtxt":""}">${infoOrador(x.id,HOY).txt}</div>
-      ${x.tel?`<a class="wabtn" target="_blank" rel="noopener" href="${linkWa(x.tel)}" onclick="event.stopPropagation()">${I.wa}</a>`:""}<div class="chips">${x.bos.slice().sort((a,b)=>a-b).map(b=>`<span class="cn" title="${esc(tit(b))}">#${b}</span>`).join("")||'<span class="note">Sin bosquejos registrados</span>'}</div></div></div>`});
+      ${x.tel?(esUsuario(x.tel)?`<button class="wabtn" data-user="${esc(x.tel)}" aria-label="Copiar usuario de WhatsApp">${I.wa}</button>`:`<a class="wabtn" target="_blank" rel="noopener" href="${linkWa(x.tel)}" onclick="event.stopPropagation()">${I.wa}</a>`):""}<div class="chips">${x.bos.slice().sort((a,b)=>a-b).map(b=>`<span class="cn" title="${esc(tit(b))}">#${b}</span>`).join("")||'<span class="note">Sin bosquejos registrados</span>'}</div></div></div>`});
   h+=`</div>`;
   if(esAdmin())h+=`<div class="row" style="margin-top:12px"><button class="btn pri" id="a1">+ Orador</button><button class="btn line" id="a2">${I.paste} Pegar varios</button></div>`;
   $("#view").innerHTML=h;
   if($("#a1")){$("#a1").onclick=()=>nuevoOrador();$("#a2").onclick=pegarVarios}
   document.querySelectorAll("[data-eh]").forEach(e=>e.onclick=()=>nuevoOrador(null,e.dataset.eh));
+  document.querySelectorAll("[data-user]").forEach(b=>b.onclick=ev=>{ev.stopPropagation();const u=b.dataset.user;try{navigator.clipboard.writeText(u).then(()=>toast(`${u} copiado: búscalo en WhatsApp`)).catch(()=>toast(`Busca a ${u} en WhatsApp`))}catch(e){toast(`Busca a ${u} en WhatsApp`)}});
 }
 /* ---------- CONGREGACIONES ---------- */
 function vCong(){
