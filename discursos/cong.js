@@ -544,7 +544,7 @@ function aplicarJW(d, j) {
   if (tes[2]) d.lect.cita = tes[2].ref;
   d.maestros = mae.map((p, i) => ({ ...(d.maestros[i] || { p: "", pa: "", a: "", aa: "" }), titulo: p.titulo, min: p.min, ref: p.ref }));
   const est = vid.find(p => /Estudio b[ií]blico/i.test(p.titulo)); const otras = vid.filter(p => p !== est);
-  d.vida = otras.map((p, i) => ({ ...(d.vida[i] || { p: "" }), titulo: p.titulo, min: p.min || "15" }));
+  d.vida = otras.map((p, i) => { const vid = /Cuerpo Gobernante|video/i.test(p.titulo); const o = { ...(d.vida[i] || { p: "" }), titulo: p.titulo, min: p.min || "15", video: vid || !!(d.vida[i] || {}).video }; if (o.video) o.p = ""; return o; });
   if (est) d.estudio.ref = est.ref;
   d.jw = j.fuente; return d;
 }
@@ -601,7 +601,7 @@ function fichaVmc(l) {
     ${ed ? `<div class="row"><button class="btn line" id="vMas">+ Parte</button><button class="btn line" id="vMenos">− Parte</button></div>` : ""}
     <div class="vsec" style="background:#8A0B14">NUESTRA VIDA CRISTIANA</div>
     <div class="vhead"><span>🎵 Canción</span><input class="tin min" id="vC2" value="${esc(d.c2)}" inputmode="numeric"></div>
-    <div id="vVida">${d.vida.map((v, i) => `<div class="card vpart"><div class="vptit"><span class="vn" style="color:#8A0B14">${nM + i}.</span> <input class="tin" id="vV${i}" value="${esc(v.titulo)}" placeholder="Título"> <input class="tin min" id="vVm${i}" value="${esc(v.min || "15")}" inputmode="numeric"></div>${S("vVp" + i, v.p, nomb, true)}</div>`).join("")}</div>
+    <div id="vVida">${d.vida.map((v, i) => `<div class="card vpart"><div class="vptit"><span class="vn" style="color:#8A0B14">${nM + i}.</span> <input class="tin" id="vV${i}" value="${esc(v.titulo)}" placeholder="Título"> <input class="tin min" id="vVm${i}" value="${esc(v.min || "15")}" inputmode="numeric"></div><label class="ic chk vvid"><input type="checkbox" id="vVv${i}" ${v.video ? "checked" : ""}> Sin asignado (video o informe del Cuerpo Gobernante)</label><div id="vVw${i}" ${v.video ? "hidden" : ""}>${S("vVp" + i, v.p, nomb, true)}</div></div>`).join("")}</div>
     ${ed ? `<div class="row"><button class="btn line" id="vVMas">+ Parte</button><button class="btn line" id="vVMenos">− Parte</button></div>` : ""}
     <div class="card vpart">${parte(`<span style="color:#8A0B14">${nM + d.vida.length}</span>`, "Estudio bíblico de la congregación", "30", d.estudio.ref ? ` <small>${esc(d.estudio.ref)}</small>` : "")}<div class="vsala"><span>Conductor</span>${S("vEc", d.estudio.p, anc, true)}</div><div class="vsala"><span>Lector</span>${S("vEl", d.estudio.lector, H, true)}</div></div>
     <div class="vhead" style="color:#8A0B14"><span>Palabras de conclusión · 🎵 Canción</span><input class="tin min" id="vC3" value="${esc(d.c3)}" inputmode="numeric"><span>y oración</span>${S("vO2", d.oracion2, nomb, true)}</div>`;
@@ -629,13 +629,14 @@ function fichaVmc(l) {
         if (sinR) return { ...d, evento: val(bg, "vE"), eventoTema: val(bg, "vEt"), lectura: val(bg, "vL") };
         const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "" }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
         bg.querySelectorAll("#vMae .vpart").forEach((_, i) => nd.maestros.push({ titulo: val(bg, "mT" + i), min: val(bg, "mM" + i), ref: val(bg, "mR" + i), p: val(bg, "mP" + i), pa: val(bg, "mPA" + i), a: val(bg, "mA" + i), aa: val(bg, "mAA" + i) }));
-        let i = 0; while (q("#vV" + i)) { nd.vida.push({ titulo: val(bg, "vV" + i), min: val(bg, "vVm" + i) || "15", p: val(bg, "vVp" + i) }); i++; }
+        let i = 0; while (q("#vV" + i)) { const vid = q("#vVv" + i).checked; nd.vida.push({ titulo: val(bg, "vV" + i), min: val(bg, "vVm" + i) || "15", video: vid, p: vid ? "" : val(bg, "vVp" + i) }); i++; }
         return nd;
       };
       const repintar = () => { d = leer(); q("#vCuerpo").innerHTML = cuerpo(); enlazar(); };
       const dupl = () => { const ids = asignVmc(leer()).filter((x, i, a) => true); const c = {}; ids.forEach(x => c[x] = (c[x] || 0) + 1); const rep = Object.keys(c).filter(k => c[k] > 1); q("#vAviso").innerHTML = rep.length && !sinR ? `<div class="aviso warn">${I.alert}<span>Con más de una asignación esta semana: <b>${rep.map(nomCorto).map(esc).join(", ")}</b>.</span></div>` : ""; };
       const enlazar = () => {
         bg.querySelectorAll("#vCuerpo select").forEach(s => s.addEventListener("change", dupl)); dupl();
+        bg.querySelectorAll('[id^="vVv"]').forEach(c => c.onchange = () => { const k = c.id.slice(3); const w = q("#vVw" + k); if (w) w.hidden = c.checked; if (c.checked) { const sel = q("#vVp" + k); if (sel) sel.value = ""; } dupl(); });
         if (q("#vMas")) q("#vMas").onclick = () => { d = leer(); d.maestros.push({ titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }); repintar(); };
         if (q("#vMenos")) q("#vMenos").onclick = () => { d = leer(); if (d.maestros.length > 1) d.maestros.pop(); repintar(); };
         if (q("#vVMas")) q("#vVMas").onclick = () => { d = leer(); d.vida.push({ titulo: "", min: "15", p: "" }); repintar(); };
@@ -654,7 +655,7 @@ function fichaVmc(l) {
         llena(d.lect, "p", p => H(p) && !nomb(p)); llena(d.lect, "a", p => H(p) && !nomb(p)); llena(d, "consejero", anc);
         d.maestros.forEach(m => { const disc = /^Discurso/i.test(m.titulo); llena(m, "p", disc ? H : pub); llena(m, "a", disc ? H : pub);
           if (!disc) { const sx = id => (P(id) || {}).sexo; llena(m, "pa", pub, sx(m.p)); llena(m, "aa", pub, sx(m.a)); } });
-        d.vida.forEach(v => llena(v, "p", nomb)); llena(d.estudio, "p", anc); llena(d.estudio, "lector", H); llena(d, "oracion2", nomb);
+        d.vida.forEach(v => { if (!v.video) llena(v, "p", nomb); }); llena(d.estudio, "p", anc); llena(d.estudio, "lector", H); llena(d, "oracion2", nomb);
         q("#vCuerpo").innerHTML = cuerpo(); enlazar(); toast("Sugerí a quienes llevan más tiempo sin parte. Revisa antes de guardar.");
       };
       const ok = q("#vOk"); if (ok) ok.onclick = async () => {
@@ -714,7 +715,7 @@ async function xlsVmc(X) {
       barra("NUESTRA VIDA CRISTIANA", ROJO);
       merge("A", "F"); rich("A" + r, [["● ", { color: ROJO }], [`Canción ${d.c2}`, { color: VERDE }]]); r++;
       const n0 = 4 + d.maestros.length;
-      d.vida.forEach((v, i) => { merge("A", "E"); rich("A" + r, [[`${n0 + i}. `, { color: ROJO }], [v.titulo, { color: VERDE }], [` (${v.min || 15} mins)`, { color: VERDE, size: 9 }]]); nombre("F", v.p); r++; });
+      d.vida.forEach((v, i) => { merge("A", "E"); rich("A" + r, [[`${n0 + i}. `, { color: ROJO }], [v.titulo, { color: VERDE }], [` (${v.min || 15} mins)`, { color: VERDE, size: 9 }]]); if (v.video) put("F" + r, "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "666666" }); else nombre("F", v.p); r++; });
       merge("A", "B"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", { color: VERDE }], [" (30 mins)", { color: VERDE, size: 9 }]]);
       merge("C", "D"); nombre("C", d.estudio.p); put("E" + r, "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", d.estudio.lector); r++;
       merge("A", "B"); rich("A" + r, [["● ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
