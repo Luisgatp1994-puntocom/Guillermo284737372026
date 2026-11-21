@@ -142,7 +142,8 @@ function mostrarInicio(){
   $("#hello").textContent=`${saludo()}${quien&&!/admin/i.test(quien)?", "+quien:""}`;
   $("#hubsub").innerHTML=`<span>${(t=>t[0].toUpperCase()+t.slice(1))(dS.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"}))}</span><span class="pill ${esAdmin()?"t-acc":"t-idle"}">${esAdmin()?"Administrador":"Consulta"}</span>`;
   const pend=sabados().filter(p=>p.f>=HOY&&p.e!=="conf"&&dias(HOY,p.f)<=14).length;
-  $("#hubgrid").innerHTML=SECCIONES.map((x,i)=>`<button class="hcard wide ${i===0?"main":""}" data-sec="${x.id}">
+  const SECS=SECCIONES.filter(x=>esAdmin()||!["inf","pub"].includes(x.id));
+  $("#hubgrid").innerHTML=SECS.map((x,i)=>`<button class="hcard wide ${i===0?"main":""}" data-sec="${x.id}">
     <span class="tile ${x.tono}">${x.ico}</span>
     ${i===0?`<span class="txt"><b>${x.nombre}</b><small><span class="gchip g-${esc(GRUPO.id)}">Sábado ${esc(GRUPO.hora||"")}</span></small><small>${resumenDiscursos()||x.desc}</small>${pend?`<small style="color:var(--warn);font-weight:800">${pend} sábado${pend>1?"s":""} por cerrar en 2 semanas</small>`:""}</span><span class="go" style="color:var(--accent)">${I.arrow}</span>`
       :`<span class="txt"><b>${x.nombre}</b><small>${x.desc}</small></span><span class="go" style="color:var(--muted)">${I.arrow}</span>`}
@@ -152,7 +153,7 @@ function mostrarInicio(){
   $("#hubver").textContent=document.querySelector(".login .note[style*='opacity']")?.textContent||"";
   scrollTo(0,0);
 }
-function abrirSeccion(id){if(id==="disc"){$("#hub").hidden=true;iniciarDiscursos()}else abrirCong(id)}
+function abrirSeccion(id){if(!esAdmin()&&["inf","pub"].includes(id))return toast("Esa sección es solo para administradores");if(id==="disc"){$("#hub").hidden=true;iniciarDiscursos()}else abrirCong(id)}
 function iniciar(){mostrarInicio()}
 function iniciarDiscursos(){
   $("#login").hidden=true;$("#app").hidden=false;

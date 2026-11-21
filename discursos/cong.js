@@ -119,6 +119,7 @@ const SEC = {
   avi: { titulo: "Notificaciones", sub: "Cambios de toda la congregación", tabs: [] }
 };
 async function abrirCong(sec) {
+  if (["inf", "pub"].includes(sec) && !esAdmin()) { toast("Esa sección es solo para administradores"); return; }
   CG.sec = sec; CG.tab = (SEC[sec].tabs[0] || [])[0] || null; CG.mes = CG.mes || mesActual();
   $("#hub").hidden = true; $("#app").hidden = true; $("#cong").hidden = false; $("#fab").hidden = true;
   $("#cview").innerHTML = `<div class="empty">Cargando…</div>`;
