@@ -40,6 +40,7 @@ async function rpc(fn,args){
 async function cargar(){
   const d=await rpc("app_data",{});
   rol=d.rol;GRUPO=d.grupo||GRUPO;ETIQ=d.etiqueta||"";
+  if(d.pid){LS.set("dtb_uid",String(d.pid));LS.set("dtb_unom",ETIQ);if(PIN&&!/#/.test(PIN)){PIN=d.pid+"#"+PIN;LS.set("dtb_pin",PIN)}}
   DB={congs:d.congs||[],hermanos:(d.hermanos||[]).map(h=>({...h,bos:h.bos||[]})),prog:d.prog||[],log:d.log||[]};
   HOY=hoyBogota();
 }
@@ -79,27 +80,45 @@ function sabados(){
 const getSab=f=>sabados().find(x=>x.f===f)||{f,d:null,o:null,s:null,e:"sin"};
 
 /* ---------- Login con PIN ---------- */
-let entrada="";
+let entrada="", USUARIOS=null;
+const yo=()=>{const id=LS.get("dtb_uid");return id?{id,n:LS.get("dtb_unom")||""}:null};
+async function cargarUsuarios(){if(USUARIOS)return USUARIOS;const r=await fetch(SB_URL+"/rest/v1/rpc/login_usuarios",{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"},body:"{}"});if(!r.ok)throw new Error("El servidor está despertando… intenta en un minuto");USUARIOS=await r.json();return USUARIOS}
 function pintaLogin(msg){
   $("#login").hidden=false;$("#app").hidden=true;$("#hub").hidden=true;if($("#cong"))$("#cong").hidden=true;
+  const u=yo();
+  $("#quien").innerHTML=u?`<div class="yo"><span class="av">${esc(ini(u.n))}</span><div><b>${esc(u.n)}</b><button class="lnk" id="otroU">No soy yo · cambiar</button></div></div>`:"";
+  $("#lpin").hidden=!u;$("#lbus").hidden=!!u;
+  if(!u){pintaBuscador(msg);return}
   $("#dots").innerHTML=Array.from({length:Math.max(4,entrada.length)},(_,i)=>`<i class="${i<entrada.length?"on":""}"></i>`).join("");
   $("#err").textContent=msg||"";
   $("#pad").innerHTML=[1,2,3,4,5,6,7,8,9,"borrar",0,"entrar"].map(k=>`<button data-k="${k}" class="${k==="borrar"?"ghost":k==="entrar"?"go":""}">${k==="borrar"?"Borrar":k==="entrar"?"Entrar":k}</button>`).join("");
   $("#pad").querySelectorAll("button").forEach(b=>b.addEventListener("pointerdown",e=>{e.preventDefault();tecla(b.dataset.k)}));
+  $("#otroU").onclick=()=>{LS.del("dtb_uid");LS.del("dtb_unom");entrada="";pintaLogin()};
+}
+async function pintaBuscador(msg){
+  $("#lerr").textContent=msg||"";
+  const q=$("#lq"),L=$("#llist");
+  L.innerHTML=`<div class="note" style="padding:14px;text-align:center">Cargando…</div>`;
+  let us=[];try{us=await cargarUsuarios()}catch(e){L.innerHTML=`<div class="err" style="padding:14px">${esc(e.message)}</div>`;return}
+  const pinta=()=>{const t=norm(q.value.trim());const f=us.filter(x=>!t||norm(x.n).includes(t));
+    L.innerHTML=f.length?f.slice(0,60).map(x=>`<button class="lu" data-id="${x.id}" data-n="${esc(x.n)}"><span class="av">${esc(ini(x.n))}</span>${esc(x.n)}</button>`).join(""):`<div class="note" style="padding:14px;text-align:center">No encuentro ese nombre. Pídele a un anciano que te cree el acceso.</div>`;
+    L.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{LS.set("dtb_uid",b.dataset.id);LS.set("dtb_unom",b.dataset.n);entrada="";pintaLogin()})};
+  q.oninput=pinta;pinta();
 }
 async function tecla(k){
   if(k==="borrar"){entrada=entrada.slice(0,-1);return pintaLogin()}
   if(k==="entrar")return intentar();
   if(entrada.length<8){entrada+=k;pintaLogin()}
 }
-document.addEventListener("keydown",e=>{if(!$("#login").hidden){if(/^[0-9]$/.test(e.key))tecla(e.key);else if(e.key==="Backspace")tecla("borrar");else if(e.key==="Enter")tecla("entrar")}});
+document.addEventListener("keydown",e=>{if(!$("#login").hidden&&!$("#lpin").hidden){if(/^[0-9]$/.test(e.key))tecla(e.key);else if(e.key==="Backspace")tecla("borrar");else if(e.key==="Enter")tecla("entrar")}});
 async function intentar(){
   if(entrada.length<4)return pintaLogin("El PIN tiene mínimo 4 números");
-  PIN=entrada;$("#err").textContent="Verificando…";
+  const u=yo();if(!u)return pintaLogin();
+  PIN=u.id+"#"+entrada;$("#err").textContent="Verificando…";
   try{await cargar();LS.set("dtb_pin",PIN);entrada="";iniciar()}
   catch(e){PIN=null;entrada="";pintaLogin(e.message);const d=$("#dots");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");try{navigator.vibrate&&navigator.vibrate(180)}catch(_){}}
 }
-function salir(){LS.del("dtb_pin");PIN=null;rol=null;entrada="";pintaLogin()}
+function salir(){LS.del("dtb_pin");PIN=null;rol=null;entrada="";USUARIOS=null;pintaLogin()}
 
 /* ---------- App ---------- */
 let vista="cal",filtroE=null;
@@ -559,7 +578,7 @@ function vAvisos(){
     <div><span class="flab">Nuevo PIN (${tipo==="consulta"?"4":"6"} a 8 números)</span><input id="np" inputmode="numeric" maxlength="8" autocomplete="off"></div>
     <button class="btn pri" id="ok">Guardar PIN</button>`,(bg)=>{
       bg.querySelector("#ok").onclick=async()=>{const v=bg.querySelector("#np").value.trim();if(!(tipo==="consulta"?/^[0-9]{4,8}$/:/^[0-9]{6,8}$/).test(v)){toast(tipo==="consulta"?"Usa de 4 a 8 números":"Usa de 6 a 8 números");return}
-        try{await rpc("app_cambiar_pin",{p_tipo:tipo,p_nuevo:v});if(tipo==="admin"){PIN=v;LS.set("dtb_pin",v)}bg.remove();toast("PIN actualizado")}catch(e){toast(e.message)}}});
+        try{await rpc("app_cambiar_pin",{p_tipo:tipo,p_nuevo:v});if(tipo==="admin"){PIN=(LS.get("dtb_uid")||"")+"#"+v;LS.set("dtb_pin",PIN)}bg.remove();toast("PIN actualizado")}catch(e){toast(e.message)}}});
   if($("#pc")){$("#pc").onclick=()=>cambiar("consulta");$("#pa").onclick=()=>cambiar("admin")}
 }
 
