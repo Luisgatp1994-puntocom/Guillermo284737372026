@@ -119,7 +119,7 @@ const SEC = {
   avi: { titulo: "Notificaciones", sub: "Cambios de toda la congregación", tabs: [] }
 };
 async function abrirCong(sec) {
-  if (["inf", "pub"].includes(sec) && !esAdmin()) { toast("Esa sección es solo para administradores"); return; }
+  if (sec !== "avi" && !puede(sec)) { toast("No tienes acceso a esa sección"); return; }
   CG.sec = sec; CG.tab = (SEC[sec].tabs[0] || [])[0] || null; CG.mes = CG.mes || mesActual();
   $("#hub").hidden = true; $("#app").hidden = true; $("#cong").hidden = false; $("#fab").hidden = true;
   $("#cview").innerHTML = `<div class="empty">Cargando…</div>`;
@@ -225,7 +225,9 @@ async function vUsuarios() {
   let h = tabs(SEC.pub.tabs) + `<p class="note" style="margin:6px 4px 12px">Cada anciano o siervo entra con su propio PIN. <b>Admin</b> modifica programas e informes; <b>Consulta</b> solo ve. El horario define qué programa de Discursos ve.</p><div class="list">`;
   h += us.map(u => `<button class="card prow2" data-uid="${u.id}" ${u.super ? "disabled" : ""}><span class="av ${u.rol === "admin" ? "t-acc" : "t-idle"}">${esc(ini(u.etiqueta))}</span><span style="flex:1;min-width:0;text-align:left"><b>${esc(u.etiqueta)}</b><small class="note" style="display:block">${u.super ? "Super administrador" : u.rol === "admin" ? "Admin" : "Consulta"} · Discursos ${HOR[u.grupo]}</small></span></button>`).join("");
   h += `</div><button class="btn pri" style="width:100%;margin-top:12px" id="nuevoU">+ Crear PIN para un hermano</button>`;
+  if (SUPER) h += vPermisos();
   $("#cview").innerHTML = h; bindTabs();
+  if (SUPER) bindPermisos();
   document.querySelectorAll("[data-uid]").forEach(b => b.onclick = () => fichaUsuario(us.find(u => u.id === +b.dataset.uid)));
   $("#nuevoU").onclick = () => fichaUsuario(null);
 }
@@ -1226,4 +1228,27 @@ function vStats() {
     if (inf.length) h += `<div class="label">Participación en el ministerio (informes)</div><div class="card spad">${columnas(meses.map(m => ({ l: MES[+m.slice(5) - 1].slice(0, 3), a: tot, b: partMes(m) })), `<div class="sleg"><span><i class="ca"></i>Publicadores</span><span><i class="cb"></i>Participaron</span></div>`)}</div>`;
   }
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
+}
+
+
+/* ================= PERMISOS POR PERFIL (solo super administrador) ================= */
+const SECS_PERM = [["disc", "Discursos públicos"], ["reu", "Reuniones"], ["pred", "Predicación"], ["rec", "Recordatorios"], ["inf", "Informes"], ["pub", "Publicadores"]];
+function vPermisos() {
+  const P0 = PERM || PERM_BASE;
+  const fila = ([id, n]) => `<div class="prm"><span>${n}</span>${["admin", "consulta"].map(r => { const bloq = r === "consulta" && id === "inf"; const on = !bloq && (P0[r] || PERM_BASE[r]).includes(id);
+    return `<label class="tg ${bloq ? "off" : ""}" title="${bloq ? "Los informes son confidenciales: solo administradores" : ""}"><input type="checkbox" data-pr="${r}" data-ps="${id}" ${on ? "checked" : ""} ${bloq ? "disabled" : ""}><i></i></label>`; }).join("")}</div>`;
+  return `<div class="label" style="margin-top:22px">Qué ve cada perfil</div><div class="card spad">
+    <div class="prm hd"><span>Sección</span><b>Admin</b><b>Consulta</b></div>${SECS_PERM.map(fila).join("")}
+    <p class="note" style="margin:10px 2px">Tú, como super administrador, siempre ves todo. Consulta nunca puede editar ni ver informes, teléfonos o notas, aunque le actives la sección.</p>
+    <button class="btn pri" id="prmOk" style="width:100%">Guardar permisos</button></div>`;
+}
+function bindPermisos() {
+  const b = document.querySelector("#prmOk"); if (!b) return;
+  b.onclick = async () => {
+    const d = { admin: [], consulta: [] };
+    document.querySelectorAll("[data-pr]").forEach(c => { if (c.checked) d[c.dataset.pr].push(c.dataset.ps); });
+    if (!d.admin.length) { toast("Deja al menos una sección para los administradores"); return; }
+    try { document.body.classList.add("loading"); await rpc("cong_permisos_guardar", { p_d: d }); PERM = d; toast("Permisos guardados. Cada uno los verá al volver a abrir la app."); }
+    catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
+  };
 }

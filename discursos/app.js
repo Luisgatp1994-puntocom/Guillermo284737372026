@@ -39,7 +39,7 @@ async function rpc(fn,args){
 }
 async function cargar(){
   const d=await rpc("app_data",{});
-  rol=d.rol;GRUPO=d.grupo||GRUPO;ETIQ=d.etiqueta||"";
+  rol=d.rol;GRUPO=d.grupo||GRUPO;ETIQ=d.etiqueta||"";SUPER=!!d.super;PERM=d.permisos||null;
   if(d.pid){LS.set("dtb_uid",String(d.pid));LS.set("dtb_unom",ETIQ);if(PIN&&!/#/.test(PIN)){PIN=d.pid+"#"+PIN;LS.set("dtb_pin",PIN)}}
   DB={congs:d.congs||[],hermanos:(d.hermanos||[]).map(h=>({...h,bos:h.bos||[]})),prog:d.prog||[],log:d.log||[]};
   HOY=hoyBogota();
@@ -80,9 +80,11 @@ function sabados(){
 const getSab=f=>sabados().find(x=>x.f===f)||{f,d:null,o:null,s:null,e:"sin"};
 
 /* ---------- Login con PIN ---------- */
-let entrada="", USUARIOS=null;
+let entrada="", USUARIOS=null, SUPER=false, PERM=null;
+const PERM_BASE={admin:["disc","reu","pred","inf","rec","pub"],consulta:["disc","reu","pred","rec"]};
+const puede=id=>SUPER||((PERM&&PERM[rol])||PERM_BASE[rol]||[]).includes(id)&&(rol==="admin"||id!=="inf");
 const yo=()=>{const id=LS.get("dtb_uid");return id?{id,n:LS.get("dtb_unom")||""}:null};
-async function cargarUsuarios(){if(USUARIOS)return USUARIOS;const r=await fetch(SB_URL+"/rest/v1/rpc/login_usuarios",{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"},body:"{}"});if(!r.ok)throw new Error("El servidor está despertando… intenta en un minuto");USUARIOS=await r.json();return USUARIOS}
+async function cargarUsuarios(){if(USUARIOS)return USUARIOS;const r=await fetch(SB_URL+"/rest/v1/rpc/login_usuarios",{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"},body:"{}"});if(!r.ok)throw new Error("El servidor está despertando… intenta en un minuto");const j=await r.json();USUARIOS=Array.isArray(j)?j:[];return USUARIOS}
 function pintaLogin(msg){
   $("#login").hidden=false;$("#app").hidden=true;$("#hub").hidden=true;if($("#cong"))$("#cong").hidden=true;
   const u=yo();
@@ -140,9 +142,9 @@ function mostrarInicio(){
   $("#login").hidden=true;$("#app").hidden=true;$("#hub").hidden=false;$("#fab").hidden=true;
   const quien=esAdmin()?String(ETIQ||"").split(" ")[0]:"";const dS=new Date(HOY+"T12:00:00");
   $("#hello").textContent=`${saludo()}${quien&&!/admin/i.test(quien)?", "+quien:""}`;
-  $("#hubsub").innerHTML=`<span>${(t=>t[0].toUpperCase()+t.slice(1))(dS.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"}))}</span><span class="pill ${esAdmin()?"t-acc":"t-idle"}">${esAdmin()?"Administrador":"Consulta"}</span>`;
+  $("#hubsub").innerHTML=`<span>${(t=>t[0].toUpperCase()+t.slice(1))(dS.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"}))}</span><span class="pill ${esAdmin()?"t-acc":"t-idle"}">${SUPER?"Super administrador":esAdmin()?"Administrador":"Consulta"}</span>`;
   const pend=sabados().filter(p=>p.f>=HOY&&p.e!=="conf"&&dias(HOY,p.f)<=14).length;
-  const SECS=SECCIONES.filter(x=>esAdmin()||!["inf","pub"].includes(x.id));
+  const SECS=SECCIONES.filter(x=>puede(x.id));
   $("#hubgrid").innerHTML=SECS.map((x,i)=>`<button class="hcard wide ${i===0?"main":""}" data-sec="${x.id}">
     <span class="tile ${x.tono}">${x.ico}</span>
     ${i===0?`<span class="txt"><b>${x.nombre}</b><small><span class="gchip g-${esc(GRUPO.id)}">Sábado ${esc(GRUPO.hora||"")}</span></small><small>${resumenDiscursos()||x.desc}</small>${pend?`<small style="color:var(--warn);font-weight:800">${pend} sábado${pend>1?"s":""} por cerrar en 2 semanas</small>`:""}</span><span class="go" style="color:var(--accent)">${I.arrow}</span>`
@@ -153,7 +155,7 @@ function mostrarInicio(){
   $("#hubver").textContent=document.querySelector(".login .note[style*='opacity']")?.textContent||"";
   scrollTo(0,0);
 }
-function abrirSeccion(id){if(!esAdmin()&&["inf","pub"].includes(id))return toast("Esa sección es solo para administradores");if(id==="disc"){$("#hub").hidden=true;iniciarDiscursos()}else abrirCong(id)}
+function abrirSeccion(id){if(!puede(id))return toast("No tienes acceso a esa sección");if(id==="disc"){$("#hub").hidden=true;iniciarDiscursos()}else abrirCong(id)}
 function iniciar(){mostrarInicio()}
 function iniciarDiscursos(){
   $("#login").hidden=true;$("#app").hidden=false;
