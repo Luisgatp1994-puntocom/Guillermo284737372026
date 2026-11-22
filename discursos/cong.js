@@ -1317,7 +1317,8 @@ function vMiEspacio() {
   if (permPub("asig")) {
     const a = misAsignaciones(hoy, hasta);
     h += `<div class="label">Mis asignaciones</div>`;
-    h += a.length ? `<div class="list">${a.map(x => { const F = fd(x.f); const dd = dias(hoy, x.f); return `<div class="card srow mie-a"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)"><small>${DIAS[isoDia(x.f)].slice(0, 3)}</small>${F.d} ${F.m.slice(0, 3)}</span><div style="flex:1;min-width:0"><b>${x.ico} ${esc(x.que)}</b><div class="note">${esc(x.det)}</div></div>${dd <= 7 ? `<span class="pill t-warn">${dd === 0 ? "Hoy" : dd === 1 ? "Mañana" : `En ${dd} días`}</span>` : ""}</div>`; }).join("")}</div>`
+    const filaA = x => { const F = fd(x.f); const dd = dias(hoy, x.f); return `<div class="card srow mie-a"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)"><small>${DIAS[isoDia(x.f)].slice(0, 3)}</small>${F.d} ${F.m.slice(0, 3)}</span><div style="flex:1;min-width:0"><b>${x.ico} ${esc(x.que)}</b><div class="note">${esc(x.det)}</div></div>${dd <= 7 ? `<span class="pill t-warn">${dd === 0 ? "Hoy" : dd === 1 ? "Mañana" : `En ${dd} días`}</span>` : ""}</div>`; };
+    h += a.length ? `<div class="list">${a.slice(0, 3).map(filaA).join("")}</div>${a.length > 3 ? `<details class="mas"><summary>Ver las otras ${a.length - 3} asignaciones</summary><div class="list" style="margin-top:8px">${a.slice(3).map(filaA).join("")}</div></details>` : ""}`
       : `<div class="card note" style="padding:16px">No tienes asignaciones de aquí a fin del próximo mes. 🙌</div>`;
   }
   if (permPub("semana")) {
@@ -1330,11 +1331,11 @@ function vMiEspacio() {
     h += `</div>`;
   }
   if (permPub("pred")) {
-    const sal = [hoy.slice(0, 7), mesMas(hoy.slice(0, 7), 1)].flatMap(m => salidasDelMes(m)).filter(x => x.f >= hoy && x.f <= sumDias(hoy, 7));
-    h += `<div class="label">Predicación · próximos 7 días</div>`;
-    h += sal.length ? `<div class="list">${sal.map(x => { const d = x.r.d; const t = R("territorio").find(r => r.id === d.territorio); const c = t && (t.d.centro || centroDe(t.d.area));
-      return `<div class="card srow"><span class="dpill" style="background:#${COLOR_DIA[isoDia(x.f)]};color:#151a33"><small>${DIAS[isoDia(x.f)].slice(0, 3)}</small>${fd(x.f).d}</span><div style="flex:1;min-width:0"><b>${esc(d.hora || "")} · ${esc(d.lugar || "")}</b><div class="note">${esc(nomTerr(d.territorio) || "")}${d.capitan ? " · Capitán: " + esc(nomCorto(d.capitan)) : ""}</div></div>${c ? `<a class="btn line" style="flex:0 0 auto;padding:8px 10px" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${c.join(",")}">🧭</a>` : ""}</div>`; }).join("")}</div>`
-      : `<div class="card note" style="padding:16px">No hay salidas programadas en los próximos 7 días.</div>`;
+    const sal = [hoy.slice(0, 7), mesMas(hoy.slice(0, 7), 1)].flatMap(m => salidasDelMes(m)).filter(x => x.f >= hoy && x.f <= sumDias(hoy, 6));
+    const dias7 = [0, 1, 2, 3, 4, 5, 6].map(n => sumDias(hoy, n));
+    if (!MIE.dia || !dias7.includes(MIE.dia)) MIE.dia = (sal[0] || {}).f || hoy;
+    h += `<div class="label">Predicación de la semana</div><div class="card spad"><div class="wk">${dias7.map(f => { const n = sal.filter(x => x.f === f).length; const dd = isoDia(f);
+      return `<button class="wkd ${f === MIE.dia ? "on" : ""}" data-wd="${f}" style="--c:#${COLOR_DIA[dd]}"><small>${f === hoy ? "Hoy" : DIAS[dd].slice(0, 3)}</small><b>${fd(f).d}</b><i>${n ? "•".repeat(Math.min(n, 3)) : "–"}</i></button>`; }).join("")}</div><div id="wkDet"></div></div>`;
   }
   if (permPub("rec")) {
     let prox = null; for (let i = 0; i < 12 && !prox; i++) { const l = sumDias(lunesDe(hoy), 7 * i); const [hh, g] = grupoSemana(l); if (hh === yo.horario && +g === +yo.grupo) prox = l; }
@@ -1350,6 +1351,14 @@ function vMiEspacio() {
   $("#cview").innerHTML = h; scrollTo(0, 0);
   $("#mieSalir").onclick = () => { $("#cBack").hidden = false; $("#cBell").hidden = false; $("#cong").hidden = true; salir(); };
   if (permPub("inf")) pintaMiInforme();
+  if (permPub("pred")) pintaDiaPred();
+}
+function pintaDiaPred() {
+  const box = $("#wkDet"); if (!box) return;
+  document.querySelectorAll("[data-wd]").forEach(b => { b.classList.toggle("on", b.dataset.wd === MIE.dia); b.onclick = () => { MIE.dia = b.dataset.wd; pintaDiaPred(); }; });
+  const f = MIE.dia; const sal = salidasDelMes(f.slice(0, 7)).filter(x => x.f === f);
+  box.innerHTML = `<div class="wkt">${DIAS[isoDia(f)]} ${fd(f).d} de ${fd(f).m}</div>` + (sal.length ? sal.map(x => { const d = x.r.d; const t = R("territorio").find(r => r.id === d.territorio); const c = t && (t.d.centro || centroDe(t.d.area));
+    return `<div class="wki"><div style="flex:1;min-width:0"><b>${esc(d.turno || "")} · ${esc(d.hora || "")}</b><div class="note">📍 ${esc(d.lugar || "")}</div><div class="note">🗺️ ${esc(nomTerr(d.territorio) || "Sin territorio")}${d.capitan ? ` · Capitán: ${esc(nomCorto(d.capitan))}` : ""}</div></div>${c ? `<a class="btn line" style="flex:0 0 auto;padding:8px 10px" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${c.join(",")}">🧭</a>` : ""}</div>`; }).join("") : `<div class="note" style="padding:6px 2px">No hay salida programada este día.</div>`);
 }
 function mesesInforme() { const m = HOY.slice(0, 7); return [mesMas(m, -2), mesMas(m, -1), m]; }
 const infDe = mes => R("informe").find(x => x.k === mes + "|" + CG.me.persona);
