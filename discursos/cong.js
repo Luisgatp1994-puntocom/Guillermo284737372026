@@ -156,6 +156,7 @@ function vPub() {
   for (const hor of ["tb16", "tb18"]) {
     h += `<div class="label">Horario ${HOR[hor]}</div>`;
     for (const g of [1, 2, 3]) {
+      if (!veTodos() && miGrupoKey() !== hor + "|" + g) continue;
       const l = CG.personas.filter(p => p.horario === hor && p.grupo === g && (!q || norm(p.nombre).includes(q)));
       if (!l.length && q) continue;
       const enc = CG.personas.find(p => p.horario === hor && p.grupo === g && p.encargado === "encargado");
@@ -184,9 +185,11 @@ function fichaPersona(id) {
     ${cAdmin() ? `<div class="grid2">${campo("Fecha de nacimiento", `<input id="pfNa" type="date" value="${esc(p.nacimiento || "")}" ${dis}>`)}${campo("Fecha de bautismo", `<input id="pfBa" type="date" value="${esc(p.bautismo || "")}" ${dis}>`)}</div>
     ${campo("Esperanza", `<select id="pfU" class="csel" ${dis}><option value="0" ${p.ungido ? "" : "selected"}>Otras ovejas</option><option value="1" ${p.ungido ? "selected" : ""}>Ungido</option></select>`)}` : ""}
     ${cAdmin() ? campo("WhatsApp (celular o @usuario)", inp("pfT", p.tel, "300 000 0000", dis)) + campo("Notas", inp("pfO", p.notas, "", dis)) : ""}
+    ${cAdmin() && id ? `<button class="btn line" id="pfAcc">${p.acceso ? "🔑 Ya tiene acceso a la app" : "🔑 Darle acceso a la app (publicador)"}</button>` : ""}
     ${cAdmin() && id ? `<button class="btn line" id="pfS21">📄 Tarjeta S-21 (año de servicio ${anioServicio(CG.mes || mesActual())})</button>` : ""}
     ${!sup && ed ? `<p class="note">Nombre, horario y grupo solo los cambia el super administrador.</p>` : ""}${ed ? `<button class="btn pri" id="pfOk">Guardar</button>${id && sup ? `<button class="btn bad" id="pfDel">Quitar de la lista</button>` : ""}` : `<p class="note">Solo los administradores pueden editar.</p>`}`,
     (bg, close) => {
+      const acc = bg.querySelector("#pfAcc"); if (acc) acc.onclick = async () => { if (p.acceso) { close(); CG.tab = "usuarios"; cRender(); toast("Búscalo en la lista para cambiarle el PIN"); return; } close(); fichaUsuario(null, id); };
       const s21 = bg.querySelector("#pfS21"); if (s21) s21.onclick = () => exportarS21([P(id)], anioServicio(CG.mes || mesActual()), `S-21 ${p.nombre} ${anioServicio(CG.mes || mesActual())}`);
       if (!ed) return;
       const datos = () => ({ nacimiento: val(bg, "pfNa"), bautismo: val(bg, "pfBa"), ungido: val(bg, "pfU") === "1", nombre: val(bg, "pfN"), sexo: val(bg, "pfS"), horario: val(bg, "pfH"), grupo: +val(bg, "pfG"), encargado: val(bg, "pfE"), privilegio: val(bg, "pfP"), precursor: val(bg, "pfR"), tel: normContacto(val(bg, "pfT")), notas: val(bg, "pfO") });
@@ -222,27 +225,42 @@ async function xlsGrupos(X) {
 /* Usuarios y PIN (solo super) */
 async function vUsuarios() {
   let us = []; try { us = await rpc("cong_usuarios", {}); } catch (e) { toast(e.message); }
-  let h = tabs(SEC.pub.tabs) + `<p class="note" style="margin:6px 4px 12px">Cada anciano o siervo entra con su propio PIN. <b>Admin</b> modifica programas e informes; <b>Consulta</b> solo ve. El horario define qué programa de Discursos ve.</p><div class="list">`;
-  h += us.map(u => `<button class="card prow2" data-uid="${u.id}" ${u.super ? "disabled" : ""}><span class="av ${u.rol === "admin" ? "t-acc" : "t-idle"}">${esc(ini(u.etiqueta))}</span><span style="flex:1;min-width:0;text-align:left"><b>${esc(u.etiqueta)}</b><small class="note" style="display:block">${u.super ? "Super administrador" : u.rol === "admin" ? "Admin" : "Consulta"} · Discursos ${HOR[u.grupo]}</small></span></button>`).join("");
-  h += `</div><button class="btn pri" style="width:100%;margin-top:12px" id="nuevoU">+ Crear PIN para un hermano</button>`;
+  let h = tabs(SEC.pub.tabs) + `<p class="note" style="margin:6px 4px 12px">Cada uno entra con <b>su nombre y su PIN</b>. <b>Administrador</b> organiza y edita (solo su grupo en Informes, salvo que vea todos). <b>Consulta</b> solo mira. <b>Publicador</b> ve su espacio: asignaciones e informe.</p>
+  <input id="bqu" placeholder="Buscar usuario…" style="margin:0 0 8px"><div class="list" id="ulist">`;
+  h += us.map(u => `<button class="card prow2" data-uid="${u.id}" ${u.super ? "disabled" : ""}><span class="av ${u.rol === "admin" ? "t-acc" : u.rol === "publicador" ? "t-ok" : "t-idle"}">${esc(ini(u.etiqueta))}</span><span style="flex:1;min-width:0;text-align:left"><b>${esc(u.etiqueta)}</b><small class="note" style="display:block">${u.super ? "Super administrador" : u.rol === "admin" ? (u.todos ? "Administrador · ve todos los grupos" : "Administrador") : u.rol === "publicador" ? "Publicador" : "Consulta"} · ${HOR[u.grupo] || ""}</small></span></button>`).join("");
+  h += `</div><button class="btn pri" style="width:100%;margin-top:12px" id="nuevoU">+ Crear acceso para un hermano</button>`;
   if (SUPER) h += vPermisos();
   $("#cview").innerHTML = h; bindTabs();
   if (SUPER) bindPermisos();
   document.querySelectorAll("[data-uid]").forEach(b => b.onclick = () => fichaUsuario(us.find(u => u.id === +b.dataset.uid)));
   $("#nuevoU").onclick = () => fichaUsuario(null);
+  $("#bqu").oninput = e => { const t = norm(e.target.value); document.querySelectorAll("#ulist [data-uid]").forEach(b => b.hidden = t && !norm(b.textContent).includes(t)); };
 }
-function fichaUsuario(u) {
-  hoja(`<div class="shead"><h2>${u ? esc(u.etiqueta) : "Nuevo usuario"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
-    ${campo("Hermano", u ? inp("uN", u.etiqueta) : selPersona("uP", "", p => p.sexo === "H", "Escoge un hermano"))}
-    <div class="grid2">${campo("Rol", `<select id="uR" class="csel"><option value="admin" ${u && u.rol === "admin" ? "selected" : ""}>Admin</option><option value="consulta" ${u && u.rol === "consulta" ? "selected" : ""}>Consulta</option></select>`)}${campo("Discursos de", `<select id="uH" class="csel">${Object.entries(HOR).map(([k, l]) => `<option value="${k}" ${u && u.grupo === k ? "selected" : ""}>${l}</option>`).join("")}</select>`)}</div>
-    ${campo(u ? "Nuevo PIN (déjalo vacío para no cambiarlo)" : "PIN", inp("uX", "", "Admin: 6 a 8 números · Consulta: 4 a 8", 'inputmode="numeric" maxlength="8" autocomplete="off"'))}
+function fichaUsuario(u, personaId) {
+  const per = u ? (u.persona_id ? P(u.persona_id) : null) : (personaId ? P(personaId) : null);
+  const rol0 = u ? u.rol : personaId ? "publicador" : "publicador";
+  hoja(`<div class="shead"><h2>${u ? esc(u.etiqueta) : "Nuevo acceso"}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
+    ${campo("Tipo de acceso", `<div class="picks" id="uRol">${[["publicador", "Publicador", "Su informe y sus asignaciones"], ["consulta", "Consulta", "Solo mira los programas"], ["admin", "Administrador", "Anciano: organiza y edita"]].map(([k, n, d]) => `<button class="pk ${rol0 === k ? "on" : ""}" data-r="${k}">${n}<small class="ciu">${d}</small></button>`).join("")}</div>`)}
+    ${campo("Hermano", u && !u.persona_id && u.rol !== "publicador" ? inp("uN", u.etiqueta) : selPersona("uP", per ? per.id : "", null, "Escoge el hermano"))}
+    <div id="uHw">${campo("Discursos de (horario del sábado)", `<select id="uH" class="csel">${Object.entries(HOR).map(([k, l]) => `<option value="${k}" ${(u ? u.grupo : per ? per.horario : "") === k ? "selected" : ""}>${l}</option>`).join("")}</select>`)}</div>
+    ${SUPER ? `<label class="ic chk" id="uTw" style="margin:4px 0 10px"><input type="checkbox" id="uT" ${u && u.todos ? "checked" : ""}> Ve todos los grupos (coordinador o secretario)</label>` : ""}
+    ${campo(u ? "Nuevo PIN (déjalo vacío para no cambiarlo)" : "PIN", inp("uX", "", "Publicador y consulta: 4 a 8 números · Admin: 6 a 8", 'inputmode="numeric" maxlength="8" autocomplete="off"'))}
+    <p class="note" style="margin:0 2px 10px">El PIN puede repetirse entre hermanos: cada uno entra escogiendo su nombre.</p>
     <button class="btn pri" id="uOk">Guardar</button>${u ? `<button class="btn bad" id="uDel">Quitar acceso</button>` : ""}`,
     (bg, close) => {
-      bg.querySelector("#uOk").onclick = async () => {
-        const nombre = u ? val(bg, "uN") : nom(val(bg, "uP")); if (!nombre) { toast("Escoge el hermano"); return; }
-        try { await rpc("cong_usuario_guardar", { p_nombre: nombre, p_rol: val(bg, "uR"), p_horario: val(bg, "uH"), p_nuevo: val(bg, "uX"), p_id: u ? u.id : null }); close(); toast("Usuario guardado"); vUsuarios(); } catch (e) { toast(e.message); }
+      const q = x => bg.querySelector(x); let rol = rol0;
+      const vis = () => { if (q("#uHw")) q("#uHw").hidden = rol === "publicador"; if (q("#uTw")) q("#uTw").hidden = rol !== "admin"; };
+      bg.querySelectorAll("[data-r]").forEach(b => b.onclick = () => { rol = b.dataset.r; bg.querySelectorAll("[data-r]").forEach(x => x.classList.toggle("on", x === b)); vis(); });
+      vis();
+      q("#uOk").onclick = async () => {
+        const pid = q("#uP") ? val(bg, "uP") : ""; const nombre = q("#uN") ? val(bg, "uN") : (pid ? nom(pid) : "");
+        if (!nombre) { toast("Escoge el hermano"); return; }
+        const d = { id: u ? u.id : null, rol, nombre, persona: pid || null, horario: rol === "publicador" && pid ? P(pid).horario : val(bg, "uH"), pin: val(bg, "uX") };
+        if (SUPER && q("#uT")) d.todos = rol === "admin" && q("#uT").checked;
+        try { document.body.classList.add("loading"); await rpc("cong_acceso_guardar", { p_d: d }); close(); toast(u ? "Acceso actualizado" : `Listo: ${nombre} ya puede entrar con su nombre y PIN`); if (CG.tab === "usuarios") vUsuarios(); else { await cCargar(); cRender(); } }
+        catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
       };
-      const d = bg.querySelector("#uDel"); if (d) d.onclick = async () => { try { await rpc("cong_usuario_borrar", { p_id: u.id }); close(); toast("Acceso quitado"); vUsuarios(); } catch (e) { toast(e.message); } };
+      const dl = q("#uDel"); if (dl) dl.onclick = async () => { if (!confirm(`¿Quitarle el acceso a ${u.etiqueta}?`)) return; try { await rpc("cong_usuario_borrar", { p_id: u.id }); close(); toast("Acceso quitado"); vUsuarios(); } catch (e) { toast(e.message); } };
     });
 }
 
@@ -813,10 +831,13 @@ async function xlsAcomod(X) {
 
 /* ================= INFORMES ================= */
 let gInf = null;
-function miPersona() { return CG.personas.find(p => norm(p.nombre) === norm(CG.me.nombre || "")); }
+function miPersona() { return CG.personas.find(p => p.id === CG.me.persona) || CG.personas.find(p => norm(p.nombre) === norm(CG.me.nombre || "")); }
+const veTodos = () => !!(CG.me && (CG.me.todos || CG.me.super));
+const miGrupoKey = () => { const y = miPersona(); return y ? y.horario + "|" + y.grupo : ""; };
 function vInf() {
   if (!cAdmin()) { $("#cview").innerHTML = vacio("Los informes solo los ven los administradores."); return; }
-  if (!gInf) { const yo = miPersona(); gInf = yo && yo.encargado ? yo.horario + "|" + yo.grupo : "todos"; }
+  if (!veTodos()) gInf = miGrupoKey() || "ninguno";
+  else if (!gInf) { const yo = miPersona(); gInf = yo && yo.encargado ? yo.horario + "|" + yo.grupo : "todos"; }
   const ms = mesSelector(vInf);
   const regs = R("informe").filter(r => r.k.startsWith(CG.mes + "|"));
   const inf = id => regs.find(r => r.d.persona === id);
@@ -825,12 +846,12 @@ function vInf() {
   const part = lista.filter(p => inf(p.id) && inf(p.id).d.participo).length;
   const cursos = lista.reduce((s, p) => s + (inf(p.id) ? +inf(p.id).d.cursos || 0 : 0), 0);
   const horas = lista.reduce((s, p) => s + (inf(p.id) ? +inf(p.id).d.horas || 0 : 0), 0);
-  let h = ms.html + `<div class="roles ctabs"><button class="chipo ${gInf === "todos" ? "" : "off"}" data-gi="todos">Todos</button>${["tb16", "tb18"].flatMap(hh => [1, 2, 3].map(g => `<button class="chipo ${gInf === hh + "|" + g ? "" : "off"}" data-gi="${hh}|${g}">G${g} · ${HOR[hh]}</button>`)).join("")}</div>
-  <div class="kpis">${[[`${hechos}/${lista.length}`, "Entregados"], [part, "Participaron"], [cursos, "Cursos"], [horas, "Horas prec."]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>
+  const chipsG = veTodos() ? `<div class="roles ctabs"><button class="chipo ${gInf === "todos" ? "" : "off"}" data-gi="todos">Todos</button>${["tb16", "tb18"].flatMap(hh => [1, 2, 3].map(g => `<button class="chipo ${gInf === hh + "|" + g ? "" : "off"}" data-gi="${hh}|${g}">G${g} · ${HOR[hh]}</button>`)).join("")}</div>` : `<p class="note" style="margin:0 4px 10px">${gInf === "ninguno" ? "Tu usuario no está vinculado a tu ficha de publicador. Pídele al super administrador que lo vincule." : `Ves solo tu grupo: <b>Grupo ${gInf.split("|")[1]} · ${HOR[gInf.split("|")[0]]}</b>.`}</p>`;
+  let h = ms.html + chipsG + `  <div class="kpis">${[[`${hechos}/${lista.length}`, "Entregados"], [part, "Participaron"], [cursos, "Cursos"], [horas, "Horas prec."]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>
   <div class="bar" style="margin:10px 2px"><i style="width:${lista.length ? Math.round(hechos / lista.length * 100) : 0}%;background:var(--ok)"></i></div>
   <p class="note" style="margin:0 4px 10px">Toca <b>Sí</b> o <b>No</b> para marcar si participó. Las horas solo aplican a precursores (y a quien fue auxiliar ese mes).</p><div class="list">`;
   h += lista.map(p => { const r = inf(p.id); const d = r ? r.d : {}; const prec = ["regular", "especial", "misionero"].includes(p.precursor) || d.aux;
-    return `<div class="card irow" data-ip="${p.id}"><div class="ihead"><b>${esc(p.nombre)}</b><span class="pchips">${p.precursor !== "no" ? `<span class="pill t-ok">${{ auxiliar: "PA", regular: "PR", especial: "PE", misionero: "MC" }[p.precursor]}</span>` : ""}<button class="chipo mini off" data-s21="${p.id}">S-21</button>${r ? "" : `<span class="pill t-warn">Falta</span>`}</span></div>
+    return `<div class="card irow" data-ip="${p.id}"><div class="ihead"><b>${esc(p.nombre)}${d.por === "publicador" ? ` <span class="pill t-info" title="Lo envió él desde su celular · ${esc(d.enviado || "")}">📱 Enviado por él</span>` : ""}</b><span class="pchips">${p.precursor !== "no" ? `<span class="pill t-ok">${{ auxiliar: "PA", regular: "PR", especial: "PE", misionero: "MC" }[p.precursor]}</span>` : ""}<button class="chipo mini off" data-s21="${p.id}">S-21</button>${r ? "" : `<span class="pill t-warn">Falta</span>`}</span></div>
       <div class="icontrols"><div class="seg2"><button class="${d.participo === true ? "on" : ""}" data-v="si">Sí</button><button class="${d.participo === false ? "on no" : ""}" data-v="no">No</button></div>
       <label class="ic">Cursos <input type="number" min="0" inputmode="numeric" value="${d.cursos ?? ""}" data-f="cursos"></label>
       ${prec ? `<label class="ic">Horas <input type="number" min="0" inputmode="numeric" value="${d.horas ?? ""}" data-f="horas"></label>` : ""}${p.precursor === "no" || p.precursor === "auxiliar" ? `<label class="ic chk"><input type="checkbox" data-f="aux" ${d.aux ? "checked" : ""}> Auxiliar</label>` : ""}</div>
@@ -1239,16 +1260,130 @@ function vPermisos() {
     return `<label class="tg ${bloq ? "off" : ""}" title="${bloq ? "Los informes son confidenciales: solo administradores" : ""}"><input type="checkbox" data-pr="${r}" data-ps="${id}" ${on ? "checked" : ""} ${bloq ? "disabled" : ""}><i></i></label>`; }).join("")}</div>`;
   return `<div class="label" style="margin-top:22px">Qué ve cada perfil</div><div class="card spad">
     <div class="prm hd"><span>Sección</span><b>Admin</b><b>Consulta</b></div>${SECS_PERM.map(fila).join("")}
+    <div class="prm hd" style="margin-top:16px"><span>Mi espacio del publicador</span><b></b><b>Publicador</b></div>
+    ${[["asig", "Mis asignaciones"], ["semana", "Discurso y lectura de la semana"], ["pred", "Predicación de los próximos 7 días"], ["rec", "Aseo y eventos"], ["inf", "Mi informe"]].map(([k, n]) => `<div class="prm"><span>${n}</span><span></span><label class="tg"><input type="checkbox" data-pr="publicador" data-ps="${k}" ${((PERM && PERM.publicador) || ["asig", "semana", "pred", "rec", "inf"]).includes(k) ? "checked" : ""}><i></i></label></div>`).join("")}
     <p class="note" style="margin:10px 2px">Tú, como super administrador, siempre ves todo. Consulta nunca puede editar ni ver informes, teléfonos o notas, aunque le actives la sección.</p>
     <button class="btn pri" id="prmOk" style="width:100%">Guardar permisos</button></div>`;
 }
 function bindPermisos() {
   const b = document.querySelector("#prmOk"); if (!b) return;
   b.onclick = async () => {
-    const d = { admin: [], consulta: [] };
+    const d = { admin: [], consulta: [], publicador: [] };
     document.querySelectorAll("[data-pr]").forEach(c => { if (c.checked) d[c.dataset.pr].push(c.dataset.ps); });
     if (!d.admin.length) { toast("Deja al menos una sección para los administradores"); return; }
     try { document.body.classList.add("loading"); await rpc("cong_permisos_guardar", { p_d: d }); PERM = d; toast("Permisos guardados. Cada uno los verá al volver a abrir la app."); }
     catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
   };
+}
+
+/* ================= MI ESPACIO (perfil Publicador) ================= */
+let MIE = { mesInf: null };
+const permPub = k => { const l = (PERM && PERM.publicador) || ["asig", "semana", "pred", "rec", "inf"]; return l.includes(k); };
+async function abrirMiEspacio() {
+  $("#login").hidden = true; $("#hub").hidden = true; $("#app").hidden = true; $("#fab").hidden = true; $("#cong").hidden = false;
+  $("#cBack").hidden = true; $("#cBell").hidden = true;
+  $("#ctit").textContent = "Mi espacio"; $("#csub").textContent = "Cargando…";
+  $("#cview").innerHTML = `<div class="note" style="padding:30px;text-align:center">Cargando tu información…</div>`;
+  try { const d = await rpc("pub_data", {}); CG.me = { ...d.me, rol: "publicador" }; CG.personas = d.personas || []; CG.reg = d.reg || []; }
+  catch (e) { $("#cview").innerHTML = `<div class="card note" style="padding:20px">${esc(e.message)}</div><button class="btn line" style="width:100%;margin-top:12px" onclick="salir()">Salir</button>`; return; }
+  vMiEspacio();
+}
+function misAsignaciones(desde, hasta) {
+  const yo = CG.me.persona, out = [];
+  const add = (f, que, det, ico) => { if (f >= desde && f <= hasta) out.push({ f, que, det, ico }); };
+  const P2 = id => nomCorto(id);
+  R("vmc").forEach(r => { const d = r.d; if (!d || !d.t1 || sinReunion(d)) return; const f = sumDias(r.k, 3); const V = "Vida y Ministerio";
+    const s = (id, txt, det) => { if (id === yo) add(f, txt, det || V, "📖"); };
+    s(d.oracion1, "Oración inicial"); s(d.intro, "Presidente de la reunión");
+    s(d.t1.p, `Discurso: «${d.t1.titulo}»`, "Tesoros de la Biblia · 10 min"); s(d.t2.p, "Busquemos perlas escondidas", "Tesoros de la Biblia · 10 min");
+    s(d.lect.p, `Lectura de la Biblia · ${d.lect.cita || ""}`, "Sala principal"); s(d.lect.a, `Lectura de la Biblia · ${d.lect.cita || ""}`, "Sala auxiliar"); s(d.consejero, "Consejero de la sala auxiliar");
+    (d.maestros || []).forEach((m, i) => { const t = `${4 + i}. ${m.titulo}${m.ref ? " " + m.ref : ""}`;
+      s(m.p, t, `Sala principal${m.pa ? " · ayudante: " + P2(m.pa) : ""}`); s(m.pa, `Ayudante en: ${t}`, `Sala principal · con ${P2(m.p)}`);
+      s(m.a, t, `Sala auxiliar${m.aa ? " · ayudante: " + P2(m.aa) : ""}`); s(m.aa, `Ayudante en: ${t}`, `Sala auxiliar · con ${P2(m.a)}`); });
+    (d.vida || []).forEach((v, i) => { if (!v.video) s(v.p, `${4 + (d.maestros || []).length + i}. ${v.titulo}`, `Nuestra vida cristiana · ${v.min || 15} min`); });
+    s(d.estudio.p, "Conductor del estudio bíblico de la congregación"); s(d.estudio.lector, "Lector del estudio bíblico"); s(d.oracion2, "Oración final");
+  });
+  R("acomod").forEach(r => { const d = r.d; const reu = d.reunion === "entre" ? "Reunión de entre semana" : `Reunión del sábado · ${HOR[d.reunion] || ""}`;
+    if (d.presidente === yo) add(r.k, "Presidente de la reunión pública", reu, "🎤"); if (d.lector === yo) add(r.k, "Lector de La Atalaya", reu, "📘");
+    if (d.acomodador === yo) add(r.k, "Acomodador", reu, "🙋"); if ((d.microfonos || []).includes(yo)) add(r.k, "Micrófonos", reu, "🎙️"); if (d.plataforma === yo) add(r.k, "Plataforma (audio y video)", reu, "🎛️"); });
+  const meses = [...new Set([desde.slice(0, 7), hasta.slice(0, 7)])];
+  meses.forEach(m => salidasDelMes(m).forEach(x => { if (x.r.d.capitan === yo) add(x.f, "Capitán de predicación", `${x.r.d.hora || ""} · ${x.r.d.lugar || ""}${x.r.d.territorio ? " · " + nomTerr(x.r.d.territorio) : ""}`, "🗺️"); }));
+  return out.sort((a, b) => a.f < b.f ? -1 : 1);
+}
+function vMiEspacio() {
+  const yo = CG.me; const hoy = HOY; const hasta = (() => { const m = mesMas(hoy.slice(0, 7), 1); return diasMes(m).pop(); })();
+  $("#csub").textContent = `${yo.nombre} · Grupo ${yo.grupo} · ${HOR[yo.horario] || ""}`;
+  let h = `<div class="mie-hola"><b>${saludo()}, ${esc(yo.nombre.split(" ")[0])}</b><span>Aquí está todo lo tuyo.</span></div>`;
+  if (permPub("asig")) {
+    const a = misAsignaciones(hoy, hasta);
+    h += `<div class="label">Mis asignaciones</div>`;
+    h += a.length ? `<div class="list">${a.map(x => { const F = fd(x.f); const dd = dias(hoy, x.f); return `<div class="card srow mie-a"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)"><small>${DIAS[isoDia(x.f)].slice(0, 3)}</small>${F.d} ${F.m.slice(0, 3)}</span><div style="flex:1;min-width:0"><b>${x.ico} ${esc(x.que)}</b><div class="note">${esc(x.det)}</div></div>${dd <= 7 ? `<span class="pill t-warn">${dd === 0 ? "Hoy" : dd === 1 ? "Mañana" : `En ${dd} días`}</span>` : ""}</div>`; }).join("")}</div>`
+      : `<div class="card note" style="padding:16px">No tienes asignaciones de aquí a fin del próximo mes. 🙌</div>`;
+  }
+  if (permPub("semana")) {
+    const sab = (typeof sabados === "function" ? sabados() : []).find(p => p.f >= hoy);
+    const vm = R("vmc").find(r => r.k === lunesDe(hoy));
+    const o = sab && sab.o ? H(sab.o) : null;
+    h += `<div class="label">Esta semana</div><div class="card spad mie-sem">`;
+    if (sab) h += sab.e === "evento" ? `<div><b>Sábado ${fd(sab.f).d}:</b> no hay reunión (asamblea o evento).</div>` : `<div class="note">Discurso público · sábado ${fd(sab.f).d} de ${fd(sab.f).m} · ${esc(GRUPO.hora || "")}</div><div class="mie-d">${sab.d ? `«${esc(tit(sab.d))}»` : "Discurso por confirmar"}</div><div class="note">${o ? `Hermano ${esc(o.nombre)}${C(o.cong) ? " · " + esc(cname(o.cong)) : ""}` : "Orador por confirmar"}</div>`;
+    if (vm && vm.d) h += `<div class="note" style="margin-top:10px">📖 Lectura de la semana: <b>${esc(vm.d.lectura || "")}</b>${sinReunion(vm.d) ? ` · ${esc(vm.d.evento)}: no hay reunión entre semana` : ""}</div>`;
+    h += `</div>`;
+  }
+  if (permPub("pred")) {
+    const sal = [hoy.slice(0, 7), mesMas(hoy.slice(0, 7), 1)].flatMap(m => salidasDelMes(m)).filter(x => x.f >= hoy && x.f <= sumDias(hoy, 7));
+    h += `<div class="label">Predicación · próximos 7 días</div>`;
+    h += sal.length ? `<div class="list">${sal.map(x => { const d = x.r.d; const t = R("territorio").find(r => r.id === d.territorio); const c = t && (t.d.centro || centroDe(t.d.area));
+      return `<div class="card srow"><span class="dpill" style="background:#${COLOR_DIA[isoDia(x.f)]};color:#151a33"><small>${DIAS[isoDia(x.f)].slice(0, 3)}</small>${fd(x.f).d}</span><div style="flex:1;min-width:0"><b>${esc(d.hora || "")} · ${esc(d.lugar || "")}</b><div class="note">${esc(nomTerr(d.territorio) || "")}${d.capitan ? " · Capitán: " + esc(nomCorto(d.capitan)) : ""}</div></div>${c ? `<a class="btn line" style="flex:0 0 auto;padding:8px 10px" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${c.join(",")}">🧭</a>` : ""}</div>`; }).join("")}</div>`
+      : `<div class="card note" style="padding:16px">No hay salidas programadas en los próximos 7 días.</div>`;
+  }
+  if (permPub("rec")) {
+    let prox = null; for (let i = 0; i < 12 && !prox; i++) { const l = sumDias(lunesDe(hoy), 7 * i); const [hh, g] = grupoSemana(l); if (hh === yo.horario && +g === +yo.grupo) prox = l; }
+    const ev = R("evento").filter(e => (e.d.hasta || e.k) >= hoy).sort((a, b) => a.k < b.k ? -1 : 1).slice(0, 3);
+    h += `<div class="label">Recordatorios</div><div class="list">`;
+    if (prox) h += `<div class="card srow"><span class="dpill" style="background:var(--warn-soft);color:var(--warn)">🧹</span><div style="flex:1"><b>Aseo y hospitalidad de tu grupo</b><div class="note">${lunesDe(hoy) === prox ? "¡Es esta semana!" : `Semana del ${fd(prox).d} de ${fd(prox).m}`}</div></div></div>`;
+    ev.forEach(e => { h += `<div class="card srow"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)">${fd(e.k).d} ${fd(e.k).m.slice(0, 3)}</span><div style="flex:1"><b>${esc(e.d.titulo || e.d.tipo || "Evento")}</b>${e.d.hasta && e.d.hasta !== e.k ? `<div class="note">Hasta el ${fd(e.d.hasta).d} de ${fd(e.d.hasta).m}</div>` : ""}</div></div>`; });
+    if (!prox && !ev.length) h += `<div class="card note" style="padding:16px">Sin recordatorios por ahora.</div>`;
+    h += `</div>`;
+  }
+  if (permPub("inf")) h += `<div class="label">Mi informe</div><div id="mieInf"></div>`;
+  h += `<button class="btn line" style="width:100%;margin-top:18px" id="mieSalir">Salir</button>`;
+  $("#cview").innerHTML = h; scrollTo(0, 0);
+  $("#mieSalir").onclick = () => { $("#cBack").hidden = false; $("#cBell").hidden = false; $("#cong").hidden = true; salir(); };
+  if (permPub("inf")) pintaMiInforme();
+}
+function mesesInforme() { const m = HOY.slice(0, 7); const out = []; if (+HOY.slice(8) <= 10) out.push(mesMas(m, -1)); out.push(m); return out; }
+function pintaMiInforme() {
+  const yo = CG.me, box = $("#mieInf"); if (!box) return;
+  const ms = mesesInforme(); if (!MIE.mesInf || !ms.includes(MIE.mesInf)) MIE.mesInf = ms[0];
+  const mes = MIE.mesInf; const r = R("informe").find(x => x.k === mes + "|" + yo.persona); const d = r ? r.d : {};
+  const prec = ["regular", "especial", "misionero"].includes(yo.precursor);
+  let st = { participo: d.participo ?? null, cursos: d.cursos || 0, aux: !!d.aux, horas: d.horas ?? "", nota: d.nota || "" };
+  const pinta = () => {
+    const conH = prec || st.aux;
+    box.innerHTML = `<div class="card spad mie-inf">
+      ${ms.length > 1 ? `<div class="picks">${ms.map(m => `<button class="pk ${m === mes ? "on" : ""}" data-mm="${m}">${mesNombre(m)}</button>`).join("")}</div>` : `<div class="note" style="margin-bottom:8px">Informe de <b>${mesNombre(mes)}</b></div>`}
+      ${r ? `<div class="aviso ok" style="margin:6px 0 10px">✅ <span>Enviado${d.enviado ? " el " + esc(d.enviado) : ""}${d.por !== "publicador" ? " (lo registró tu encargado)" : ""}. Puedes corregirlo hasta el día 10 del mes siguiente.</span></div>` : ""}
+      <div class="mie-q">¿Participaste en alguna forma de predicación este mes?</div>
+      <div class="seg2 big"><button class="${st.participo === true ? "on" : ""}" data-p="1">Sí</button><button class="${st.participo === false ? "on no" : ""}" data-p="0">No</button></div>
+      <div class="mie-row"><span>Cursos bíblicos que diriges</span><div class="stp"><button data-c="-1">−</button><b>${st.cursos}</b><button data-c="1">+</button></div></div>
+      ${prec ? "" : `<label class="ic chk mie-row"><input type="checkbox" id="mAux" ${st.aux ? "checked" : ""}> Fui precursor auxiliar este mes</label>`}
+      ${conH ? `<div class="mie-row"><span>Horas</span><input id="mH" type="number" inputmode="numeric" min="0" max="300" value="${esc(st.horas)}" placeholder="0"></div>` : ""}
+      <input class="tin inota" id="mN" placeholder="Notas (opcional)" value="${esc(st.nota)}" maxlength="140">
+      <button class="btn pri" id="mOk" style="width:100%;margin-top:12px">${r ? "Actualizar informe" : "Enviar informe"}</button></div>`;
+    box.querySelectorAll("[data-mm]").forEach(b => b.onclick = () => { MIE.mesInf = b.dataset.mm; pintaMiInforme(); });
+    box.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { leer(); st.participo = b.dataset.p === "1"; pinta(); });
+    box.querySelectorAll("[data-c]").forEach(b => b.onclick = () => { leer(); st.cursos = Math.max(0, Math.min(99, st.cursos + +b.dataset.c)); pinta(); });
+    const ax = box.querySelector("#mAux"); if (ax) ax.onchange = () => { leer(); st.aux = ax.checked; pinta(); };
+    box.querySelector("#mOk").onclick = enviar;
+  };
+  const leer = () => { const hh = box.querySelector("#mH"); if (hh) st.horas = hh.value; const nn = box.querySelector("#mN"); if (nn) st.nota = nn.value; };
+  const enviar = async () => {
+    leer(); if (st.participo === null) { toast("Dinos si participaste en la predicación"); return; }
+    if ((prec || st.aux) && st.participo && st.horas === "") { toast("Escribe tus horas"); return; }
+    const b = box.querySelector("#mOk"); b.disabled = true; b.textContent = "Enviando…";
+    try { await rpc("pub_informe_guardar", { p_mes: mes, p_d: { participo: st.participo, cursos: st.cursos, aux: st.aux, horas: st.horas === "" ? null : +st.horas, nota: st.nota.trim() } });
+      const d2 = await rpc("pub_data", {}); CG.reg = d2.reg || []; toast("¡Gracias! Tu informe quedó enviado."); pintaMiInforme(); }
+    catch (e) { toast(e.message); b.disabled = false; b.textContent = r ? "Actualizar informe" : "Enviar informe"; }
+  };
+  pinta();
 }

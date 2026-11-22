@@ -81,7 +81,7 @@ const getSab=f=>sabados().find(x=>x.f===f)||{f,d:null,o:null,s:null,e:"sin"};
 
 /* ---------- Login con PIN ---------- */
 let entrada="", USUARIOS=null, SUPER=false, PERM=null;
-const PERM_BASE={admin:["disc","reu","pred","inf","rec","pub"],consulta:["disc","reu","pred","rec"]};
+const PERM_BASE={admin:["disc","reu","pred","inf","rec","pub"],consulta:["disc","reu","pred","rec"],publicador:[]};
 const puede=id=>SUPER||((PERM&&PERM[rol])||PERM_BASE[rol]||[]).includes(id)&&(rol==="admin"||id!=="inf");
 const yo=()=>{const id=LS.get("dtb_uid");return id?{id,n:LS.get("dtb_unom")||""}:null};
 async function cargarUsuarios(){if(USUARIOS)return USUARIOS;const r=await fetch(SB_URL+"/rest/v1/rpc/login_usuarios",{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"},body:"{}"});if(!r.ok)throw new Error("El servidor está despertando… intenta en un minuto");const j=await r.json();USUARIOS=Array.isArray(j)?j:[];return USUARIOS}
@@ -102,7 +102,7 @@ async function pintaBuscador(msg){
   const q=$("#lq"),L=$("#llist");
   L.innerHTML=`<div class="note" style="padding:14px;text-align:center">Cargando…</div>`;
   let us=[];try{us=await cargarUsuarios()}catch(e){L.innerHTML=`<div class="err" style="padding:14px">${esc(e.message)}</div>`;return}
-  const pinta=()=>{const t=norm(q.value.trim());const f=us.filter(x=>!t||norm(x.n).includes(t));
+  const pinta=()=>{const t=norm(q.value.trim());if(t.length<2){L.innerHTML=`<div class="note" style="padding:14px;text-align:center">Escribe al menos 2 letras de tu nombre</div>`;return}const f=us.filter(x=>norm(x.n).split(" ").some(w=>w.startsWith(t))||norm(x.n).includes(t));
     L.innerHTML=f.length?f.slice(0,60).map(x=>`<button class="lu" data-id="${x.id}" data-n="${esc(x.n)}"><span class="av">${esc(ini(x.n))}</span>${esc(x.n)}</button>`).join(""):`<div class="note" style="padding:14px;text-align:center">No encuentro ese nombre. Pídele a un anciano que te cree el acceso.</div>`;
     L.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{LS.set("dtb_uid",b.dataset.id);LS.set("dtb_unom",b.dataset.n);entrada="";pintaLogin()})};
   q.oninput=pinta;pinta();
@@ -139,6 +139,7 @@ function resumenDiscursos(){
   return`${dd===0?"Hoy":dd===1?"Mañana":"Sáb. "+F.d+" "+F.m.slice(0,3)}: ${o?esc(o.nombre.split(" ").slice(0,2).join(" ")):"sin orador"} · ${et}`;
 }
 function mostrarInicio(){
+  if(rol==="publicador")return abrirMiEspacio();
   $("#login").hidden=true;$("#app").hidden=true;$("#hub").hidden=false;$("#fab").hidden=true;
   const quien=esAdmin()?String(ETIQ||"").split(" ")[0]:"";const dS=new Date(HOY+"T12:00:00");
   $("#hello").textContent=`${saludo()}${quien&&!/admin/i.test(quien)?", "+quien:""}`;
@@ -590,6 +591,7 @@ async function refrescar(){if(!PIN||$("#app").hidden||document.querySelector(".s
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refrescar()});
 setInterval(refrescar,60000);
 (async()=>{
+  if(document.readyState==="loading")await new Promise(r=>document.addEventListener("DOMContentLoaded",r));
   if(PIN){try{await cargar();iniciar();return}catch(e){LS.del("dtb_pin");PIN=null}}
   pintaLogin();
 })();
