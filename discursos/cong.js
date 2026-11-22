@@ -229,9 +229,9 @@ async function vUsuarios() {
   <input id="bqu" placeholder="Buscar usuario…" style="margin:0 0 8px"><div class="list" id="ulist">`;
   h += us.map(u => `<button class="card prow2" data-uid="${u.id}" ${u.super ? "disabled" : ""}><span class="av ${u.rol === "admin" ? "t-acc" : u.rol === "publicador" ? "t-ok" : "t-idle"}">${esc(ini(u.etiqueta))}</span><span style="flex:1;min-width:0;text-align:left"><b>${esc(u.etiqueta)}</b><small class="note" style="display:block">${u.super ? "Super administrador" : u.rol === "admin" ? (u.todos ? "Administrador · ve todos los grupos" : "Administrador") : u.rol === "publicador" ? "Publicador" : "Consulta"} · ${HOR[u.grupo] || ""}</small></span></button>`).join("");
   h += `</div><button class="btn pri" style="width:100%;margin-top:12px" id="nuevoU">+ Crear acceso para un hermano</button>`;
-  if (SUPER) h += vPermisos();
+  if (SUPER) h += vPermisos() + `<div class="label" style="margin-top:22px">Respaldos</div><div class="card spad" id="respBox"><p class="note" style="margin:0">Cargando…</p></div>`;
   $("#cview").innerHTML = h; bindTabs();
-  if (SUPER) bindPermisos();
+  if (SUPER) { bindPermisos(); pintaRespaldos(); }
   document.querySelectorAll("[data-uid]").forEach(b => b.onclick = () => fichaUsuario(us.find(u => u.id === +b.dataset.uid)));
   $("#nuevoU").onclick = () => fichaUsuario(null);
   $("#bqu").oninput = e => { const t = norm(e.target.value); document.querySelectorAll("#ulist [data-uid]").forEach(b => b.hidden = t && !norm(b.textContent).includes(t)); };
@@ -592,10 +592,11 @@ function vVmc() {
     const est = !d ? ["Vacío", "t-idle"] : sinReunion(d) ? ["Sin reunión", "t-warn"] : n >= 15 ? ["Completo", "t-ok"] : n ? [`${n} asignados`, "t-info"] : ["Falta asignar", "t-bad"];
     h += `<button class="card trow" data-sem="${l}"><span class="dpill" style="background:${sinReunion(d) ? "var(--warn-soft);color:var(--warn)" : "var(--accent-soft);color:var(--accent)"}">${fd(l).d}–${fd(sumDias(l, 6)).d}</span><div style="flex:1;min-width:0;text-align:left"><b>Semana ${tituloSemana(l)}</b><div class="note">${d ? (sinReunion(d) ? esc(d.evento + (d.eventoTema ? " · " + d.eventoTema : "")) + " · no hay reunión" : esc(d.lectura || "Sin lectura") + (d.t1.titulo ? " · " + esc(d.t1.titulo) : "")) : "Sin programa"}</div></div><span class="pill ${est[1]}">${est[0]}</span></button>`;
   }
-  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}${btnExcel("xlsVmc", "Excel del mes")}</div>`;
+  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}${btnExcel("xlsVmc", "Excel del mes")}${cAdmin() ? `<button class="btn line" id="s89Mes">📄 Papeletas S-89 del mes</button>` : ""}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-sem]").forEach(b => b.onclick = () => fichaVmc(b.dataset.sem));
   $("#xlsVmc").onclick = () => conExcel(xlsVmc);
+  if ($("#s89Mes")) $("#s89Mes").onclick = () => exportarS89(semanasMes(CG.mes).flatMap(l => { const r = R("vmc").find(x => x.k === l); return papeletas(r && r.d, l); }), `Papeletas S-89 ${mesNombre(CG.mes)}`);
   if ($("#jwMes")) $("#jwMes").onclick = async () => {
     const b = $("#jwMes"); b.disabled = true; let ok = 0, falla = [];
     for (const l of semanasMes(CG.mes)) {
@@ -649,7 +650,7 @@ function fichaVmc(l) {
       <div class="aviso">${I.alert}<span>Esa semana no se arma programa ni hay asignaciones. En el Excel sale la franja con el evento.</span></div></div>
     ${campo("Lectura semanal de la Biblia", inp("vL", d.lectura, "LAMENTACIONES 3-5"))}
     <div id="vNormal" ${sinReunion(d) ? "hidden" : ""}>
-      ${ed ? `<div class="row"><button class="btn line" id="vJW">⬇ Traer programa de JW</button><button class="btn line" id="vSug">✨ Sugerir los vacíos</button></div>` : ""}
+      ${ed ? `<div class="row"><button class="btn line" id="vJW">⬇ Traer programa de JW</button><button class="btn line" id="vSug">✨ Sugerir los vacíos</button><button class="btn line" id="vS89">📄 Papeletas S-89</button></div>` : ""}
       <label class="ic chk" style="margin:4px 0 8px"><input type="checkbox" id="vVisita" ${d.evento === "Visita del superintendente de circuito" ? "checked" : ""}> Visita del superintendente esta semana</label>
       <div id="vCuerpo">${cuerpo()}</div>
     </div>
@@ -682,6 +683,7 @@ function fichaVmc(l) {
       if (q("#vJW")) q("#vJW").onclick = async () => { const b = q("#vJW"); b.disabled = true; b.textContent = "Trayendo…";
         try { d = aplicarJW(leer(), await traerJW(l)); q("#vL").value = d.lectura; q("#vCuerpo").innerHTML = cuerpo(); enlazar(); toast("Programa traído de JW. Revisa y asigna."); }
         catch (e) { toast(e.message); } b.disabled = false; b.textContent = "⬇ Traer programa de JW"; };
+      if (q("#vS89")) q("#vS89").onclick = () => exportarS89(papeletas(leer(), l), `Papeletas S-89 semana ${tituloSemana(l)}`);
       if (q("#vSug")) q("#vSug").onclick = () => {
         d = leer(); const usados = new Set(asignVmc(d));
         const elegir = (filtro, sexo) => { const c = CG.personas.filter(p => filtro(p) && !usados.has(p.id) && (!sexo || p.sexo === sexo)).sort((a, b) => (ult[a.id] || "") < (ult[b.id] || "") ? -1 : (ult[a.id] || "") > (ult[b.id] || "") ? 1 : a.nombre.localeCompare(b.nombre)); const x = c[0]; if (x) usados.add(x.id); return x ? x.id : ""; };
@@ -707,6 +709,51 @@ function fichaVmc(l) {
         await cGuardar("vmc", l, r ? r.id : null, nd, aviso); close(); toast("Semana guardada");
       };
     });
+}
+/* ================= Papeletas S-89 (asignación de estudiantes) ================= */
+function papeletas(d, l) {
+  if (!d || !d.t1 || sinReunion(d)) return [];
+  const f = sumDias(l, 3), out = [];
+  const add = (p, a, n, sala) => { if (p) out.push({ p, a, f, n, sala }); };
+  add(d.lect.p, "", 3, 0); add(d.lect.a, "", 3, 1);
+  (d.maestros || []).forEach((m, i) => { add(m.p, m.pa, 4 + i, 0); add(m.a, m.aa, 4 + i, 1); });
+  return out;
+}
+const fechaLarga = f => { const [y, m, dd] = f.split("-").map(Number); return `${DIAS[((new Date(y, m - 1, dd).getDay() + 6) % 7) + 1].toLowerCase()} ${dd} de ${MES[m - 1]} de ${y}`; };
+async function exportarS89(lst, nombre) {
+  if (!lst.length) { toast("No hay estudiantes asignados todavía"); return; }
+  document.body.classList.add("loading");
+  try {
+    const L = await cargarPdfLib(); const pdf = await L.PDFDocument.create(); pdf.setTitle(nombre); pdf.setAuthor("CRABS · Congregación Tierra Baja");
+    const N = await pdf.embedFont(L.StandardFonts.Helvetica), B = await pdf.embedFont(L.StandardFonts.HelveticaBold);
+    const K = L.rgb(0, 0, 0), G = L.rgb(.6, .6, .6), W = 612, H = 792, w = W / 2, h = H / 2; let pg;
+    const centro = (t, f, s, x, cw, y) => pg.drawText(t, { x: x + (cw - f.widthOfTextAtSize(t, s)) / 2, y, size: s, font: f, color: K });
+    const envolver = (partes, x, y, cw, s, lh) => { let cx = x; for (const [txt, f] of partes) for (const pal of txt.split(" ")) { const t = pal + " "; const tw = f.widthOfTextAtSize(t, s); if (cx + tw > x + cw && cx > x) { cx = x; y -= lh; } pg.drawText(t, { x: cx, y, size: s, font: f, color: K }); cx += tw; } return y; };
+    const papeleta = (s, x, top, cw) => {
+      let y = top - 14;
+      centro("ASIGNACIÓN PARA LA REUNIÓN", B, 11.5, x, cw, y); y -= 15; centro("VIDA Y MINISTERIO CRISTIANOS", B, 11.5, x, cw, y); y -= 34;
+      const campo = (lab, v) => { pg.drawText(lab, { x, y, size: 10.5, font: B, color: K }); const lx = x + B.widthOfTextAtSize(lab, 10.5) + 5; pg.drawLine({ start: { x: lx, y: y - 3 }, end: { x: x + cw, y: y - 3 }, thickness: .6, color: K });
+        let t = v || "", sz = 11; while (t && N.widthOfTextAtSize(t, sz) > x + cw - lx - 4 && sz > 7) sz -= .5; if (t) pg.drawText(t, { x: lx + 3, y, size: sz, font: N, color: K }); y -= 27; };
+      campo("Nombre:", (P(s.p) || {}).nombre); campo("Ayudante:", s.a ? (P(s.a) || {}).nombre : ""); campo("Fecha:", fechaLarga(s.f)); campo("Intervención núm.:", String(s.n));
+      y -= 4; pg.drawText("Se presentará en:", { x, y, size: 10.5, font: B, color: K }); y -= 20;
+      ["Sala principal", "Sala auxiliar 1", "Sala auxiliar 2"].forEach((t, i) => { const bs = 9; pg.drawRectangle({ x: x + 6, y: y - 1, width: bs, height: bs, borderColor: K, borderWidth: .8 });
+        if (s.sala === i) pg.drawSvgPath(`M ${bs * .18} ${bs * .52} L ${bs * .42} ${bs * .78} L ${bs * .86} ${bs * .16}`, { x: x + 6, y: y - 1 + bs, borderColor: K, borderWidth: bs * .16 });
+        pg.drawText(t, { x: x + 22, y, size: 10.5, font: N, color: K }); y -= 17; });
+      y -= 10;
+      envolver([["Nota al estudiante:", B], [" En la Guía de actividades encontrará la información que necesita para su intervención. Repase también las indicaciones para las intervenciones que se describen en las Instrucciones para la reunión Vida y Ministerio Cristianos (S-38).", N]], x, y, cw, 8.6, 11);
+      pg.drawText("S-89-S   11/23", { x, y: top - h + 46, size: 7, font: N, color: K });
+    };
+    lst.forEach((s, i) => {
+      if (i % 4 === 0) { pg = pdf.addPage([W, H]); const dash = { thickness: .5, color: G, dashArray: [4, 4] };
+        pg.drawLine({ start: { x: w, y: 10 }, end: { x: w, y: H - 10 }, ...dash }); pg.drawLine({ start: { x: 10, y: h }, end: { x: W - 10, y: h }, ...dash }); }
+      const c = i % 4; papeleta(s, (c % 2) * w + 26, (c < 2 ? H : h) - 24, w - 52);
+    });
+    const bytes = await pdf.save(); const nom = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "") + ".pdf";
+    const blob = new Blob([bytes], { type: "application/pdf" }); const file = new File([blob], nom, { type: "application/pdf" });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nom }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nom; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    toast(`${lst.length} papeletas listas`);
+  } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 async function xlsVmc(X) {
   const wb = new X.Workbook(); const ws = wb.addWorksheet("Vida y Ministerio", { views: [{ showGridLines: false }] });
@@ -848,6 +895,20 @@ let gInf = null;
 function miPersona() { return CG.personas.find(p => p.id === CG.me.persona) || CG.personas.find(p => norm(p.nombre) === norm(CG.me.nombre || "")); }
 const veTodos = () => !!(CG.me && (CG.me.todos || CG.me.super));
 const miGrupoKey = () => { const y = miPersona(); return y ? y.horario + "|" + y.grupo : ""; };
+// Totales del mes como los pide la sucursal (solo cuentan quienes participaron)
+function totalesSucursal(personas, mes) {
+  const inf = id => (R("informe").find(r => r.k === mes + "|" + id) || {}).d;
+  const si = personas.filter(p => { const d = inf(p.id); return d && d.participo; });
+  const reg = si.filter(p => p.precursor === "regular");
+  const esp = si.filter(p => ["especial", "misionero"].includes(p.precursor));
+  const aux = si.filter(p => !reg.includes(p) && !esp.includes(p) && (p.precursor === "auxiliar" || inf(p.id).aux));
+  const pubs = si.filter(p => !reg.includes(p) && !esp.includes(p) && !aux.includes(p));
+  const fila = (n, l, horas) => ({ n, cant: l.length, cursos: l.reduce((s, p) => s + (+inf(p.id).cursos || 0), 0), horas: horas ? l.reduce((s, p) => s + (+inf(p.id).horas || 0), 0) : null });
+  const meses = [0, 1, 2, 3, 4, 5].map(i => mesMas(mes, -i));
+  const activos = personas.filter(p => meses.some(m => { const d = inf2(m, p.id); return d && d.participo; }));
+  return { filas: [fila("Publicadores", pubs), fila("Precursores auxiliares", aux, true), fila("Precursores regulares", reg, true), ...(esp.length ? [fila("Precursores especiales y misioneros", esp, true)] : [])], activos: activos.length, inactivos: personas.length - activos.length, total: personas.length };
+}
+const inf2 = (m, id) => (R("informe").find(r => r.k === m + "|" + id) || {}).d;
 function vInf() {
   if (!cAdmin()) { $("#cview").innerHTML = vacio("Los informes solo los ven los administradores."); return; }
   if (!veTodos()) gInf = miGrupoKey() || "ninguno";
@@ -864,7 +925,8 @@ function vInf() {
   const aS = anioServicio(CG.mes);
   let h = ms.html + chipsG + `<div class="row" style="margin:4px 0 12px">${btnExcel("xlsInf", "Excel del mes")}<button class="btn line" id="s21G">📄 Tarjetas S-21 ${gInf === "todos" ? "de todos" : "del grupo"} (${aS})</button></div>  <div class="kpis">${[[`${hechos}/${lista.length}`, "Entregados"], [part, "Participaron"], [cursos, "Cursos"], [horas, "Horas prec."]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>
   <div class="bar" style="margin:10px 2px"><i style="width:${lista.length ? Math.round(hechos / lista.length * 100) : 0}%;background:var(--ok)"></i></div>
-  <p class="note" style="margin:0 4px 10px">Toca <b>Sí</b> o <b>No</b> para marcar si participó. Las horas solo aplican a precursores (y a quien fue auxiliar ese mes).</p><div class="ileg"><span><i class="i-si"></i>Participó</span><span><i class="i-no"></i>No participó</span><span><i class="i-pend"></i>Pendiente</span></div><div class="list">`;
+  ${bloquePendientes(lista, inf)}${bloqueSucursal(lista)}
+  <p class="note" style="margin:12px 4px 10px">Toca <b>Sí</b> o <b>No</b> para marcar si participó. Las horas solo aplican a precursores (y a quien fue auxiliar ese mes).</p><div class="ileg"><span><i class="i-si"></i>Participó</span><span><i class="i-no"></i>No participó</span><span><i class="i-pend"></i>Pendiente</span></div><div class="list">`;
   h += lista.map(p => { const r = inf(p.id); const d = r ? r.d : {}; const prec = ["regular", "especial", "misionero"].includes(p.precursor) || d.aux;
     const est = !r ? "pend" : d.participo === true ? "si" : d.participo === false ? "no" : "pend";
     return `<div class="card irow i-${est}" data-ip="${p.id}"><div class="ihead"><b>${esc(p.nombre)}${d.por === "publicador" ? ` <span class="pill t-info" title="Lo envió él desde su celular · ${esc(d.enviado || "")}">📱 Enviado por él</span>` : ""}</b><span class="pchips">${p.precursor !== "no" ? `<span class="pill t-ok">${{ auxiliar: "PA", regular: "PR", especial: "PE", misionero: "MC" }[p.precursor]}</span>` : ""}<button class="chipo mini off" data-s21="${p.id}">S-21</button>${r ? "" : `<span class="pill t-warn">Falta</span>`}</span></div>
@@ -886,6 +948,25 @@ function vInf() {
   });
   $("#xlsInf").onclick = () => conExcel(xlsInformes);
 }
+function bloquePendientes(lista, inf) {
+  const pend = lista.filter(p => !inf(p.id));
+  if (!pend.length) return `<div class="aviso" style="margin-top:10px;background:var(--ok-soft)">✅<span>Todos entregaron el informe de ${mesNombre(CG.mes).split(" ")[0]}.</span></div>`;
+  const mesT = mesNombre(CG.mes).split(" ")[0];
+  const limite = mesMas(CG.mes, 1) === HOY.slice(0, 7) && +HOY.slice(8) <= 10;
+  const msg = p => `Hola, ${p.nombre.split(" ")[0]} 👋 ¿Cómo estás? Te escribo para recordarte con cariño el informe de predicación de ${mesT}.${limite ? " Si puedes, mándamelo antes del 10." : ""} Me lo puedes enviar por aquí${p.acceso ? " o registrarlo tú mismo en la app" : ""}. ¡Muchas gracias! 🙏`;
+  const grupo = `Buenas, hermanos 👋 Un recordatorio con cariño: si aún no han enviado su informe de predicación de ${mesT}, por favor háganmelo llegar${limite ? " antes del 10" : ""}. A quienes ya lo enviaron, ¡mil gracias! 🙏`;
+  return `<details class="plg"><summary>⏳ Faltan por entregar <span class="pill t-warn">${pend.length}</span></summary><div class="card spad" style="margin-top:8px">
+    <a class="btn ok" style="width:100%" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(grupo)}">${I.wa} Recordatorio general al grupo</a>
+    <p class="note" style="margin:8px 2px">El mensaje al grupo no menciona nombres. A cada uno le puedes escribir en privado:</p>
+    ${pend.map(p => `<div class="pend"><span><b>${esc(p.nombre)}</b><small>Grupo ${p.grupo} · ${HOR[p.horario]}</small></span>${p.tel ? `<a class="btn line sm" target="_blank" rel="noopener" href="${linkWa(p.tel, msg(p))}">${I.wa} Recordar</a>` : `<small class="note">Sin teléfono</small>`}</div>`).join("")}</div></details>`;
+}
+function bloqueSucursal(lista) {
+  const t = totalesSucursal(lista, CG.mes);
+  return `<details class="plg"><summary>🏢 Totales para la sucursal</summary><div class="card spad" style="margin-top:8px">
+    <table class="suc"><tr><th></th><th>Cant.</th><th>Horas</th><th>Cursos</th></tr>${t.filas.map(f => `<tr><td>${f.n}</td><td>${f.cant}</td><td>${f.horas ?? "—"}</td><td>${f.cursos}</td></tr>`).join("")}</table>
+    <div class="suca"><span><b>${t.activos}</b> publicadores activos</span><span><b>${t.inactivos}</b> sin participar en 6 meses</span></div>
+    <p class="note" style="margin:8px 2px 0">Solo cuentan quienes participaron este mes. Activos = participaron al menos una vez en los últimos 6 meses (cuenta con los informes cargados en la app; se va afinando a medida que se registran meses). ${gInf === "todos" ? "Es el total de la congregación." : "Es solo de este grupo."}</p></div></details>`;
+}
 async function xlsInformes(X) {
   const wb = new X.Workbook(); const regs = R("informe").filter(r => r.k.startsWith(CG.mes + "|"));
   const inf = id => (regs.find(r => r.d.persona === id) || {}).d;
@@ -906,6 +987,12 @@ async function xlsInformes(X) {
     hojaImprimible(ws, false);
   }
   celda(res, "A" + rr, "TOTAL", { bold: true, fill: "FFE24D" }); tot.forEach((x, i) => celda(res, String.fromCharCode(66 + i) + rr, x, { bold: true, align: "center", fill: "FFE24D" }));
+  const ts = totalesSucursal(CG.personas, CG.mes); rr += 3;
+  res.mergeCells(`A${rr}:D${rr}`); celda(res, "A" + rr, "INFORME A LA SUCURSAL", { bold: true, fill: "DDE3F5" }); rr++;
+  ["", "Cantidad", "Horas", "Cursos"].forEach((t, i) => celda(res, String.fromCharCode(65 + i) + rr, t, { bold: true, fill: "EEEEEE", align: "center" })); rr++;
+  ts.filas.forEach(f => { celda(res, "A" + rr, f.n); celda(res, "B" + rr, f.cant, { align: "center" }); celda(res, "C" + rr, f.horas ?? "—", { align: "center" }); celda(res, "D" + rr, f.cursos, { align: "center" }); rr++; });
+  celda(res, "A" + rr, "Publicadores activos", { bold: true }); celda(res, "B" + rr, ts.activos, { bold: true, align: "center" }); rr++;
+  celda(res, "A" + rr, "Sin participar en 6 meses"); celda(res, "B" + rr, ts.inactivos, { align: "center" });
   hojaImprimible(res, false);
   await descargar(wb, `Informes ${mesNombre(CG.mes)}.xlsx`);
 }
@@ -1269,6 +1356,17 @@ function vStats() {
 
 /* ================= PERMISOS POR PERFIL (solo super administrador) ================= */
 const SECS_PERM = [["disc", "Discursos públicos"], ["reu", "Reuniones"], ["pred", "Predicación"], ["rec", "Recordatorios"], ["inf", "Informes"], ["pub", "Publicadores"]];
+async function pintaRespaldos() {
+  const box = $("#respBox"); if (!box) return;
+  let l = []; try { l = await rpc("cong_respaldos", {}); } catch (e) { box.innerHTML = `<p class="note">${esc(e.message)}</p>`; return; }
+  const fh = t => new Date(t).toLocaleString("es-CO", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+  box.innerHTML = `<p class="note" style="margin:0 0 10px">Cada domingo de madrugada se guarda una copia de toda la información (sin los PIN). Se conservan las últimas 12.</p>
+    ${l.map(x => `<div class="pend"><span><b>${fh(x.creado)}</b><small>${x.tipo === "auto" ? "Automático" : x.tipo === "manual" ? "Hecho a mano" : "Inicial"} · ${x.kb} KB</small></span><button class="btn line sm" data-rb="${x.id}">⬇ Bajar</button></div>`).join("") || `<p class="note">Aún no hay respaldos.</p>`}
+    <button class="btn line" style="width:100%;margin-top:10px" id="respYa">Hacer un respaldo ahora</button>`;
+  box.querySelectorAll("[data-rb]").forEach(b => b.onclick = async () => { try { const d = await rpc("cong_respaldo_bajar", { p_id: +b.dataset.rb });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 1)], { type: "application/json" })); a.download = `Respaldo CRABS ${String(d.fecha || "").slice(0, 10)}.json`; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 2000); } catch (e) { toast(e.message); } });
+  $("#respYa").onclick = async () => { try { await rpc("cong_respaldo_ahora", {}); toast("Respaldo hecho"); pintaRespaldos(); } catch (e) { toast(e.message); } };
+}
 function vPermisos() {
   const P0 = PERM || PERM_BASE;
   const fila = ([id, n]) => `<div class="prm"><span>${n}</span>${["admin", "consulta"].map(r => { const bloq = r === "consulta" && id === "inf"; const on = !bloq && (P0[r] || PERM_BASE[r]).includes(id);

@@ -285,7 +285,13 @@ nav button{line-height:1.1}
 .wkt{font-weight:800;margin:14px 2px 6px}
 .wknav{display:flex;align-items:center;justify-content:space-between;margin:-4px 0 10px}.wknav b{font-size:15px}
 .wkbtn{flex:1;min-width:0;border:0;background:none;text-align:left;color:var(--ink);cursor:pointer;padding:0;font:inherit}
-.plg{margin-top:12px}.plg summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:800;padding:14px 16px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow)}
+.plg{margin-top:12px}
+.pend{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-top:1px solid var(--line)}
+.pend span{display:flex;flex-direction:column;min-width:0}.pend small{color:var(--muted);font-size:12px}
+.btn.sm{padding:8px 12px;font-size:13px;min-height:0;flex:none}
+table.suc{width:100%;border-collapse:collapse;font-size:14px}table.suc th{font-size:12px;color:var(--muted);text-align:center;padding:4px}table.suc th:first-child{text-align:left}
+table.suc td{padding:9px 4px;border-top:1px solid var(--line);text-align:center;font-weight:800}table.suc td:first-child{text-align:left;font-weight:600}
+.suca{display:flex;gap:10px;margin-top:10px}.suca span{flex:1;background:var(--accent-soft);border-radius:14px;padding:10px;font-size:12.5px;color:var(--ink)}.suca b{display:block;font-size:20px;color:var(--accent)}.plg summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:800;padding:14px 16px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow)}
 .plg summary::-webkit-details-marker{display:none}.plg summary::after{content:"▾";color:var(--muted);margin-left:8px}.plg[open] summary::after{content:"▴"}
 .plg summary .pill{margin-left:auto}
 .mas summary{list-style:none;cursor:pointer;text-align:center;font-weight:800;color:var(--accent);padding:12px;background:var(--surface);border-radius:14px;margin-top:8px;box-shadow:var(--shadow)}
@@ -489,7 +495,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
     <div class="err" id="err"></div>
     <div class="pad" id="pad"></div>
   </div>
-  <div class="note" style="opacity:.6">v5.3</div>
+  <div class="note" style="opacity:.6">v5.4</div>
 </div>
 
 <div id="hub" hidden>
