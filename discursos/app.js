@@ -172,7 +172,26 @@ $("#hubBell").onclick=()=>abrirCong("avi");
 $("#cBack").onclick=()=>cVolver();
 $("#cBell").onclick=()=>abrirCong("avi");
 function cambiarTema(){const r=document.documentElement,dark=r.dataset.theme==="dark";r.dataset.theme=dark?"light":"dark";LS.set("dtb_tema",r.dataset.theme)}
-$("#tema").onclick=cambiarTema;document.querySelectorAll(".btnTema").forEach(b=>b.onclick=cambiarTema);
+// Apariencia: modo claro/oscuro y tamaño de letra (como en JW Library)
+const ZOOMS=[.88,.94,1,1.07,1.14,1.22,1.3,1.4,1.5,1.62];
+function ponerZoom(i){const z=ZOOMS[i]||1;document.documentElement.style.setProperty("--z",z);document.documentElement.classList.toggle("zm",z!==1);LS.set("dtb_zoom",String(i))}
+function abrirApariencia(){
+  const r=document.documentElement;let zi=+(LS.get("dtb_zoom")??2);if(!(zi>=0&&zi<ZOOMS.length))zi=2;
+  const bg=document.createElement("div");bg.className="sheet-bg";
+  bg.innerHTML=`<div class="sheet" role="dialog" aria-label="Apariencia"><div class="grab"></div><div class="shead"><h2>Apariencia</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
+    <div class="flab">Tema</div><div class="segT"><button data-t="light">☀️ Claro</button><button data-t="dark">🌙 Oscuro</button></div>
+    <div class="flab" style="margin-top:18px">Tamaño de la letra</div>
+    <div class="jwsz"><span class="a1">A</span><span class="a2">A</span><div class="jwtr"><div class="jwtk">${ZOOMS.map(()=>"<i></i>").join("")}</div><input type="range" min="0" max="${ZOOMS.length-1}" step="1" value="${zi}" aria-label="Tamaño de la letra"></div></div>
+    <p class="jwprev">Así se verá el texto en toda la app.</p>
+    <button class="btn line" id="zReset" style="width:100%;margin-top:6px">Volver al tamaño normal</button></div>`;
+  document.body.appendChild(bg);
+  const close=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)close()};bg.querySelector("[data-close]").onclick=close;
+  const marca=()=>bg.querySelectorAll("[data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t===(r.dataset.theme||"light")));marca();
+  bg.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{r.dataset.theme=b.dataset.t;LS.set("dtb_tema",b.dataset.t);marca()});
+  const rg=bg.querySelector("input[type=range]");rg.oninput=()=>ponerZoom(+rg.value);
+  bg.querySelector("#zReset").onclick=()=>{rg.value=2;ponerZoom(2)};
+}
+$("#tema").onclick=abrirApariencia;document.querySelectorAll(".btnTema").forEach(b=>{b.onclick=abrirApariencia;b.setAttribute("aria-label","Apariencia: tema y tamaño de letra")});
 {document.documentElement.dataset.theme=LS.get("dtb_tema")||"light"}
 function updBadge(){const ult=LS.get("dtb_leidos_"+GRUPO.id)||"";const n=DB.log.filter(l=>l.t>ult).length;$("#nb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""}
 function render(){

@@ -30,7 +30,7 @@ const corto = f => { const F = fd(f); return F.d + " " + F.m.slice(0, 3); };
 
 /* ---------- Datos ---------- */
 async function cCargar(mods) {
-  const d = await rpc("cong_data", { p_modulos: mods || ["pred_salida","territorio","terr_visita","vmc","acomod","aseo","informe","evento","recordatorio","pred_nota"] });
+  const d = await rpc("cong_data", { p_modulos: mods || ["pred_salida","territorio","terr_visita","vmc","acomod","aseo","informe","evento","recordatorio","pred_nota","asist"] });
   CG.me = d.me; CG.personas = d.personas || []; CG.reg = d.reg || [];
 }
 async function cGuardar(m, clave, id, datos, aviso) {
@@ -113,7 +113,7 @@ async function conExcel(fn) {
 const SEC = {
   pub: { titulo: "Publicadores", sub: "Grupos de servicio", tabs: [["lista", "Por grupo"], ["usuarios", "Usuarios y PIN"]] },
   pred: { titulo: "Predicación", sub: "Salidas y territorios", tabs: [["horario", "Horario"], ["terr", "Territorios"], ["stats", "📊 Estadísticas"]] },
-  reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"]] },
+  reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"], ["asist", "Asistencia"]] },
   inf: { titulo: "Informes", sub: "Informe mensual por grupo", tabs: [] },
   rec: { titulo: "Recordatorios", sub: "Aseo, hospitalidad y eventos", tabs: [["aseo", "Aseo y hospitalidad"], ["eventos", "Eventos"]] },
   avi: { titulo: "Notificaciones", sub: "Cambios de toda la congregación", tabs: [] }
@@ -546,7 +546,60 @@ async function xlsTerritorios(X) {
 }
 
 /* ================= REUNIONES ================= */
-function vReu() { return CG.tab === "acomod" ? vAcomod() : vVmc(); }
+function vReu() { return CG.tab === "acomod" ? vAcomod() : CG.tab === "asist" ? vAsist() : vVmc(); }
+
+/* ================= ASISTENCIA a las reuniones ================= */
+const asistDe = (f, tipo) => R("asist").find(r => r.k === f + "|" + tipo);
+const totalAsist = r => (+r.d.sala || 0) + (+r.d.zoom || 0);
+// Fechas en que hubo (o habrá) reunión en el mes: jueves para entre semana, sábado para fin de semana
+function reunionesMes(mes, tipo) {
+  const out = []; const [y, m] = mes.split("-").map(Number); const ult = new Date(y, m, 0).getDate();
+  for (let dd = 1; dd <= ult; dd++) {
+    const f = `${mes}-${String(dd).padStart(2, "0")}`; const dw = new Date(y, m - 1, dd).getDay();
+    if (tipo === "entre" ? dw !== 4 : dw !== 6) continue;
+    const lun = lunesDe(f); const v = R("vmc").find(x => x.k === lun);
+    if (v && sinReunion(v.d)) continue;
+    if (R("evento").some(e => f >= e.k && f <= (e.d.hasta || e.k) && /asamblea|conmemoraci/i.test(e.d.titulo || e.d.nombre || ""))) continue;
+    out.push(f);
+  }
+  return out;
+}
+function resumenAsist(mes) {
+  const r = {};
+  for (const t of ["entre", "tb16", "tb18"]) { const l = R("asist").filter(x => x.d.reunion === t && x.k.startsWith(mes)); const tot = l.reduce((s, x) => s + totalAsist(x), 0); r[t] = { n: l.length, tot, prom: l.length ? Math.round(tot / l.length) : 0 }; }
+  const fines = {}; R("asist").filter(x => x.d.reunion !== "entre" && x.k.startsWith(mes)).forEach(x => { const f = x.k.split("|")[0]; fines[f] = (fines[f] || 0) + totalAsist(x); });
+  const nf = Object.keys(fines).length, tf = Object.values(fines).reduce((a, b) => a + b, 0);
+  r.fin = { n: nf, tot: tf, prom: nf ? Math.round(tf / nf) : 0 };
+  return r;
+}
+function vAsist() {
+  const ms = mesSelector(vAsist); const rs = resumenAsist(CG.mes);
+  let h = tabs(SEC.reu.tabs) + ms.html + `<div class="kpis" style="grid-template-columns:1fr 1fr"><div class="kpi"><span class="n">${rs.entre.prom || "—"}</span><span class="l">Promedio entre semana</span></div><div class="kpi"><span class="n">${rs.fin.prom || "—"}</span><span class="l">Promedio fin de semana</span></div></div>`;
+  for (const t of ["entre", "tb16", "tb18"]) {
+    const fechas = [...new Set([...reunionesMes(CG.mes, t), ...R("asist").filter(x => x.d.reunion === t && x.k.startsWith(CG.mes)).map(x => x.k.split("|")[0])])].sort();
+    h += `<div class="label">${REU[t]}${rs[t].n ? ` · promedio ${rs[t].prom}` : ""}</div><div class="card" style="padding:4px 14px">${fechas.map(f => { const r = asistDe(f, t); const fut = f > HOY;
+      return `<button class="asr ${r ? "" : fut ? "fut" : "falta"}" data-af="${f}" data-at="${t}"><span><b>${DIAS[((new Date(f + "T12:00").getDay() + 6) % 7) + 1]} ${corto(f)}</b>${r ? `<small>${+r.d.sala || 0} en el salón · ${+r.d.zoom || 0} por videoconferencia</small>` : `<small>${fut ? "Próxima" : "Sin registrar"}</small>`}</span><b class="asn">${r ? totalAsist(r) : fut ? "" : "+"}</b></button>`; }).join("") || `<p class="note">No hay reuniones este mes.</p>`}</div>`;
+  }
+  h += `<p class="note" style="margin:10px 4px">Toca una reunión para anotar cuántos asistieron. El promedio del fin de semana suma las dos reuniones del sábado. Sirve para el informe a la sucursal.</p>`;
+  $("#cview").innerHTML = h; ms.bind(); bindTabs();
+  document.querySelectorAll("[data-af]").forEach(b => b.onclick = () => fichaAsist(b.dataset.af, b.dataset.at));
+}
+function fichaAsist(f, t) {
+  if (!cAdmin()) { toast("Solo los administradores pueden anotar la asistencia"); return; }
+  const r = asistDe(f, t); const d = r ? r.d : { reunion: t, sala: "", zoom: "" };
+  hoja(`<div class="shead"><h2>Asistencia</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
+    <p class="note" style="margin:0 2px 12px"><b>${REU[t]}</b> · ${DIAS[((new Date(f + "T12:00").getDay() + 6) % 7) + 1]} ${corto(f)}</p>
+    <div class="grid2">${campo("En el salón", inp("asS", d.sala, "0", 'type="number" inputmode="numeric" min="0"'))}${campo("Por videoconferencia", inp("asZ", d.zoom, "0", 'type="number" inputmode="numeric" min="0"'))}</div>
+    <div class="aviso" style="margin:4px 0 12px">Total: <b id="asT">${(+d.sala || 0) + (+d.zoom || 0)}</b></div>
+    <button class="btn pri" id="asOk">Guardar</button>${r ? `<button class="btn bad" id="asDel">Borrar</button>` : ""}`, (bg, close) => {
+    const tot = () => bg.querySelector("#asT").textContent = (+val(bg, "asS") || 0) + (+val(bg, "asZ") || 0);
+    bg.querySelector("#asS").oninput = tot; bg.querySelector("#asZ").oninput = tot; setTimeout(() => bg.querySelector("#asS").focus(), 200);
+    bg.querySelector("#asOk").onclick = async () => { const nd = { reunion: t, sala: Math.max(0, +val(bg, "asS") || 0), zoom: Math.max(0, +val(bg, "asZ") || 0) };
+      if (!nd.sala && !nd.zoom) { toast("Escribe cuántos asistieron"); return; }
+      await cGuardar("asist", f + "|" + t, r ? r.id : null, nd); close(); toast("Asistencia guardada"); };
+    const del = bg.querySelector("#asDel"); if (del) del.onclick = async () => { await cBorrar(r.id); close(); };
+  });
+}
 const VMC_BASE = () => ({ evento: "", eventoTema: "", lectura: "", c1: "", oracion1: "", intro: "", t1: { titulo: "", min: "10", p: "" }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: "" }, lect: { cita: "", p: "", a: "" }, consejero: "", maestros: [{ titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }, { titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }, { titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }], c2: "", vida: [{ titulo: "", min: "15", p: "" }], estudio: { p: "", lector: "", ref: "" }, c3: "", oracion2: "" });
 const EVENTOS_VMC = ["Asamblea regional", "Asamblea de circuito", "Visita del superintendente de circuito", "Conmemoración", "Otro (sin reunión)"];
 const sinReunion = d => d && d.evento && d.evento !== "Visita del superintendente de circuito";
@@ -904,11 +957,22 @@ function totalesSucursal(personas, mes) {
   const aux = si.filter(p => !reg.includes(p) && !esp.includes(p) && (p.precursor === "auxiliar" || inf(p.id).aux));
   const pubs = si.filter(p => !reg.includes(p) && !esp.includes(p) && !aux.includes(p));
   const fila = (n, l, horas) => ({ n, cant: l.length, cursos: l.reduce((s, p) => s + (+inf(p.id).cursos || 0), 0), horas: horas ? l.reduce((s, p) => s + (+inf(p.id).horas || 0), 0) : null });
-  const meses = [0, 1, 2, 3, 4, 5].map(i => mesMas(mes, -i));
-  const activos = personas.filter(p => meses.some(m => { const d = inf2(m, p.id); return d && d.participo; }));
-  return { filas: [fila("Publicadores", pubs), fila("Precursores auxiliares", aux, true), fila("Precursores regulares", reg, true), ...(esp.length ? [fila("Precursores especiales y misioneros", esp, true)] : [])], activos: activos.length, inactivos: personas.length - activos.length, total: personas.length };
+  const act = actividad(personas, mes); const activos = act.activos;
+  return { meses: act.ventana.length, filas: [fila("Publicadores", pubs), fila("Precursores auxiliares", aux, true), fila("Precursores regulares", reg, true), ...(esp.length ? [fila("Precursores especiales y misioneros", esp, true)] : [])], activos: activos.length, inactivos: personas.length - activos.length, total: personas.length };
 }
 const inf2 = (m, id) => (R("informe").find(r => r.k === m + "|" + id) || {}).d;
+// Ventana de 6 meses ya cerrados (no cuenta el mes en curso, que todavía se está informando), recortada al primer mes con informes en la app
+function ventanaActividad(mes) {
+  const fin = mes < HOY.slice(0, 7) ? mes : mesMas(HOY.slice(0, 7), -1);
+  const primero = R("informe").map(r => r.k.slice(0, 7)).sort()[0] || fin;
+  return [0, 1, 2, 3, 4, 5].map(i => mesMas(fin, -i)).filter(m => m >= primero).reverse();
+}
+function actividad(personas, mes) {
+  const v = ventanaActividad(mes); const res = { ventana: v, activos: [], irregulares: [], inactivos: [] };
+  personas.forEach(p => { const falt = v.filter(m => { const d = inf2(m, p.id); return !(d && d.participo); });
+    if (falt.length === v.length && v.length) res.inactivos.push({ p, falt }); else if (falt.length) { res.irregulares.push({ p, falt }); res.activos.push(p); } else res.activos.push(p); });
+  return res;
+}
 function vInf() {
   if (!cAdmin()) { $("#cview").innerHTML = vacio("Los informes solo los ven los administradores."); return; }
   if (!veTodos()) gInf = miGrupoKey() || "ninguno";
@@ -925,7 +989,7 @@ function vInf() {
   const aS = anioServicio(CG.mes);
   let h = ms.html + chipsG + `<div class="row" style="margin:4px 0 12px">${btnExcel("xlsInf", "Excel del mes")}<button class="btn line" id="s21G">📄 Tarjetas S-21 ${gInf === "todos" ? "de todos" : "del grupo"} (${aS})</button></div>  <div class="kpis">${[[`${hechos}/${lista.length}`, "Entregados"], [part, "Participaron"], [cursos, "Cursos"], [horas, "Horas prec."]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>
   <div class="bar" style="margin:10px 2px"><i style="width:${lista.length ? Math.round(hechos / lista.length * 100) : 0}%;background:var(--ok)"></i></div>
-  ${bloquePendientes(lista, inf)}${bloqueSucursal(lista)}
+  ${bloquePendientes(lista, inf)}${bloquePastoreo(lista)}${bloqueSucursal(lista)}
   <p class="note" style="margin:12px 4px 10px">Toca <b>Sí</b> o <b>No</b> para marcar si participó. Las horas solo aplican a precursores (y a quien fue auxiliar ese mes).</p><div class="ileg"><span><i class="i-si"></i>Participó</span><span><i class="i-no"></i>No participó</span><span><i class="i-pend"></i>Pendiente</span></div><div class="list">`;
   h += lista.map(p => { const r = inf(p.id); const d = r ? r.d : {}; const prec = ["regular", "especial", "misionero"].includes(p.precursor) || d.aux;
     const est = !r ? "pend" : d.participo === true ? "si" : d.participo === false ? "no" : "pend";
@@ -939,6 +1003,7 @@ function vInf() {
   $("#s21G").onclick = () => { const [hh, g] = gInf.split("|"); exportarS21(lista, aS, gInf === "todos" ? `Tarjetas S-21 Tierra Baja ${aS}` : `Tarjetas S-21 Grupo ${g} ${HOR[hh]} ${aS}`.replace(":", "."));};
   document.querySelectorAll("[data-s21]").forEach(b => b.onclick = e => { e.stopPropagation(); const pp = P(b.dataset.s21); exportarS21([pp], aS, `S-21 ${pp.nombre} ${aS}`); });
   document.querySelectorAll("[data-gi]").forEach(b => b.onclick = () => { gInf = b.dataset.gi; vInf(); });
+  document.querySelectorAll("[data-ver]").forEach(b => b.onclick = () => fichaPersona(b.dataset.ver));
   document.querySelectorAll("[data-ip]").forEach(card => {
     const pid = card.dataset.ip;
     const guardar = async cambio => { const r = inf(pid); const nd = Object.assign({ persona: pid, mes: CG.mes, participo: null, cursos: 0, horas: null, aux: false }, r ? r.d : {}, cambio);
@@ -960,12 +1025,24 @@ function bloquePendientes(lista, inf) {
     <p class="note" style="margin:8px 2px">El mensaje al grupo no menciona nombres. A cada uno le puedes escribir en privado:</p>
     ${pend.map(p => `<div class="pend"><span><b>${esc(p.nombre)}</b><small>Grupo ${p.grupo} · ${HOR[p.horario]}</small></span>${p.tel ? `<a class="btn line sm" target="_blank" rel="noopener" href="${linkWa(p.tel, msg(p))}">${I.wa} Recordar</a>` : `<small class="note">Sin teléfono</small>`}</div>`).join("")}</div></details>`;
 }
+function bloquePastoreo(lista) {
+  const a = actividad(lista, CG.mes); if (!a.ventana.length) return "";
+  const mc = m => MES[+m.slice(5) - 1].slice(0, 3);
+  const fila = (x, inact) => `<div class="pend"><span><b>${esc(x.p.nombre)}</b><small>Grupo ${x.p.grupo} · ${HOR[x.p.horario]}${inact ? "" : ` · sin informe: ${x.falt.map(mc).join(", ")}`}</small></span><button class="btn line sm" data-ver="${x.p.id}">Ver</button></div>`;
+  const n = a.irregulares.length + a.inactivos.length, completo = a.ventana.length >= 6;
+  return `<details class="plg"><summary>🫶 Pastoreo: irregulares e inactivos ${n ? `<span class="pill ${completo ? "t-bad" : "t-warn"}">${n}</span>` : `<span class="pill t-ok">0</span>`}</summary><div class="card spad" style="margin-top:8px">
+    <p class="note" style="margin:0 0 6px">Revisa ${a.ventana.length === 1 ? "el mes" : "los meses"} de ${a.ventana.map(mc).join(", ")}. <b>Irregular</b>: le faltó informar algún mes. <b>Inactivo</b>: no informó en ninguno de los últimos 6 meses.${completo ? "" : ` <b>Por ahora la app solo tiene ${a.ventana.length} ${a.ventana.length === 1 ? "mes cerrado" : "meses cerrados"} con informes</b>, así que es una lista preliminar: la cuenta oficial sale cuando haya 6.`}</p>
+    <div class="label" style="margin:10px 0 0">${completo ? "Inactivos" : "Sin informe en todo el período"} (${a.inactivos.length})</div>${a.inactivos.map(x => fila(x, true)).join("") || `<p class="note">Ninguno 🙌</p>`}
+    <div class="label" style="margin:14px 0 0">Irregulares (${a.irregulares.length})</div>${a.irregulares.map(x => fila(x, false)).join("") || `<p class="note">Ninguno 🙌</p>`}
+  </div></details>`;
+}
 function bloqueSucursal(lista) {
   const t = totalesSucursal(lista, CG.mes);
   return `<details class="plg"><summary>🏢 Totales para la sucursal</summary><div class="card spad" style="margin-top:8px">
     <table class="suc"><tr><th></th><th>Cant.</th><th>Horas</th><th>Cursos</th></tr>${t.filas.map(f => `<tr><td>${f.n}</td><td>${f.cant}</td><td>${f.horas ?? "—"}</td><td>${f.cursos}</td></tr>`).join("")}</table>
-    <div class="suca"><span><b>${t.activos}</b> publicadores activos</span><span><b>${t.inactivos}</b> sin participar en 6 meses</span></div>
-    <p class="note" style="margin:8px 2px 0">Solo cuentan quienes participaron este mes. Activos = participaron al menos una vez en los últimos 6 meses (cuenta con los informes cargados en la app; se va afinando a medida que se registran meses). ${gInf === "todos" ? "Es el total de la congregación." : "Es solo de este grupo."}</p></div></details>`;
+    <div class="suca"><span><b>${t.meses ? t.activos : "—"}</b> publicadores activos</span><span><b>${t.meses ? t.inactivos : "—"}</b> inactivos</span></div>
+    ${(() => { const a = resumenAsist(CG.mes); return a.entre.n || a.fin.n ? `<table class="suc" style="margin-top:12px"><tr><th>Asistencia</th><th>Reuniones</th><th>Total</th><th>Promedio</th></tr><tr><td>Entre semana</td><td>${a.entre.n}</td><td>${a.entre.tot}</td><td>${a.entre.prom}</td></tr><tr><td>Fin de semana</td><td>${a.fin.n}</td><td>${a.fin.tot}</td><td>${a.fin.prom}</td></tr></table>` : ""; })()}
+    <p class="note" style="margin:8px 2px 0">Solo cuentan quienes participaron este mes. Activos = participaron al menos una vez en los últimos 6 meses cerrados (${t.meses ? `hoy hay ${t.meses} ${t.meses === 1 ? "mes cerrado" : "meses cerrados"} con informes en la app` : "se calcula cuando haya al menos un mes cerrado con informes"}). ${gInf === "todos" ? "Es el total de la congregación." : "Es solo de este grupo."}</p></div></details>`;
 }
 async function xlsInformes(X) {
   const wb = new X.Workbook(); const regs = R("informe").filter(r => r.k.startsWith(CG.mes + "|"));

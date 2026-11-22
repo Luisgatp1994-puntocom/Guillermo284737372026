@@ -11,7 +11,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap">
-<script>try{document.documentElement.dataset.theme=localStorage.getItem("dtb_tema")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("dtb_tema")||"light";var zi=localStorage.getItem("dtb_zoom"),Z=[.88,.94,1,1.07,1.14,1.22,1.3,1.4,1.5,1.62][zi==null?2:+zi]||1;document.documentElement.style.setProperty("--z",Z);if(Z!==1)document.documentElement.classList.add("zm")}catch(e){document.documentElement.dataset.theme="light"}</script>
 <style>
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{margin:0}
@@ -286,6 +286,25 @@ nav button{line-height:1.1}
 .wknav{display:flex;align-items:center;justify-content:space-between;margin:-4px 0 10px}.wknav b{font-size:15px}
 .wkbtn{flex:1;min-width:0;border:0;background:none;text-align:left;color:var(--ink);cursor:pointer;padding:0;font:inherit}
 .plg{margin-top:12px}
+html.zm body{zoom:var(--z,1)}
+.segT{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--line);padding:4px;border-radius:14px}
+.segT button{border:0;background:transparent;padding:11px;border-radius:11px;font:inherit;font-weight:700;color:var(--muted)}
+.segT button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.jwsz{position:relative;background:var(--surface);border-radius:18px;padding:16px 20px 22px;box-shadow:var(--shadow);display:grid;grid-template-columns:1fr 1fr;align-items:end}
+.jwsz .a1{font-size:17px;color:var(--muted);font-family:system-ui,sans-serif}.jwsz .a2{font-size:34px;line-height:1;color:var(--muted);justify-self:end;font-family:system-ui,sans-serif}
+.jwtr{grid-column:1/-1;position:relative;height:36px;margin-top:8px}
+.jwtk{position:absolute;left:15px;right:15px;top:50%;height:6px;margin-top:-3px;background:#a6a6a6;border-radius:3px;display:flex;justify-content:space-between}
+.jwtk i{width:2px;height:14px;margin-top:-4px;background:#a6a6a6;border-radius:1px}
+.jwtr input{position:absolute;inset:0;width:100%;margin:0;background:transparent;border:0;box-shadow:none;padding:0;border-radius:0;outline:0;-webkit-appearance:none;appearance:none;height:36px}
+.jwtr input::-webkit-slider-runnable-track{height:36px;background:transparent}
+.jwtr input::-moz-range-track{height:36px;background:transparent}
+.jwtr input::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;margin-top:3px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);border:0}
+.jwtr input::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);border:0}
+.jwprev{margin:14px 4px 4px;font-size:15px;color:var(--ink)}
+.asr{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;border:0;background:transparent;font:inherit;color:inherit;text-align:left;padding:11px 0;border-top:1px solid var(--line)}
+.asr:first-child{border-top:0}.asr span{display:flex;flex-direction:column}.asr small{color:var(--muted);font-size:12.5px}
+.asn{min-width:44px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--ok-soft);color:var(--ok);font-size:16px}
+.asr.falta .asn{background:var(--warn-soft);color:var(--warn);font-size:22px}.asr.falta small{color:var(--warn)}.asr.fut{opacity:.55}.asr.fut .asn{background:transparent}
 .pend{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-top:1px solid var(--line)}
 .pend span{display:flex;flex-direction:column;min-width:0}.pend small{color:var(--muted);font-size:12px}
 .btn.sm{padding:8px 12px;font-size:13px;min-height:0;flex:none}
@@ -495,7 +514,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
     <div class="err" id="err"></div>
     <div class="pad" id="pad"></div>
   </div>
-  <div class="note" style="opacity:.6">v5.4</div>
+  <div class="note" style="opacity:.6">v5.5</div>
 </div>
 
 <div id="hub" hidden>
