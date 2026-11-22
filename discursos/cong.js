@@ -861,7 +861,8 @@ function vInf() {
   const cursos = lista.reduce((s, p) => s + (inf(p.id) ? +inf(p.id).d.cursos || 0 : 0), 0);
   const horas = lista.reduce((s, p) => s + (inf(p.id) ? +inf(p.id).d.horas || 0 : 0), 0);
   const chipsG = veTodos() ? `<div class="roles ctabs"><button class="chipo ${gInf === "todos" ? "" : "off"}" data-gi="todos">Todos</button>${["tb16", "tb18"].flatMap(hh => [1, 2, 3].map(g => `<button class="chipo ${gInf === hh + "|" + g ? "" : "off"}" data-gi="${hh}|${g}">G${g} · ${HOR[hh]}</button>`)).join("")}</div>` : `<p class="note" style="margin:0 4px 10px">${gInf === "ninguno" ? "Tu usuario no está vinculado a tu ficha de publicador. Pídele al super administrador que lo vincule." : `Ves solo tu grupo: <b>Grupo ${gInf.split("|")[1]} · ${HOR[gInf.split("|")[0]]}</b>.`}</p>`;
-  let h = ms.html + chipsG + `  <div class="kpis">${[[`${hechos}/${lista.length}`, "Entregados"], [part, "Participaron"], [cursos, "Cursos"], [horas, "Horas prec."]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>
+  const aS = anioServicio(CG.mes);
+  let h = ms.html + chipsG + `<div class="row" style="margin:4px 0 12px">${btnExcel("xlsInf", "Excel del mes")}<button class="btn line" id="s21G">📄 Tarjetas S-21 ${gInf === "todos" ? "de todos" : "del grupo"} (${aS})</button></div>  <div class="kpis">${[[`${hechos}/${lista.length}`, "Entregados"], [part, "Participaron"], [cursos, "Cursos"], [horas, "Horas prec."]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>
   <div class="bar" style="margin:10px 2px"><i style="width:${lista.length ? Math.round(hechos / lista.length * 100) : 0}%;background:var(--ok)"></i></div>
   <p class="note" style="margin:0 4px 10px">Toca <b>Sí</b> o <b>No</b> para marcar si participó. Las horas solo aplican a precursores (y a quien fue auxiliar ese mes).</p><div class="list">`;
   h += lista.map(p => { const r = inf(p.id); const d = r ? r.d : {}; const prec = ["regular", "especial", "misionero"].includes(p.precursor) || d.aux;
@@ -870,8 +871,7 @@ function vInf() {
       <label class="ic">Cursos <input type="number" min="0" inputmode="numeric" value="${d.cursos ?? ""}" data-f="cursos"></label>
       ${prec ? `<label class="ic">Horas <input type="number" min="0" inputmode="numeric" value="${d.horas ?? ""}" data-f="horas"></label>` : ""}${p.precursor === "no" || p.precursor === "auxiliar" ? `<label class="ic chk"><input type="checkbox" data-f="aux" ${d.aux ? "checked" : ""}> Auxiliar</label>` : ""}</div>
       <input class="tin inota" placeholder="Notas (sale en la tarjeta S-21)" value="${esc(d.nota || "")}" data-f="nota"></div>`; }).join("");
-  const aS = anioServicio(CG.mes);
-  h += `</div><div class="row" style="margin-top:12px">${btnExcel("xlsInf", "Excel del mes")}<button class="btn line" id="s21G">📄 Tarjetas S-21 ${gInf === "todos" ? "de todos" : "del grupo"} (${aS})</button></div>`;
+  h += "</div>";
   $("#cview").innerHTML = h; ms.bind();
   $("#s21G").onclick = () => { const [hh, g] = gInf.split("|"); exportarS21(lista, aS, gInf === "todos" ? `Tarjetas S-21 Tierra Baja ${aS}` : `Tarjetas S-21 Grupo ${g} ${HOR[hh]} ${aS}`.replace(":", "."));};
   document.querySelectorAll("[data-s21]").forEach(b => b.onclick = e => { e.stopPropagation(); const pp = P(b.dataset.s21); exportarS21([pp], aS, `S-21 ${pp.nombre} ${aS}`); });
