@@ -1351,30 +1351,34 @@ function vMiEspacio() {
   $("#mieSalir").onclick = () => { $("#cBack").hidden = false; $("#cBell").hidden = false; $("#cong").hidden = true; salir(); };
   if (permPub("inf")) pintaMiInforme();
 }
-function mesesInforme() { const m = HOY.slice(0, 7); const out = []; if (+HOY.slice(8) <= 10) out.push(mesMas(m, -1)); out.push(m); return out; }
+function mesesInforme() { const m = HOY.slice(0, 7); return [mesMas(m, -2), mesMas(m, -1), m]; }
+const infDe = mes => R("informe").find(x => x.k === mes + "|" + CG.me.persona);
+const cerrado = mes => HOY > sumDias(mesMas(mes, 1) + "-01", 9);
 function pintaMiInforme() {
   const yo = CG.me, box = $("#mieInf"); if (!box) return;
-  const ms = mesesInforme(); if (!MIE.mesInf || !ms.includes(MIE.mesInf)) MIE.mesInf = ms[0];
+  const ms = mesesInforme(); if (!MIE.mesInf || !ms.includes(MIE.mesInf)) MIE.mesInf = !infDe(ms[1]) ? ms[1] : ms[2];
   const mes = MIE.mesInf; const r = R("informe").find(x => x.k === mes + "|" + yo.persona); const d = r ? r.d : {};
   const prec = ["regular", "especial", "misionero"].includes(yo.precursor);
   let st = { participo: d.participo ?? null, cursos: d.cursos || 0, aux: !!d.aux, horas: d.horas ?? "", nota: d.nota || "" };
   const pinta = () => {
     const conH = prec || st.aux;
     box.innerHTML = `<div class="card spad mie-inf">
-      ${ms.length > 1 ? `<div class="picks">${ms.map(m => `<button class="pk ${m === mes ? "on" : ""}" data-mm="${m}">${mesNombre(m)}</button>`).join("")}</div>` : `<div class="note" style="margin-bottom:8px">Informe de <b>${mesNombre(mes)}</b></div>`}
-      ${r ? `<div class="aviso ok" style="margin:6px 0 10px">✅ <span>Enviado${d.enviado ? " el " + esc(d.enviado) : ""}${d.por !== "publicador" ? " (lo registró tu encargado)" : ""}. Puedes corregirlo hasta el día 10 del mes siguiente.</span></div>` : ""}
-      <div class="mie-q">¿Participaste en alguna forma de predicación este mes?</div>
+      <div class="note" style="margin-bottom:6px">¿De qué mes es el informe?</div>
+      <div class="picks">${ms.map(m => `<button class="pk ${m === mes ? "on" : ""}" data-mm="${m}">${MES[+m.slice(5) - 1]}${infDe(m) ? " ✅" : ""}</button>`).join("")}</div>
+      ${r ? `<div class="aviso ok" style="margin:6px 0 10px">✅ <span>Enviado${d.enviado ? " el " + esc(d.enviado) : ""}${d.por !== "publicador" ? " (lo registró tu encargado)" : ""}. ${cerrado(mes) ? "Ya está cerrado; si hay que corregirlo, habla con tu encargado." : `Puedes corregirlo hasta el 10 de ${MES[+mesMas(mes, 1).slice(5) - 1]}.`}</span></div>` : cerrado(mes) ? `<div class="aviso warn" style="margin:6px 0 10px">⏰ <span>Este informe va tarde. Envíalo y tu encargado lo verá.</span></div>` : ""}
+      <div class="mie-q">¿Participaste en alguna forma de predicación en ${MES[+mes.slice(5) - 1]}?</div>
       <div class="seg2 big"><button class="${st.participo === true ? "on" : ""}" data-p="1">Sí</button><button class="${st.participo === false ? "on no" : ""}" data-p="0">No</button></div>
       <div class="mie-row"><span>Cursos bíblicos que diriges</span><div class="stp"><button data-c="-1">−</button><b>${st.cursos}</b><button data-c="1">+</button></div></div>
-      ${prec ? "" : `<label class="ic chk mie-row"><input type="checkbox" id="mAux" ${st.aux ? "checked" : ""}> Fui precursor auxiliar este mes</label>`}
+      ${prec ? "" : `<label class="ic chk mie-row"><input type="checkbox" id="mAux" ${st.aux ? "checked" : ""}> Fui precursor auxiliar en ${MES[+mes.slice(5) - 1]}</label>`}
       ${conH ? `<div class="mie-row"><span>Horas</span><input id="mH" type="number" inputmode="numeric" min="0" max="300" value="${esc(st.horas)}" placeholder="0"></div>` : ""}
       <input class="tin inota" id="mN" placeholder="Notas (opcional)" value="${esc(st.nota)}" maxlength="140">
-      <button class="btn pri" id="mOk" style="width:100%;margin-top:12px">${r ? "Actualizar informe" : "Enviar informe"}</button></div>`;
+      ${r && cerrado(mes) ? "" : `<button class="btn pri" id="mOk" style="width:100%;margin-top:12px">${r ? "Actualizar informe" : `Enviar informe de ${MES[+mes.slice(5) - 1]}`}</button>`}</div>`;
     box.querySelectorAll("[data-mm]").forEach(b => b.onclick = () => { MIE.mesInf = b.dataset.mm; pintaMiInforme(); });
     box.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { leer(); st.participo = b.dataset.p === "1"; pinta(); });
     box.querySelectorAll("[data-c]").forEach(b => b.onclick = () => { leer(); st.cursos = Math.max(0, Math.min(99, st.cursos + +b.dataset.c)); pinta(); });
     const ax = box.querySelector("#mAux"); if (ax) ax.onchange = () => { leer(); st.aux = ax.checked; pinta(); };
-    box.querySelector("#mOk").onclick = enviar;
+    const ok = box.querySelector("#mOk"); if (ok) ok.onclick = enviar;
+    if (r && cerrado(mes)) box.querySelectorAll("input,.seg2 button,.stp button").forEach(x => x.disabled = true);
   };
   const leer = () => { const hh = box.querySelector("#mH"); if (hh) st.horas = hh.value; const nn = box.querySelector("#mN"); if (nn) st.nota = nn.value; };
   const enviar = async () => {
@@ -1382,7 +1386,7 @@ function pintaMiInforme() {
     if ((prec || st.aux) && st.participo && st.horas === "") { toast("Escribe tus horas"); return; }
     const b = box.querySelector("#mOk"); b.disabled = true; b.textContent = "Enviando…";
     try { await rpc("pub_informe_guardar", { p_mes: mes, p_d: { participo: st.participo, cursos: st.cursos, aux: st.aux, horas: st.horas === "" ? null : +st.horas, nota: st.nota.trim() } });
-      const d2 = await rpc("pub_data", {}); CG.reg = d2.reg || []; toast("¡Gracias! Tu informe quedó enviado."); pintaMiInforme(); }
+      const d2 = await rpc("pub_data", {}); CG.reg = d2.reg || []; toast(`¡Gracias! Tu informe de ${MES[+mes.slice(5) - 1]} quedó enviado.`); pintaMiInforme(); }
     catch (e) { toast(e.message); b.disabled = false; b.textContent = r ? "Actualizar informe" : "Enviar informe"; }
   };
   pinta();
