@@ -277,6 +277,7 @@ function salidasDelMes(ym) {
 }
 const nomTerr = v => { if (!v) return ""; const t = R("territorio").find(x => x.id === v); return t ? `${t.d.numero ? t.d.numero + " · " : ""}${t.d.nombre}` : v; };
 function visitaDe(f, salidaId) { return R("terr_visita").find(v => v.k === f && v.d.salida === salidaId); }
+let PS = { lunes: null, dia: null, mes: null };
 function vPred() {
   if (CG.tab === "terr") return vTerr();
   if (CG.tab === "stats") return vStats();
@@ -285,17 +286,30 @@ function vPred() {
   const delMes = salidasDelMes(CG.mes);
   const hechas = delMes.filter(s => visitaDe(s.f, s.r.id)).length;
   let h = tabs(SEC.pred.tabs) + ms.html + `<div class="kpis k3">${[[delMes.length, "Salidas del mes"], [hechas, "Realizadas"], [delMes.filter(s => s.f < HOY && !visitaDe(s.f, s.r.id)).length, "Sin marcar"]].map(([n, l]) => `<div class="kpi"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("")}</div>`;
-  h += `<div class="label">Salidas fijas de cada semana</div><div class="list">${fijas.length ? fijas.map(r => filaSalida(r, null)).join("") : vacio("Aún no hay salidas fijas. Agrega las de lunes a viernes.")}</div>`;
+  // Semana con detalle por día
+  const lun0 = lunesDe(HOY);
+  if (!PS.lunes || (PS.mes !== CG.mes)) { PS.mes = CG.mes; PS.lunes = lun0.slice(0, 7) === CG.mes || sumDias(lun0, 6).slice(0, 7) === CG.mes ? lun0 : lunesDe(CG.mes + "-01"); PS.dia = null; }
+  const d7 = [0, 1, 2, 3, 4, 5, 6].map(n => sumDias(PS.lunes, n));
+  const sal7 = [...new Set(d7.map(f => f.slice(0, 7)))].flatMap(m => salidasDelMes(m)).filter(x => d7.includes(x.f));
+  if (!PS.dia || !d7.includes(PS.dia)) PS.dia = d7.includes(HOY) ? HOY : d7[0];
+  h += `<div class="label">Semana</div><div class="card spad"><div class="wknav"><button class="x" data-ps="-7" aria-label="Semana anterior">‹</button><b>${fd(d7[0]).d} ${fd(d7[0]).m.slice(0, 3)} – ${fd(d7[6]).d} ${fd(d7[6]).m.slice(0, 3)}</b><button class="x" data-ps="7" aria-label="Semana siguiente">›</button></div>
+    <div class="wk">${d7.map(f => { const l = sal7.filter(x => x.f === f); const dd = isoDia(f); const ok = l.filter(x => visitaDe(x.f, x.r.id)).length;
+      return `<button class="wkd ${f === PS.dia ? "on" : ""}" data-pd="${f}" style="--c:#${COLOR_DIA[dd]}"><small>${f === HOY ? "Hoy" : DIAS[dd].slice(0, 3)}</small><b>${fd(f).d}</b><i>${l.length ? (ok === l.length && f < HOY ? "✓" : "•".repeat(Math.min(l.length, 3))) : "–"}</i></button>`; }).join("")}</div>
+    <div class="wkt">${(t => t[0].toUpperCase() + t.slice(1))(DIAS[isoDia(PS.dia)])} ${fd(PS.dia).d} de ${fd(PS.dia).m}</div>
+    ${(l => l.length ? l.map(x => { const d = x.r.d; const v = visitaDe(x.f, x.r.id);
+      return `<div class="wki"><button class="wkbtn" data-sid="${x.r.id}"><b>${esc([d.turno, d.hora].filter(Boolean).join(" · "))}</b>${d.nota ? ` <span class="pill t-warn">${esc(d.nota)}</span>` : ""}<div class="note">👤 ${esc(nomCorto(d.capitan) || "Sin capitán")} · 📍 ${esc(d.lugar || "—")}</div><div class="note">🗺️ ${esc(nomTerr(d.territorio) || "—")}${x.fija ? " · fija" : ""}</div></button>${cAdmin() ? `<button class="chipo mini ${v ? "" : "off"}" data-hecha="${x.f}|${x.r.id}">${v ? "✓ Hecha" : "Marcar"}</button>` : v ? `<span class="pill t-ok">✓</span>` : ""}</div>`; }).join("") : `<div class="note" style="padding:6px 2px">No hay salida este día.</div>`)(sal7.filter(x => x.f === PS.dia))}
+  </div>`;
   const fechas = R("pred_salida").filter(r => r.d.tipo === "fecha" && r.d.fecha.startsWith(CG.mes)).sort((a, b) => a.d.fecha < b.d.fecha ? -1 : 1);
-  h += `<div class="label">Salidas por fecha · ${mesNombre(CG.mes)}</div><div class="list">${fechas.length ? fechas.map(r => filaSalida(r, r.d.fecha)).join("") : vacio("Sábados, domingos y visitas del superintendente van aquí.")}</div>`;
-  const prox = delMes.filter(s => s.f >= HOY).slice(0, 6);
-  if (prox.length) h += `<div class="label">Próximas salidas</div><div class="list">${prox.map(s => { const v = visitaDe(s.f, s.r.id); return `<div class="card srow"><div class="dbox t-acc" style="background:#${COLOR_DIA[isoDia(s.f)]};color:#111"><div class="d">${fd(s.f).d}</div><div class="w">${DIAS[isoDia(s.f)].slice(0, 3)}</div></div><div style="min-width:0;flex:1"><b>${esc([s.r.d.turno,s.r.d.hora].filter(Boolean).join(" · "))}</b><div class="note">${esc(nomCorto(s.r.d.capitan) || "Sin capitán")} · ${esc(s.r.d.lugar || "")} · ${esc(nomTerr(s.r.d.territorio))}</div></div>${cAdmin() ? `<button class="chipo mini ${v ? "" : "off"}" data-hecha="${s.f}|${s.r.id}">${v ? "✓ Realizada" : "Marcar"}</button>` : v ? `<span class="pill t-ok">✓</span>` : ""}</div>`; }).join("")}</div>`;
+  h += `<details class="plg"><summary>Salidas fijas de cada semana <span class="pill t-idle">${fijas.length}</span></summary><div class="list" style="margin-top:8px">${fijas.length ? fijas.map(r => filaSalida(r, null)).join("") : vacio("Aún no hay salidas fijas. Agrega las de lunes a viernes.")}</div></details>`;
+  h += `<details class="plg"><summary>Salidas por fecha · ${MES[+CG.mes.slice(5) - 1]} <span class="pill t-idle">${fechas.length}</span></summary><div class="list" style="margin-top:8px">${fechas.length ? fechas.map(r => filaSalida(r, r.d.fecha)).join("") : vacio("Sábados, domingos y visitas del superintendente van aquí.")}</div></details>`;
   const nota = R("pred_nota").find(x => x.k === CG.mes);
   h += `<div class="label">Nota del mes (sale al pie del Excel)</div><button class="card srow" id="pNota"><span style="flex:1;text-align:left;font-weight:700;color:${nota && nota.d.texto ? "#C0392B" : "var(--muted)"}">${nota && nota.d.texto ? esc(nota.d.texto) : "Sin nota. Ej: Van a haber cambios en los territorios."}</span></button>`;
   h += `<div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn pri" id="nuevaS">+ Salida</button><button class="btn line" id="copiaMes">⧉ Copiar fines de semana de ${MES[+mesMas(CG.mes, -1).slice(5) - 1]}</button>` : ""}${btnExcel("xlsPred", "Excel del mes")}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-sid]").forEach(b => b.onclick = () => fichaSalida(R("pred_salida").find(r => r.id === b.dataset.sid)));
   document.querySelectorAll("[data-hecha]").forEach(b => b.onclick = () => marcarHecha(...b.dataset.hecha.split("|")));
+  document.querySelectorAll("[data-ps]").forEach(b => b.onclick = () => { PS.lunes = sumDias(PS.lunes, +b.dataset.ps); PS.dia = null; const m = sumDias(PS.lunes, 3).slice(0, 7); if (m !== CG.mes) { CG.mes = m; PS.mes = m; } vPred(); });
+  document.querySelectorAll("[data-pd]").forEach(b => b.onclick = () => { PS.dia = b.dataset.pd; vPred(); });
   if ($("#nuevaS")) $("#nuevaS").onclick = () => fichaSalida(null);
   $("#xlsPred").onclick = () => conExcel(xlsPredicacion);
   $("#pNota").onclick = () => { if (!cAdmin()) return; hoja(`<div class="shead"><h2>Nota de ${mesNombre(CG.mes)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>${campo("Nota en rojo al pie", inp("nT", nota ? nota.d.texto : "", "Van a haber cambios en los territorios"))}${campo("Nota pequeña (columna territorio)", inp("nE", nota ? nota.d.extra : "", "Manzanillo / Puerto Rey"))}<button class="btn pri" id="nOk">Guardar</button>`, (bg, close) => { bg.querySelector("#nOk").onclick = async () => { await cGuardar("pred_nota", CG.mes, nota ? nota.id : null, { texto: val(bg, "nT"), extra: val(bg, "nE") }); close(); toast("Nota guardada"); }; }); };

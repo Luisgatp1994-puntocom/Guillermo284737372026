@@ -283,6 +283,11 @@ nav button{line-height:1.1}
 .wkd i{font-style:normal;font-size:12px;line-height:1;color:var(--muted);height:12px}
 .wkd.on{background:var(--c);box-shadow:none;color:#151a33}.wkd.on small,.wkd.on i{color:#151a33}
 .wkt{font-weight:800;margin:14px 2px 6px}
+.wknav{display:flex;align-items:center;justify-content:space-between;margin:-4px 0 10px}.wknav b{font-size:15px}
+.wkbtn{flex:1;min-width:0;border:0;background:none;text-align:left;color:var(--ink);cursor:pointer;padding:0;font:inherit}
+.plg{margin-top:12px}.plg summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:800;padding:14px 16px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow)}
+.plg summary::-webkit-details-marker{display:none}.plg summary::after{content:"▾";color:var(--muted);margin-left:8px}.plg[open] summary::after{content:"▴"}
+.plg summary .pill{margin-left:auto}
 .mas summary{list-style:none;cursor:pointer;text-align:center;font-weight:800;color:var(--accent);padding:12px;background:var(--surface);border-radius:14px;margin-top:8px;box-shadow:var(--shadow)}
 .mas summary::-webkit-details-marker{display:none}
 .mas[open] summary{display:none}
@@ -476,7 +481,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
     <div class="err" id="err"></div>
     <div class="pad" id="pad"></div>
   </div>
-  <div class="note" style="opacity:.6">v5.0</div>
+  <div class="note" style="opacity:.6">v5.1</div>
 </div>
 
 <div id="hub" hidden>
