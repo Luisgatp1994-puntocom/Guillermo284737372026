@@ -300,7 +300,7 @@ function hoja(html,onMount){
   const bg=document.createElement("div");bg.className="sheet-bg";
   bg.innerHTML=`<div class="sheet" role="dialog"><div class="grab"></div>${html}</div>`;
   document.body.appendChild(bg);
-  const close=()=>{bg.remove();render()};
+  const close=()=>{if(!bg.isConnected)return;try{bg._alCerrar&&bg._alCerrar()}catch(e){}bg.remove();render()};
   bg.onclick=e=>{if(e.target===bg)close()};
   bg.querySelectorAll("[data-close]").forEach(b=>b.onclick=close);
   onMount&&onMount(bg,close);

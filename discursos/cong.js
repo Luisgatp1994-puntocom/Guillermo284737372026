@@ -645,10 +645,10 @@ function vVmc() {
     const est = !d ? ["Vacío", "t-idle"] : sinReunion(d) ? ["Sin reunión", "t-warn"] : n >= 15 ? ["Completo", "t-ok"] : n ? [`${n} asignados`, "t-info"] : ["Falta asignar", "t-bad"];
     h += `<button class="card trow" data-sem="${l}"><span class="dpill" style="background:${sinReunion(d) ? "var(--warn-soft);color:var(--warn)" : "var(--accent-soft);color:var(--accent)"}">${fd(l).d}–${fd(sumDias(l, 6)).d}</span><div style="flex:1;min-width:0;text-align:left"><b>Semana ${tituloSemana(l)}</b><div class="note">${d ? (sinReunion(d) ? esc(d.evento + (d.eventoTema ? " · " + d.eventoTema : "")) + " · no hay reunión" : esc(d.lectura || "Sin lectura") + (d.t1.titulo ? " · " + esc(d.t1.titulo) : "")) : "Sin programa"}</div></div><span class="pill ${est[1]}">${est[0]}</span></button>`;
   }
-  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}${btnExcel("xlsVmc", "Excel del mes")}${cAdmin() ? `<button class="btn line" id="s89Mes">📄 Papeletas S-89 del mes</button>` : ""}</div>`;
+  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}<button class="btn line" id="pdfVmc">📄 PDF del mes</button>${cAdmin() ? `<button class="btn line" id="s89Mes">📄 Papeletas S-89 del mes</button>` : ""}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-sem]").forEach(b => b.onclick = () => fichaVmc(b.dataset.sem));
-  $("#xlsVmc").onclick = () => conExcel(xlsVmc);
+  $("#pdfVmc").onclick = () => pdfVmc(semanasMes(CG.mes).map(l => { const r = R("vmc").find(x => x.k === l); return [l, r && r.d]; }), `Vida y Ministerio ${mesNombre(CG.mes)}`);
   if ($("#s89Mes")) $("#s89Mes").onclick = () => exportarS89(semanasMes(CG.mes).flatMap(l => { const r = R("vmc").find(x => x.k === l); return papeletas(r && r.d, l); }), `Papeletas S-89 ${mesNombre(CG.mes)}`);
   if ($("#jwMes")) $("#jwMes").onclick = async () => {
     const b = $("#jwMes"); b.disabled = true; let ok = 0, falla = [];
@@ -700,7 +700,7 @@ function fichaVmc(l) {
     <div id="vEv" ${sinReunion(d) ? "" : "hidden"}>
       ${campo("¿Qué hay esa semana?", `<select id="vE" class="csel">${EVENTOS_VMC.filter(x => !x.startsWith("Visita")).map(x => `<option ${d.evento === x ? "selected" : ""}>${x}</option>`).join("")}</select>`)}
       ${campo("Tema (opcional)", inp("vEt", d.eventoTema, "Felices para siempre"))}
-      <div class="aviso">${I.alert}<span>Esa semana no se arma programa ni hay asignaciones. En el Excel sale la franja con el evento.</span></div></div>
+      <div class="aviso">${I.alert}<span>Esa semana no se arma programa ni hay asignaciones. En el PDF sale la franja con el evento.</span></div></div>
     ${campo("Lectura semanal de la Biblia", inp("vL", d.lectura, "LAMENTACIONES 3-5"))}
     <div id="vNormal" ${sinReunion(d) ? "hidden" : ""}>
       ${ed ? `<div class="row"><button class="btn line" id="vJW">⬇ Traer programa de JW</button><button class="btn line" id="vSug">✨ Sugerir los vacíos</button><button class="btn line" id="vS89">📄 Papeletas S-89</button></div>` : ""}
@@ -708,12 +708,30 @@ function fichaVmc(l) {
       <div id="vCuerpo">${cuerpo()}</div>
     </div>
     <div id="vAviso"></div>
-    ${ed ? `<button class="btn pri" id="vOk">Guardar semana</button>` : `<p class="note">Solo los administradores pueden editar.</p>`}`,
+    <button class="btn line" id="vPdf" style="width:100%;margin-bottom:8px">📄 PDF de esta semana</button>
+    ${ed ? `<div id="vAuto" class="autos">💾 Se guarda solo mientras haces cambios</div><button class="btn pri" id="vOk">Guardar y cerrar</button>` : `<p class="note">Solo los administradores pueden editar.</p>`}`,
     (bg, close) => {
       const q = s => bg.querySelector(s);
       if (!ed) bg.querySelectorAll("input,select").forEach(x => x.disabled = true);
       let sinR = sinReunion(d);
-      bg.querySelectorAll("[data-ev]").forEach(b => b.onclick = () => { sinR = !!b.dataset.ev; bg.querySelectorAll("[data-ev]").forEach(x => x.classList.toggle("on", x === b)); q("#vEv").hidden = !sinR; q("#vNormal").hidden = sinR; });
+      bg.querySelectorAll("[data-ev]").forEach(b => b.onclick = () => { sinR = !!b.dataset.ev; bg.querySelectorAll("[data-ev]").forEach(x => x.classList.toggle("on", x === b)); q("#vEv").hidden = !sinR; q("#vNormal").hidden = sinR; programar(); });
+      // ---- Guardado automático: guarda en silencio ~1 s después de cada cambio; el aviso a los hermanos sale una sola vez al cerrar ----
+      const orig = r ? JSON.parse(JSON.stringify(r.d)) : null; let rid = r ? r.id : null, ultimo = null, timer = null, huboAuto = false;
+      const estado = (t, c) => { const e = q("#vAuto"); if (e) { e.textContent = t; e.className = "autos " + (c || ""); } };
+      const autoGuardar = async () => {
+        clearTimeout(timer); timer = null; if (!ed) return;
+        const nd = leer(), js = JSON.stringify(nd); if (js === ultimo) return;
+        if (!rid && !sinR && !nd.lectura && !nd.t1.titulo && !asignVmc(nd).length) return;
+        estado("Guardando…", "ing");
+        try {
+          rid = await rpc("cong_reg_guardar", { p_modulo: "vmc", p_clave: l, p_id: rid, p_d: nd, p_aviso: null }); ultimo = js; huboAuto = true;
+          const ex = CG.reg.find(x => x.id === rid); if (ex) ex.d = nd; else CG.reg.push({ id: rid, m: "vmc", k: l, d: nd });
+          estado("✓ Guardado automáticamente · " + new Date().toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" }), "ok");
+        } catch (e) { estado("⚠ No se pudo guardar solo (" + e.message + "). Toca Guardar y cerrar.", "bad"); }
+      };
+      function programar() { if (!ed) return; estado("Cambios sin guardar…", ""); clearTimeout(timer); timer = setTimeout(autoGuardar, 1000); }
+      if (ed) { bg.addEventListener("input", programar); bg.addEventListener("change", programar);
+        bg._alCerrar = () => { const nd = leer(); (async () => { await autoGuardar(); if (huboAuto && rid) { try { await rpc("cong_reg_guardar", { p_modulo: "vmc", p_clave: l, p_id: rid, p_d: nd, p_aviso: avisoDe(nd) }); } catch (e) {} await cCargar(); render(); } })(); }; }
       const leer = () => {
         if (sinR) return { ...d, evento: val(bg, "vE"), eventoTema: val(bg, "vEt"), lectura: val(bg, "vL") };
         const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "" }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
@@ -721,7 +739,7 @@ function fichaVmc(l) {
         let i = 0; while (q("#vV" + i)) { const vid = q("#vVv" + i).checked; nd.vida.push({ titulo: val(bg, "vV" + i), min: val(bg, "vVm" + i) || "15", video: vid, p: vid ? "" : val(bg, "vVp" + i) }); i++; }
         return nd;
       };
-      const repintar = () => { d = leer(); q("#vCuerpo").innerHTML = cuerpo(); enlazar(); };
+      const repintar = () => { d = leer(); q("#vCuerpo").innerHTML = cuerpo(); enlazar(); programar(); };
       const dupl = () => { const ids = asignVmc(leer()).filter((x, i, a) => true); const c = {}; ids.forEach(x => c[x] = (c[x] || 0) + 1); const rep = Object.keys(c).filter(k => c[k] > 1); q("#vAviso").innerHTML = rep.length && !sinR ? `<div class="aviso warn">${I.alert}<span>Con más de una asignación esta semana: <b>${rep.map(nomCorto).map(esc).join(", ")}</b>.</span></div>` : ""; };
       const enlazar = () => {
         bg.querySelectorAll("#vCuerpo select").forEach(s => s.addEventListener("change", dupl)); dupl();
@@ -734,8 +752,9 @@ function fichaVmc(l) {
       };
       enlazar();
       if (q("#vJW")) q("#vJW").onclick = async () => { const b = q("#vJW"); b.disabled = true; b.textContent = "Trayendo…";
-        try { d = aplicarJW(leer(), await traerJW(l)); q("#vL").value = d.lectura; q("#vCuerpo").innerHTML = cuerpo(); enlazar(); toast("Programa traído de JW. Revisa y asigna."); }
+        try { d = aplicarJW(leer(), await traerJW(l)); q("#vL").value = d.lectura; q("#vCuerpo").innerHTML = cuerpo(); enlazar(); programar(); toast("Programa traído de JW. Revisa y asigna."); }
         catch (e) { toast(e.message); } b.disabled = false; b.textContent = "⬇ Traer programa de JW"; };
+      q("#vPdf").onclick = () => pdfVmc([[l, ed ? leer() : d]], `Vida y Ministerio semana ${tituloSemana(l)}`);
       if (q("#vS89")) q("#vS89").onclick = () => exportarS89(papeletas(leer(), l), `Papeletas S-89 semana ${tituloSemana(l)}`);
       if (q("#vSug")) q("#vSug").onclick = () => {
         d = leer(); const usados = new Set(asignVmc(d));
@@ -746,20 +765,23 @@ function fichaVmc(l) {
         d.maestros.forEach(m => { const disc = /^Discurso/i.test(m.titulo); llena(m, "p", disc ? H : pub); llena(m, "a", disc ? H : pub);
           if (!disc) { const sx = id => (P(id) || {}).sexo; llena(m, "pa", pub, sx(m.p)); llena(m, "aa", pub, sx(m.a)); } });
         d.vida.forEach(v => { if (!v.video) llena(v, "p", nomb); }); llena(d.estudio, "p", anc); llena(d.estudio, "lector", H); llena(d, "oracion2", nomb);
-        q("#vCuerpo").innerHTML = cuerpo(); enlazar(); toast("Sugerí a quienes llevan más tiempo sin parte. Revisa antes de guardar.");
+        q("#vCuerpo").innerHTML = cuerpo(); enlazar(); programar(); toast("Sugerí a quienes llevan más tiempo sin parte. Revisa antes de guardar.");
       };
-      const ok = q("#vOk"); if (ok) ok.onclick = async () => {
-        const nd = leer();
-        let aviso = r ? null : `Vida y Ministerio: programa de la semana ${tituloSemana(l)} cargado`;
-        if (r && sinR) aviso = `Vida y Ministerio ${tituloSemana(l)}: no hay reunión (${nd.evento})`;
-        else if (r) { const cambios = []; const cmp = (a, b, t) => { if ((a || "") !== (b || "")) cambios.push(`${t}: ${nomCorto(b) || "sin asignar"}`); };
-          const o = { ...VMC_BASE(), ...r.d };
+      function avisoDe(nd) {
+        let aviso = orig ? null : `Vida y Ministerio: programa de la semana ${tituloSemana(l)} cargado`;
+        if (orig && sinR) aviso = `Vida y Ministerio ${tituloSemana(l)}: no hay reunión (${nd.evento})`;
+        else if (orig) { const cambios = []; const cmp = (a, b, t) => { if ((a || "") !== (b || "")) cambios.push(`${t}: ${nomCorto(b) || "sin asignar"}`); };
+          const o = { ...VMC_BASE(), ...orig };
           cmp(o.intro, nd.intro, "presidente"); cmp(o.oracion1, nd.oracion1, "oración inicial"); cmp(o.t1.p, nd.t1.p, "discurso de Tesoros"); cmp(o.t2.p, nd.t2.p, "perlas escondidas"); cmp(o.lect.p, nd.lect.p, "lectura de la Biblia"); cmp(o.lect.a, nd.lect.a, "lectura sala aux."); cmp(o.consejero, nd.consejero, "consejero aux.");
           nd.maestros.forEach((x, i) => { const y = o.maestros[i] || {}; cmp(y.p, x.p, `parte ${4 + i}`); cmp(y.pa, x.pa, `ayudante parte ${4 + i}`); cmp(y.a, x.a, `parte ${4 + i} sala aux.`); cmp(y.aa, x.aa, `ayudante ${4 + i} sala aux.`); });
           nd.vida.forEach((x, i) => cmp((o.vida[i] || {}).p, x.p, `parte ${4 + nd.maestros.length + i}`));
           cmp(o.estudio.p, nd.estudio.p, "estudio bíblico"); cmp(o.estudio.lector, nd.estudio.lector, "lector"); cmp(o.oracion2, nd.oracion2, "oración final");
           aviso = cambios.length ? `Vida y Ministerio ${tituloSemana(l)} · cambió ${cambios.join("; ")}` : `Vida y Ministerio ${tituloSemana(l)}: programa actualizado`; }
-        await cGuardar("vmc", l, r ? r.id : null, nd, aviso); close(); toast("Semana guardada");
+        return aviso;
+      }
+      const ok = q("#vOk"); if (ok) ok.onclick = async () => {
+        clearTimeout(timer); timer = null; const nd = leer();
+        await cGuardar("vmc", l, rid, nd, avisoDe(nd)); huboAuto = false; ultimo = JSON.stringify(nd); close(); toast("Semana guardada");
       };
     });
 }
@@ -806,6 +828,80 @@ async function exportarS89(lst, nombre) {
     try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nom }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nom; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
     toast(`${lst.length} papeletas listas`);
+  } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
+}
+/* ================= PDF de Vida y Ministerio (mismo diseño del Excel) ================= */
+async function pdfVmc(semanas, titulo) {
+  document.body.classList.add("loading");
+  try {
+    const L = await cargarPdfLib(); const pdf = await L.PDFDocument.create(); pdf.setTitle(titulo); pdf.setAuthor("CRABS · Congregación Tierra Baja");
+    const FN = await pdf.embedFont(L.StandardFonts.Helvetica), FB = await pdf.embedFont(L.StandardFonts.HelveticaBold), FBI = await pdf.embedFont(L.StandardFonts.HelveticaBoldOblique);
+    const hex = h => L.rgb(parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255);
+    const NEGRO = "000000", VERDE = "2E6E4E", TEAL = "067876", ORO = "A0701B", ROJO = "8A0B14", GRIS = "8C8C8C";
+    const PW = 595.28, PH = 841.89, M = 24, RH = 16.5, AN = [36, 31, 12, 21, 15, 35], esc_ = (PW - 2 * M) / AN.reduce((a, b) => a + b);
+    const X = [M]; AN.forEach(w => X.push(X[X.length - 1] + w * esc_)); const COL = c => "ABCDEF".indexOf(c);
+    const seguro = t => String(t ?? "").replace(/[●◦]/g, "•").replace(/[^\x20-\x7E -ÿ•–—‘’“”…€]/g, "");
+    const MX = t => String(t || "").toUpperCase(), N = id => MX(nom(id));
+    let pg, y, paginas = [];
+    const nueva = () => { pg = pdf.addPage([PW, PH]); paginas.push(pg); y = PH - M; };
+    const fnt = o => o.italic ? FBI : o.bold === false ? FN : FB;
+    // texto de varias partes dentro de las columnas c1..c2, encogido si no cabe
+    const rich = (c1, c2, partes, o = {}) => {
+      const x0 = X[COL(c1)] + 3, x1 = X[COL(c2) + 1] - 3, ancho = x1 - x0; let k = 1;
+      const medir = k => partes.reduce((s, [t, f = {}]) => s + fnt(f).widthOfTextAtSize(seguro(t), (f.size || 10.5) * .86 * k), 0);
+      while (medir(k) > ancho && k > .5) k -= .04;
+      const tot = medir(k); let x = o.align === "right" ? x1 - tot : o.align === "center" ? x0 + (ancho - tot) / 2 : x0;
+      partes.forEach(([t, f = {}]) => { const sz = (f.size || 10.5) * .86 * k, tt = seguro(t); pg.drawText(tt, { x, y: y - RH / 2 - sz * .35, size: sz, font: fnt(f), color: hex(f.color || NEGRO) }); x += fnt(f).widthOfTextAtSize(tt, sz); });
+    };
+    const put = (c1, c2, t, o = {}) => { if (o.fill) pg.drawRectangle({ x: X[COL(c1)], y: y - RH, width: X[COL(c2) + 1] - X[COL(c1)], height: RH, color: hex(o.fill) }); if (o.box) pg.drawRectangle({ x: X[COL(c1)], y: y - RH, width: X[COL(c2) + 1] - X[COL(c1)], height: RH, borderColor: hex(NEGRO), borderWidth: .5 }); rich(c1, c2, [[t, o]], o); };
+    const nombre = (c1, c2, id, o = {}) => put(c1, c2, N(id), { align: "center", box: true, fill: o.fill, color: o.color });
+    const barra = (t, fill) => { put("A", "F", t, { align: "center", color: "FFFFFF", fill, size: 11 }); y -= RH; };
+    const sala = (l1, p, l2, a, chico) => { put("B", "B", l1, { bold: false, align: "right", size: chico ? 9 : 10.5 }); nombre("C", "D", p); put("E", "E", l2, { bold: false, align: "right", size: chico ? 9 : 10.5 }); nombre("F", "F", a); y -= RH; };
+    const linea = () => pg.drawLine({ start: { x: X[0], y: y }, end: { x: X[6], y: y }, thickness: .5, color: hex(NEGRO) });
+    const filas = d => !d || sinReunion(d) ? 2 : 13 + d.maestros.reduce((s, m) => s + (m.pa || m.aa ? 3 : 2), 0) + d.vida.length;
+    nueva();
+    for (const [l, d0] of semanas) {
+      const d = d0 ? { ...VMC_BASE(), ...d0 } : null;
+      if (y - filas(d) * RH < M + 20 && y < PH - M - 1) nueva();
+      const y0 = y;
+      put("A", "C", `SEMANA ${MX(tituloSemana(l))}`, { size: 11 }); put("D", "E", "Lectura semanal de la Biblia:", {}); put("F", "F", MX(d ? d.lectura : ""), { align: "center" }); y -= RH;
+      if (!d) barra("PROGRAMA PENDIENTE", "9E9E9E");
+      else if (sinReunion(d)) barra(MX(d.evento) + (d.eventoTema ? ` (${MX(d.eventoTema)})` : ""), TEAL);
+      else {
+        rich("A", "A", [["• ", { color: GRIS }], [`Canción ${d.c1} y oración:`, {}]], { align: "right" }); nombre("B", "B", d.oracion1);
+        rich("C", "E", [["• ", { color: GRIS }], ["Palabras de introd. ", {}], ["(1 min)", { size: 9 }], [":", {}]], { align: "right" }); nombre("F", "F", d.intro); y -= RH;
+        barra("TESOROS DE LA BIBLIA", TEAL);
+        rich("A", "E", [["1. ", { color: TEAL }], [d.t1.titulo, { color: VERDE }], [` (${d.t1.min || 10} mins)`, { color: VERDE, size: 9 }]]); nombre("F", "F", d.t1.p); y -= RH;
+        rich("A", "E", [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", { color: VERDE }], [" (10 mins)", { color: VERDE, size: 9 }]]); nombre("F", "F", d.t2.p); y -= RH;
+        const cita = (d.lect.cita || "").match(/^(.*?)\s*(\(th[^)]*\))?\s*$/) || ["", d.lect.cita, ""];
+        rich("A", "C", [["3. ", { color: TEAL }], ["Lectura de la Biblia", { color: VERDE }], [" (4 mins)", { color: VERDE, size: 9 }], [":" + (cita[1] || ""), { color: VERDE }], ...(cita[2] ? [[" " + cita[2], { color: VERDE, size: 9 }]] : [])]);
+        put("D", "E", "Consejero S. Aux.:", { align: "right", size: 9, color: "7030A0" }); nombre("F", "F", d.consejero, { fill: "E4D7F5", color: "7030A0" }); y -= RH;
+        sala("S. Princ.:", d.lect.p, "S. Aux.:", d.lect.a);
+        barra("SEAMOS MEJORES MAESTROS", ORO);
+        d.maestros.forEach((m, i) => {
+          rich("A", "F", [[`${4 + i}. `, { color: ORO }], [m.titulo, { color: VERDE }], [` (${m.min} mins)`, { color: VERDE, size: 9 }], ...(m.ref ? [[": ", { color: VERDE, size: 9 }], [m.ref, { color: VERDE, size: 9, italic: true }]] : [])]); y -= RH;
+          sala("S. Princ.:", m.p, "S. Aux.:", m.a);
+          if (m.pa || m.aa) sala("Ayudante:", m.pa, "Ayudante:", m.aa, true);
+          linea();
+        });
+        barra("NUESTRA VIDA CRISTIANA", ROJO);
+        rich("A", "F", [["• ", { color: ROJO }], [`Canción ${d.c2}`, { color: VERDE }]]); y -= RH;
+        const n0 = 4 + d.maestros.length;
+        d.vida.forEach((v, i) => { rich("A", "E", [[`${n0 + i}. `, { color: ROJO }], [v.titulo, { color: VERDE }], [` (${v.min || 15} mins)`, { color: VERDE, size: 9 }]]); if (v.video) put("F", "F", "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "666666" }); else nombre("F", "F", v.p); y -= RH; });
+        rich("A", "B", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", { color: VERDE }], [" (30 mins)", { color: VERDE, size: 9 }]]);
+        nombre("C", "D", d.estudio.p); put("E", "E", "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", "F", d.estudio.lector); y -= RH;
+        rich("A", "B", [["• ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
+        rich("C", "E", [["• ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", "F", d.oracion2); y -= RH;
+      }
+      pg.drawRectangle({ x: X[0], y, width: X[6] - X[0], height: y0 - y, borderColor: hex(NEGRO), borderWidth: 1.6 });
+      y -= RH;
+    }
+    paginas.forEach((p, i) => { p.drawText("CRABS · Congregación Tierra Baja", { x: M, y: 12, size: 7, font: FN, color: hex("777777") }); const t = `Página ${i + 1} de ${paginas.length}`; p.drawText(t, { x: PW - M - FN.widthOfTextAtSize(t, 7), y: 12, size: 7, font: FN, color: hex("777777") }); });
+    const bytes = await pdf.save(); const nom_ = titulo.normalize("NFD").replace(/[̀-ͯ]/g, "") + ".pdf";
+    const blob = new Blob([bytes], { type: "application/pdf" }); const file = new File([blob], nom_, { type: "application/pdf" });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nom_ }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nom_; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    toast("PDF listo");
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 async function xlsVmc(X) {
