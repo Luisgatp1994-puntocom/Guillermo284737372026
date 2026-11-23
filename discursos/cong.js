@@ -684,7 +684,7 @@ function fichaVmc(l) {
     <div class="card vpart"><div class="vptit"><span class="vn" style="color:#067876">1.</span> <input class="tin" id="vT1" value="${esc(d.t1.titulo)}" placeholder="Título del discurso"> <small>(10 mins)</small></div>${S("vT1p", d.t1.p, nomb, true)}</div>
     <div class="card vpart">${parte('<span style="color:#067876">2</span>', "Busquemos perlas escondidas", "10")}${S("vT2p", d.t2.p, nomb, true)}</div>
     <div class="card vpart"><div class="vptit"><span class="vn" style="color:#067876">3.</span> Lectura de la Biblia <small>(4 mins)</small>: <input class="tin" id="vLc" value="${esc(d.lect.cita)}" placeholder="Lam 1:8-18 (th 10)"></div>
-      <div class="vsala"><span>S. Princ.</span>${S("vLp", d.lect.p, p => H(p) && !nomb(p), true)}</div><div class="vsala"><span>S. Aux.</span>${S("vLa", d.lect.a, p => H(p) && !nomb(p), true)}</div><div class="vsala"><span>Cons. aux.</span>${S("vCo", d.consejero, anc, true)}</div></div>
+      <div class="vsala"><span>S. Princ.</span>${S("vLp", d.lect.p, p => H(p) && !nomb(p), true)}</div><div class="vsala"><span>S. Aux.</span>${S("vLa", d.lect.a, p => H(p) && !nomb(p), true)}</div><div class="vsala vcons"><span>Consejero sala aux.</span>${S("vCo", d.consejero, anc, true)}</div></div>
     <div class="vsec" style="background:#A0701B">SEAMOS MEJORES MAESTROS</div>
     <div id="vMae">${d.maestros.map(maestro).join("")}</div>
     ${ed ? `<div class="row"><button class="btn line" id="vMas">+ Parte</button><button class="btn line" id="vMenos">− Parte</button></div>` : ""}
@@ -821,7 +821,7 @@ async function xlsVmc(X) {
   const put = (ref, v, o = {}) => { const c = ws.getCell(ref); c.value = v; c.font = F(o); c.alignment = { vertical: "middle", horizontal: o.align || "left", wrapText: false, shrinkToFit: !!o.shrink, indent: o.indent || 0 }; if (o.fill) c.fill = relleno(o.fill); if (o.box) c.border = caja; return c; };
   const rich = (ref, partes, o = {}) => { const c = ws.getCell(ref); c.value = { richText: partes.map(([t, f]) => ({ text: t, font: F(f) })) }; c.alignment = { vertical: "middle", horizontal: o.align || "left", shrinkToFit: true }; return c; };
   const merge = (a, b) => ws.mergeCells(`${a}${r}:${b}${r}`);
-  const nombre = (col, id, o = {}) => put(col + r, N(id), { align: "center", box: true, fill: o.fill, shrink: true });
+  const nombre = (col, id, o = {}) => put(col + r, N(id), { align: "center", box: true, fill: o.fill, color: o.color, shrink: true });
   const barra = (t, fill) => { merge("A", "F"); put("A" + r, t, { align: "center", color: "FFFFFF", fill, size: 11 }); r++; };
   const sala = (lab1, p, lab2, a, chico) => { put("B" + r, lab1, { bold: false, align: "right", size: chico ? 9 : 10.5 }); merge("C", "D"); nombre("C", p); put("E" + r, lab2, { bold: false, align: "right", size: chico ? 9 : 10.5 }); nombre("F", a); r++; };
   const linea = row => ["A", "B", "C", "D", "E", "F"].forEach(c => { const x = ws.getCell(c + row); x.border = { ...(x.border || {}), bottom: fino }; });
@@ -838,7 +838,7 @@ async function xlsVmc(X) {
       merge("A", "E"); rich("A" + r, [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", { color: VERDE }], [" (10 mins)", { color: VERDE, size: 9 }]]); nombre("F", d.t2.p); r++;
       const cita = (d.lect.cita || "").match(/^(.*?)\s*(\(th[^)]*\))?\s*$/) || ["", d.lect.cita, ""];
       merge("A", "D"); rich("A" + r, [["3. ", { color: TEAL }], ["Lectura de la Biblia", { color: VERDE }], [" (4 mins)", { color: VERDE, size: 9 }], [":" + (cita[1] || ""), { color: VERDE }], ...(cita[2] ? [[" " + cita[2], { color: VERDE, size: 9 }]] : [])]);
-      put("E" + r, "Cons. aux.", { align: "right", size: 9 }); nombre("F", d.consejero, { fill: "D8D8D8" }); r++;
+      put("E" + r, "Consejero S. Aux.:", { align: "right", size: 9, color: "7030A0" }); nombre("F", d.consejero, { fill: "E4D7F5", color: "7030A0" }); r++;
       sala("S. Princ.:", d.lect.p, "S. Aux.:", d.lect.a);
       barra("SEAMOS MEJORES MAESTROS", ORO);
       d.maestros.forEach((m, i) => {
