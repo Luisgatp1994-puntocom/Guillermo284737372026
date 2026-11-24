@@ -690,7 +690,7 @@ function fichaVmc(l) {
     ${ed ? `<div class="row"><button class="btn line" id="vMas">+ Parte</button><button class="btn line" id="vMenos">− Parte</button></div>` : ""}
     <div class="vsec" style="background:#8A0B14">NUESTRA VIDA CRISTIANA</div>
     <div class="vhead"><span>🎵 Canción</span><input class="tin min" id="vC2" value="${esc(d.c2)}" inputmode="numeric"></div>
-    <div id="vVida">${d.vida.map((v, i) => `<div class="card vpart"><div class="vptit"><span class="vn" style="color:#8A0B14">${nM + i}.</span> <input class="tin" id="vV${i}" value="${esc(v.titulo)}" placeholder="Título"> <input class="tin min" id="vVm${i}" value="${esc(v.min || "15")}" inputmode="numeric"></div><label class="ic chk vvid"><input type="checkbox" id="vVv${i}" ${v.video ? "checked" : ""}> Sin asignado (video o informe del Cuerpo Gobernante)</label><div id="vVw${i}" ${v.video ? "hidden" : ""}>${S("vVp" + i, v.p, nomb, true)}</div></div>`).join("")}</div>
+    <div id="vVida">${d.vida.map((v, i) => `<div class="card vpart"><div class="vptit"><span class="vn" style="color:#8A0B14">${nM + i}.</span> <input class="tin" id="vV${i}" value="${esc(v.titulo)}" placeholder="Título"> <input class="tin min" id="vVm${i}" value="${esc(v.min || "15")}" inputmode="numeric"></div><label class="ic chk vvid"><input type="checkbox" id="vVv${i}" ${v.video ? "checked" : ""}> Sin asignado (video o informe del Cuerpo Gobernante)</label><div id="vVw${i}" ${v.video ? "hidden" : ""}>${S("vVp" + i, v.p, nomb, true)}</div><div id="vVx${i}" ${v.video ? "" : "hidden"}><input class="tin" id="vVt${i}" value="${esc(v.texto || "")}" placeholder="Texto del recuadro (ej.: Informe del Cuerpo Gobernante)" style="width:100%"><small class="note">Si lo dejas vacío sale VIDEO.</small></div></div>`).join("")}</div>
     ${ed ? `<div class="row"><button class="btn line" id="vVMas">+ Parte</button><button class="btn line" id="vVMenos">− Parte</button></div>` : ""}
     <div class="card vpart">${parte(`<span style="color:#8A0B14">${nM + d.vida.length}</span>`, "Estudio bíblico de la congregación", "30", d.estudio.ref ? ` <small>${esc(d.estudio.ref)}</small>` : "")}<div class="vsala"><span>Conductor</span>${S("vEc", d.estudio.p, anc, true)}</div><div class="vsala"><span>Lector</span>${S("vEl", d.estudio.lector, H, true)}</div></div>
     <div class="vhead" style="color:#8A0B14"><span>Palabras de conclusión · 🎵 Canción</span><input class="tin min" id="vC3" value="${esc(d.c3)}" inputmode="numeric"><span>y oración</span>${S("vO2", d.oracion2, nomb, true)}</div>`;
@@ -736,14 +736,14 @@ function fichaVmc(l) {
         if (sinR) return { ...d, evento: val(bg, "vE"), eventoTema: val(bg, "vEt"), lectura: val(bg, "vL") };
         const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "" }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
         bg.querySelectorAll("#vMae .vpart").forEach((_, i) => nd.maestros.push({ titulo: val(bg, "mT" + i), min: val(bg, "mM" + i), ref: val(bg, "mR" + i), p: val(bg, "mP" + i), pa: val(bg, "mPA" + i), a: val(bg, "mA" + i), aa: val(bg, "mAA" + i) }));
-        let i = 0; while (q("#vV" + i)) { const vid = q("#vVv" + i).checked; nd.vida.push({ titulo: val(bg, "vV" + i), min: val(bg, "vVm" + i) || "15", video: vid, p: vid ? "" : val(bg, "vVp" + i) }); i++; }
+        let i = 0; while (q("#vV" + i)) { const vid = q("#vVv" + i).checked; nd.vida.push({ titulo: val(bg, "vV" + i), min: val(bg, "vVm" + i) || "15", video: vid, texto: vid ? val(bg, "vVt" + i) : "", p: vid ? "" : val(bg, "vVp" + i) }); i++; }
         return nd;
       };
       const repintar = () => { d = leer(); q("#vCuerpo").innerHTML = cuerpo(); enlazar(); programar(); };
       const dupl = () => { const ids = asignVmc(leer()).filter((x, i, a) => true); const c = {}; ids.forEach(x => c[x] = (c[x] || 0) + 1); const rep = Object.keys(c).filter(k => c[k] > 1); q("#vAviso").innerHTML = rep.length && !sinR ? `<div class="aviso warn">${I.alert}<span>Con más de una asignación esta semana: <b>${rep.map(nomCorto).map(esc).join(", ")}</b>.</span></div>` : ""; };
       const enlazar = () => {
         bg.querySelectorAll("#vCuerpo select").forEach(s => s.addEventListener("change", dupl)); dupl();
-        bg.querySelectorAll('[id^="vVv"]').forEach(c => c.onchange = () => { const k = c.id.slice(3); const w = q("#vVw" + k); if (w) w.hidden = c.checked; if (c.checked) { const sel = q("#vVp" + k); if (sel) sel.value = ""; } dupl(); });
+        bg.querySelectorAll('[id^="vVv"]').forEach(c => c.onchange = () => { const k = c.id.slice(3); const w = q("#vVw" + k); if (w) w.hidden = c.checked; const xx = q("#vVx" + k); if (xx) xx.hidden = !c.checked; if (c.checked) { const sel = q("#vVp" + k); if (sel) sel.value = ""; } dupl(); });
         if (q("#vMas")) q("#vMas").onclick = () => { d = leer(); d.maestros.push({ titulo: "", min: "", ref: "", p: "", pa: "", a: "", aa: "" }); repintar(); };
         if (q("#vMenos")) q("#vMenos").onclick = () => { d = leer(); if (d.maestros.length > 1) d.maestros.pop(); repintar(); };
         if (q("#vVMas")) q("#vVMas").onclick = () => { d = leer(); d.vida.push({ titulo: "", min: "15", p: "" }); repintar(); };
@@ -871,27 +871,27 @@ async function pdfVmc(semanas, titulo) {
         rich("A", "A", [["• ", { color: GRIS }], [`Canción ${d.c1} y oración:`, {}]], { align: "right" }); nombre("B", "B", d.oracion1);
         rich("C", "E", [["• ", { color: GRIS }], ["Palabras de introd. ", {}], ["(1 min)", { size: 9 }], [":", {}]], { align: "right" }); nombre("F", "F", d.intro); y -= RH;
         barra("TESOROS DE LA BIBLIA", TEAL);
-        rich("A", "E", [["1. ", { color: TEAL }], [d.t1.titulo, { color: VERDE }], [` (${d.t1.min || 10} mins)`, { color: VERDE, size: 9 }]]); nombre("F", "F", d.t1.p); y -= RH;
-        rich("A", "E", [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", { color: VERDE }], [" (10 mins)", { color: VERDE, size: 9 }]]); nombre("F", "F", d.t2.p); y -= RH;
+        rich("A", "E", [["1. ", { color: TEAL }], [d.t1.titulo, {}], [` (${d.t1.min || 10} mins)`, { size: 9 }]]); nombre("F", "F", d.t1.p); y -= RH;
+        rich("A", "E", [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", {}], [" (10 mins)", { size: 9 }]]); nombre("F", "F", d.t2.p); y -= RH;
         const cita = (d.lect.cita || "").match(/^(.*?)\s*(\(th[^)]*\))?\s*$/) || ["", d.lect.cita, ""];
-        rich("A", "C", [["3. ", { color: TEAL }], ["Lectura de la Biblia", { color: VERDE }], [" (4 mins)", { color: VERDE, size: 9 }], [":" + (cita[1] || ""), { color: VERDE }], ...(cita[2] ? [[" " + cita[2], { color: VERDE, size: 9 }]] : [])]);
+        rich("A", "C", [["3. ", { color: TEAL }], ["Lectura de la Biblia", {}], [" (4 mins)", { size: 9 }], [":" + (cita[1] || ""), {}], ...(cita[2] ? [[" " + cita[2], { size: 9 }]] : [])]);
         put("D", "E", "Consejero S. Aux.:", { align: "right", size: 9, color: "7030A0" }); nombre("F", "F", d.consejero, { fill: "E4D7F5", color: "7030A0" }); y -= RH;
         sala("S. Princ.:", d.lect.p, "S. Aux.:", d.lect.a);
         barra("SEAMOS MEJORES MAESTROS", ORO);
         d.maestros.forEach((m, i) => {
-          rich("A", "F", [[`${4 + i}. `, { color: ORO }], [m.titulo, { color: VERDE }], [` (${m.min} mins)`, { color: VERDE, size: 9 }], ...(m.ref ? [[": ", { color: VERDE, size: 9 }], [m.ref, { color: VERDE, size: 9, italic: true }]] : [])]); y -= RH;
+          rich("A", "F", [[`${4 + i}. `, { color: ORO }], [m.titulo, {}], [` (${m.min} mins)`, { size: 9 }], ...(m.ref ? [[": ", { size: 9 }], [m.ref, { size: 9, italic: true }]] : [])]); y -= RH;
           sala("S. Princ.:", m.p, "S. Aux.:", m.a);
           if (m.pa || m.aa) sala("Ayudante:", m.pa, "Ayudante:", m.aa, true);
           linea();
         });
         barra("NUESTRA VIDA CRISTIANA", ROJO);
-        rich("A", "F", [["• ", { color: ROJO }], [`Canción ${d.c2}`, { color: VERDE }]]); y -= RH;
+        rich("A", "F", [["• ", { color: ROJO }], [`Canción ${d.c2}`, {}]]); y -= RH;
         const n0 = 4 + d.maestros.length;
-        d.vida.forEach((v, i) => { rich("A", "E", [[`${n0 + i}. `, { color: ROJO }], [v.titulo, { color: VERDE }], [` (${v.min || 15} mins)`, { color: VERDE, size: 9 }]]); if (v.video) put("F", "F", "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "666666" }); else nombre("F", "F", v.p); y -= RH; });
-        rich("A", "B", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", { color: VERDE }], [" (30 mins)", { color: VERDE, size: 9 }]]);
+        d.vida.forEach((v, i) => { const anchoBox = v.video && v.texto; rich("A", anchoBox ? "D" : "E", [[`${n0 + i}. `, { color: ROJO }], [v.titulo, {}], [` (${v.min || 15} mins)`, { size: 9 }]]); if (v.video) put(anchoBox ? "E" : "F", "F", MX(v.texto) || "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "444444" }); else nombre("F", "F", v.p); y -= RH; });
+        rich("A", "B", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
         nombre("C", "D", d.estudio.p); put("E", "E", "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", "F", d.estudio.lector); y -= RH;
-        rich("A", "B", [["• ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
-        rich("C", "E", [["• ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", "F", d.oracion2); y -= RH;
+        rich("A", "B", [["• ", { color: ROJO }], ["Palabras de conclusión", {}], [" (3 mins)", { size: 9 }]]);
+        rich("C", "E", [["• ", { color: ROJO }], [`Canción ${d.c3} y oración`, {}]], { align: "right" }); nombre("F", "F", d.oracion2); y -= RH;
       }
       pg.drawRectangle({ x: X[0], y, width: X[6] - X[0], height: y0 - y, borderColor: hex(NEGRO), borderWidth: 1.6 });
       y -= RH;
@@ -930,27 +930,27 @@ async function xlsVmc(X) {
       rich("A" + r, [["● ", { color: GRIS }], [`Canción ${d.c1} y oración:`, {}]], { align: "right" }); nombre("B", d.oracion1);
       merge("C", "E"); rich("C" + r, [["● ", { color: GRIS }], ["Palabras de introd. ", {}], ["(1 min)", { size: 9 }], [":", {}]], { align: "right" }); nombre("F", d.intro); r++;
       barra("TESOROS DE LA BIBLIA", TEAL);
-      merge("A", "E"); rich("A" + r, [["1. ", { color: TEAL }], [d.t1.titulo, { color: VERDE }], [` (${d.t1.min || 10} mins)`, { color: VERDE, size: 9 }]]); nombre("F", d.t1.p); r++;
-      merge("A", "E"); rich("A" + r, [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", { color: VERDE }], [" (10 mins)", { color: VERDE, size: 9 }]]); nombre("F", d.t2.p); r++;
+      merge("A", "E"); rich("A" + r, [["1. ", { color: TEAL }], [d.t1.titulo, {}], [` (${d.t1.min || 10} mins)`, { size: 9 }]]); nombre("F", d.t1.p); r++;
+      merge("A", "E"); rich("A" + r, [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", {}], [" (10 mins)", { size: 9 }]]); nombre("F", d.t2.p); r++;
       const cita = (d.lect.cita || "").match(/^(.*?)\s*(\(th[^)]*\))?\s*$/) || ["", d.lect.cita, ""];
-      merge("A", "D"); rich("A" + r, [["3. ", { color: TEAL }], ["Lectura de la Biblia", { color: VERDE }], [" (4 mins)", { color: VERDE, size: 9 }], [":" + (cita[1] || ""), { color: VERDE }], ...(cita[2] ? [[" " + cita[2], { color: VERDE, size: 9 }]] : [])]);
+      merge("A", "D"); rich("A" + r, [["3. ", { color: TEAL }], ["Lectura de la Biblia", {}], [" (4 mins)", { size: 9 }], [":" + (cita[1] || ""), {}], ...(cita[2] ? [[" " + cita[2], { size: 9 }]] : [])]);
       put("E" + r, "Consejero S. Aux.:", { align: "right", size: 9, color: "7030A0" }); nombre("F", d.consejero, { fill: "E4D7F5", color: "7030A0" }); r++;
       sala("S. Princ.:", d.lect.p, "S. Aux.:", d.lect.a);
       barra("SEAMOS MEJORES MAESTROS", ORO);
       d.maestros.forEach((m, i) => {
-        merge("A", "F"); rich("A" + r, [[`${4 + i}. `, { color: ORO }], [m.titulo, { color: VERDE }], [` (${m.min} mins)`, { color: VERDE, size: 9 }], ...(m.ref ? [[": ", { color: VERDE, size: 9 }], [m.ref, { color: VERDE, size: 9, italic: true }]] : [])]); r++;
+        merge("A", "F"); rich("A" + r, [[`${4 + i}. `, { color: ORO }], [m.titulo, {}], [` (${m.min} mins)`, { size: 9 }], ...(m.ref ? [[": ", { size: 9 }], [m.ref, { size: 9, italic: true }]] : [])]); r++;
         sala("S. Princ.:", m.p, "S. Aux.:", m.a);
         if (m.pa || m.aa) sala("Ayudante:", m.pa, "Ayudante:", m.aa, true);
         linea(r - 1);
       });
       barra("NUESTRA VIDA CRISTIANA", ROJO);
-      merge("A", "F"); rich("A" + r, [["● ", { color: ROJO }], [`Canción ${d.c2}`, { color: VERDE }]]); r++;
+      merge("A", "F"); rich("A" + r, [["● ", { color: ROJO }], [`Canción ${d.c2}`, {}]]); r++;
       const n0 = 4 + d.maestros.length;
-      d.vida.forEach((v, i) => { merge("A", "E"); rich("A" + r, [[`${n0 + i}. `, { color: ROJO }], [v.titulo, { color: VERDE }], [` (${v.min || 15} mins)`, { color: VERDE, size: 9 }]]); if (v.video) put("F" + r, "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "666666" }); else nombre("F", v.p); r++; });
-      merge("A", "B"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", { color: VERDE }], [" (30 mins)", { color: VERDE, size: 9 }]]);
+      d.vida.forEach((v, i) => { const anchoBox = v.video && v.texto; merge("A", anchoBox ? "D" : "E"); rich("A" + r, [[`${n0 + i}. `, { color: ROJO }], [v.titulo, {}], [` (${v.min || 15} mins)`, { size: 9 }]]); if (v.video) { if (anchoBox) merge("E", "F"); } if (v.video) put((anchoBox ? "E" : "F") + r, MX(v.texto) || "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "444444", shrink: true }); else nombre("F", v.p); r++; });
+      merge("A", "B"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
       merge("C", "D"); nombre("C", d.estudio.p); put("E" + r, "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", d.estudio.lector); r++;
-      merge("A", "B"); rich("A" + r, [["● ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
-      merge("C", "E"); rich("C" + r, [["● ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", d.oracion2); r++;
+      merge("A", "B"); rich("A" + r, [["● ", { color: ROJO }], ["Palabras de conclusión", {}], [" (3 mins)", { size: 9 }]]);
+      merge("C", "E"); rich("C" + r, [["● ", { color: ROJO }], [`Canción ${d.c3} y oración`, {}]], { align: "right" }); nombre("F", d.oracion2); r++;
     }
     // marco grueso de la semana
     for (let k = r0; k < r; k++) { const a = ws.getCell("A" + k), f = ws.getCell("F" + k); a.border = { ...(a.border || {}), left: grueso }; f.border = { ...(f.border || {}), right: grueso }; ws.getRow(k).height = 17; }
