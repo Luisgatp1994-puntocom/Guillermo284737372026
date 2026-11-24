@@ -890,8 +890,8 @@ async function pdfVmc(semanas, titulo) {
         d.vida.forEach((v, i) => { const anchoBox = v.video && v.texto; rich("A", anchoBox ? "D" : "E", [[`${n0 + i}. `, { color: ROJO }], [v.titulo, {}], [` (${v.min || 15} mins)`, { size: 9 }]]); if (v.video) put(anchoBox ? "E" : "F", "F", MX(v.texto) || "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "444444" }); else nombre("F", "F", v.p); y -= RH; });
         rich("A", "B", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
         nombre("C", "D", d.estudio.p); put("E", "E", "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", "F", d.estudio.lector); y -= RH;
-        rich("A", "B", [["• ", { color: ROJO }], ["Palabras de conclusión", {}], [" (3 mins)", { size: 9 }]]);
-        rich("C", "E", [["• ", { color: ROJO }], [`Canción ${d.c3} y oración`, {}]], { align: "right" }); nombre("F", "F", d.oracion2); y -= RH;
+        rich("A", "B", [["• ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
+        rich("C", "E", [["• ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", "F", d.oracion2); y -= RH;
       }
       pg.drawRectangle({ x: X[0], y, width: X[6] - X[0], height: y0 - y, borderColor: hex(NEGRO), borderWidth: 1.6 });
       y -= RH;
@@ -949,8 +949,8 @@ async function xlsVmc(X) {
       d.vida.forEach((v, i) => { const anchoBox = v.video && v.texto; merge("A", anchoBox ? "D" : "E"); rich("A" + r, [[`${n0 + i}. `, { color: ROJO }], [v.titulo, {}], [` (${v.min || 15} mins)`, { size: 9 }]]); if (v.video) { if (anchoBox) merge("E", "F"); } if (v.video) put((anchoBox ? "E" : "F") + r, MX(v.texto) || "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "444444", shrink: true }); else nombre("F", v.p); r++; });
       merge("A", "B"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
       merge("C", "D"); nombre("C", d.estudio.p); put("E" + r, "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", d.estudio.lector); r++;
-      merge("A", "B"); rich("A" + r, [["● ", { color: ROJO }], ["Palabras de conclusión", {}], [" (3 mins)", { size: 9 }]]);
-      merge("C", "E"); rich("C" + r, [["● ", { color: ROJO }], [`Canción ${d.c3} y oración`, {}]], { align: "right" }); nombre("F", d.oracion2); r++;
+      merge("A", "B"); rich("A" + r, [["● ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
+      merge("C", "E"); rich("C" + r, [["● ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", d.oracion2); r++;
     }
     // marco grueso de la semana
     for (let k = r0; k < r; k++) { const a = ws.getCell("A" + k), f = ws.getCell("F" + k); a.border = { ...(a.border || {}), left: grueso }; f.border = { ...(f.border || {}), right: grueso }; ws.getRow(k).height = 17; }
