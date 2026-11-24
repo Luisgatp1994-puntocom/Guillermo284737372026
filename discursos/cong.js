@@ -97,19 +97,24 @@ function celda(ws, ref, v, o) {
 // Entrega de archivos: abre el menú de compartir del celular (WhatsApp sale ahí). Si el celular ya no deja abrirlo
 // porque el archivo tardó en armarse, muestra un botón para compartir con un toque.
 function bajarArchivo(blob, nombre) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
-async function entregar(blob, nombre, listo) {
+const saludoHora = () => { const h = new Date().getHours(); return h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches"; };
+function copiarSilencio(t) { try { navigator.clipboard.writeText(t).catch(() => {}); } catch (e) {} }
+async function entregar(blob, nombre, listo, mensaje) {
   const file = new File([blob], nombre, { type: blob.type });
   const puede = !!(navigator.canShare && navigator.canShare({ files: [file] }));
   if (!puede) { bajarArchivo(blob, nombre); toast(listo); return; }
-  try { await navigator.share({ files: [file], title: nombre }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  const datos = mensaje ? { files: [file], title: nombre, text: mensaje } : { files: [file], title: nombre };
+  if (mensaje) copiarSilencio(mensaje);
+  try { await navigator.share(datos); if (mensaje) toast("El mensaje también quedó copiado, por si WhatsApp no lo pega"); return; } catch (e) { if (e && e.name === "AbortError") return; }
   const bg = document.createElement("div"); bg.className = "sheet-bg";
   bg.innerHTML = `<div class="sheet" role="dialog"><div class="grab"></div><div class="shead"><h2>✅ ${esc(listo)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
-    <p class="note" style="margin:0 2px 14px">📄 ${esc(nombre)}</p>
-    ${puede ? `<button class="btn ok" id="shWa" style="width:100%;font-size:17px;padding:16px">${I.wa} Compartir por WhatsApp</button><p class="note" style="margin:8px 2px 12px;text-align:center">Se abre el menú de compartir: escoge WhatsApp y el chat o grupo.</p>` : ""}
+    <p class="note" style="margin:0 2px 10px">📄 ${esc(nombre)}</p>
+    ${mensaje ? `<div class="card spad" style="margin-bottom:12px;white-space:pre-line;font-size:14px">${esc(mensaje)}</div>` : ""}
+    ${puede ? `<button class="btn ok" id="shWa" style="width:100%;font-size:17px;padding:16px">${I.wa} Compartir por WhatsApp</button><p class="note" style="margin:8px 2px 12px;text-align:center">Escoge WhatsApp y el chat o grupo.${mensaje ? " El mensaje queda copiado: si no aparece con el PDF, mantén presionado y pega." : ""}</p>` : ""}
     <button class="btn line" id="shBaj" style="width:100%">⬇ Descargar</button></div>`;
   document.body.appendChild(bg);
   const close = () => bg.remove(); bg.onclick = e => { if (e.target === bg) close(); }; bg.querySelector("[data-close]").onclick = close;
-  const wa = bg.querySelector("#shWa"); if (wa) wa.onclick = async () => { try { await navigator.share({ files: [file], title: nombre }); close(); } catch (e) { if (!e || e.name !== "AbortError") { bajarArchivo(blob, nombre); close(); } } };
+  const wa = bg.querySelector("#shWa"); if (wa) wa.onclick = async () => { if (mensaje) copiarSilencio(mensaje); try { await navigator.share(datos); close(); } catch (e) { if (!e || e.name !== "AbortError") { bajarArchivo(blob, nombre); close(); } } };
   bg.querySelector("#shBaj").onclick = () => { bajarArchivo(blob, nombre); close(); };
 }
 async function descargar(wb, nombre) {
@@ -882,11 +887,11 @@ async function exportarS89(lst, nombre) {
     });
     const bytes = await pdf.save(); const nom = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "") + ".pdf";
     const blob = new Blob([bytes], { type: "application/pdf" });
-    await entregar(blob, nom, `${lst.length} papeletas listas`);
+    await entregar(blob, nom, `${lst.length} papeletas listas`, `${saludoHora()}, hermanos 👋\nLes comparto las hojas de asignación (S-89) para la reunión Vida y Ministerio. Cada uno busque la suya y prepárese con tiempo. ¡Gracias! 🙏`);
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 /* ================= PDF de Vida y Ministerio (mismo diseño del Excel) ================= */
-async function pdfVmc(semanas, titulo) {
+async function pdfVmc(semanas, titulo, mensaje) {
   document.body.classList.add("loading");
   try {
     const L = await cargarPdfLib(); const pdf = await L.PDFDocument.create(); pdf.setTitle(titulo); pdf.setAuthor("CRABS · Congregación Tierra Baja");
@@ -955,7 +960,7 @@ async function pdfVmc(semanas, titulo) {
     paginas.forEach((p, i) => { p.drawText("CRABS · Congregación Tierra Baja", { x: M, y: 12, size: 7, font: FN, color: hex("777777") }); const t = `Página ${i + 1} de ${paginas.length}`; p.drawText(t, { x: PW - M - FN.widthOfTextAtSize(t, 7), y: 12, size: 7, font: FN, color: hex("777777") }); });
     const bytes = await pdf.save(); const nom_ = titulo.normalize("NFD").replace(/[̀-ͯ]/g, "") + ".pdf";
     const blob = new Blob([bytes], { type: "application/pdf" });
-    await entregar(blob, nom_, "PDF listo");
+    await entregar(blob, nom_, "PDF listo", mensaje || `${saludoHora()}, hermanos 👋\nLes comparto el programa de Vida y Ministerio ${semanas.length === 1 ? `de la semana ${tituloSemana(semanas[0][0])}` : `de ${mesNombre(CG.mes)}`}.\nPor favor revisen sus asignaciones y, si alguno tiene algún inconveniente, avísenme con tiempo. ¡Muchas gracias! 🙏`);
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 async function xlsVmc(X) {
