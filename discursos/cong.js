@@ -114,7 +114,7 @@ async function conExcel(fn) {
 const SEC = {
   pub: { titulo: "Publicadores", sub: "Grupos de servicio", tabs: [["lista", "Por grupo"], ["usuarios", "Usuarios y PIN"]] },
   pred: { titulo: "Predicación", sub: "Salidas y territorios", tabs: [["horario", "Horario"], ["terr", "Territorios"], ["stats", "📊 Estadísticas"]] },
-  reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"], ["asist", "Asistencia"], ["rot", "📊 Rotación"]] },
+  reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"], ["asist", "Asistencia"]] },
   inf: { titulo: "Informes", sub: "Informe mensual por grupo", tabs: [] },
   rec: { titulo: "Recordatorios", sub: "Aseo, hospitalidad y eventos", tabs: [["aseo", "Aseo y hospitalidad"], ["eventos", "Eventos"]] },
   avi: { titulo: "Notificaciones", sub: "Cambios de toda la congregación", tabs: [] }
@@ -550,7 +550,8 @@ async function xlsTerritorios(X) {
 function vReu() { return CG.tab === "acomod" ? vAcomod() : CG.tab === "asist" ? vAsist() : CG.tab === "rot" ? vRot() : vVmc(); }
 
 /* ================= ROTACIÓN: cómo van repartidas las asignaciones ================= */
-let ROT = "est";
+let ROT = "est", ROT_VOLVER = "vmc";
+function abrirRot(desde, tipo) { ROT_VOLVER = desde; if (tipo) ROT = tipo; CG.tab = "rot"; vRot(); }
 const ROT_TIPOS = { est: "Estudiantes", nomb: "Partes y oraciones", acom: "Acomodadores y audio" };
 // Todas las asignaciones como { id, f (fecha), tipo, que }
 function todasAsign() {
@@ -577,14 +578,15 @@ function vRot() {
   const filaHtml = x => `<div class="pend"><span><b>${esc(x.p.nombre)}</b><small>${x.ult ? `Última: ${esc(x.ult.que)} · ${corto(x.ult.f)} (${hace(x.ult.f, hoy)})` : "Sin asignación registrada"}</small></span><span class="pill ${!x.ult ? "t-bad" : dias(x.ult.f, hoy) > 90 ? "t-warn" : "t-ok"}">${x.ult ? hace(x.ult.f, hoy).replace("hace ", "") : "nunca"}</span></div>`;
   const prox = filas.filter(x => x.prox).sort((a, b) => a.prox.f < b.prox.f ? -1 : 1);
   const top = filas.filter(x => x.n6).sort((a, b) => b.n6 - a.n6).slice(0, 10);
-  let h = tabs(SEC.reu.tabs) + `<div class="roles ctabs" style="margin-bottom:10px">${Object.entries(ROT_TIPOS).map(([k, t]) => `<button class="chipo ${ROT === k ? "" : "off"}" data-rot="${k}">${t}</button>`).join("")}</div>
+  let h = `<button class="btn line" id="rotVolver" style="width:100%;margin-bottom:12px">‹ Volver a Reuniones</button><div class="label" style="margin-top:0">📊 Rotación de asignaciones</div><div class="roles ctabs" style="margin-bottom:10px">${Object.entries(ROT_TIPOS).map(([k, t]) => `<button class="chipo ${ROT === k ? "" : "off"}" data-rot="${k}">${t}</button>`).join("")}</div>
     <div class="kpis" style="grid-template-columns:1fr 1fr 1fr"><div class="kpi"><span class="n">${elegibles.length}</span><span class="l">${ROT === "est" ? "Publicadores" : "Hermanos"}</span></div><div class="kpi"><span class="n">${conAlgo}</span><span class="l">Con asignación (3 meses)</span></div><div class="kpi"><span class="n">${elegibles.length - conAlgo}</span><span class="l">Sin asignación</span></div></div>
     <p class="note" style="margin:6px 4px 12px">${ROT === "est" ? "Lectura de la Biblia y partes de Seamos mejores maestros (titular y ayudante)." : ROT === "nomb" ? "Presidente, oraciones, discursos, perlas, consejero, Nuestra vida cristiana, estudio y lector. Solo hermanos bautizados." : "Presidente y lector del fin de semana, acomodadores, micrófonos y plataforma."} ${primero ? `Cuenta desde ${corto(primero)}, que es lo que hay cargado en la app.` : "Todavía no hay asignaciones cargadas."}</p>
     <details class="plg" open><summary>⏳ Llevan más tiempo sin asignación <span class="pill t-warn">${elegibles.length - conAlgo}</span></summary><div class="card spad" style="margin-top:8px">${espera.slice(0, 15).map(filaHtml).join("") || `<p class="note">Todos tienen algo programado 🙌</p>`}
       ${espera.length > 15 ? `<details class="mas"><summary>Ver los otros ${espera.length - 15}</summary>${espera.slice(15).map(filaHtml).join("")}</details>` : ""}</div></details>
     <details class="plg"><summary>📅 Ya tienen asignación próxima <span class="pill t-ok">${prox.length}</span></summary><div class="card spad" style="margin-top:8px">${prox.map(x => `<div class="pend"><span><b>${esc(x.p.nombre)}</b><small>${esc(x.prox.que)}</small></span><span class="pill t-ok">${corto(x.prox.f)}</span></div>`).join("") || `<p class="note">Nada programado todavía.</p>`}</div></details>
     <details class="plg"><summary>🔁 Los que más asignaciones han tenido (6 meses)</summary><div class="card spad" style="margin-top:8px">${top.length ? barras(top.map(x => ({ l: esc(nomCorto(x.p.id)), v: x.n6 }))) : `<p class="note">Sin datos todavía.</p>`}</div></details>`;
-  $("#cview").innerHTML = h; bindTabs();
+  $("#cview").innerHTML = h; window.scrollTo(0, 0);
+  $("#rotVolver").onclick = () => { CG.tab = ROT_VOLVER; cRender(); };
   document.querySelectorAll("[data-rot]").forEach(b => b.onclick = () => { ROT = b.dataset.rot; vRot(); });
 }
 
@@ -685,9 +687,10 @@ function vVmc() {
     const est = !d ? ["Vacío", "t-idle"] : sinReunion(d) ? ["Sin reunión", "t-warn"] : n >= 15 ? ["Completo", "t-ok"] : n ? [`${n} asignados`, "t-info"] : ["Falta asignar", "t-bad"];
     h += `<button class="card trow" data-sem="${l}"><span class="dpill" style="background:${sinReunion(d) ? "var(--warn-soft);color:var(--warn)" : "var(--accent-soft);color:var(--accent)"}">${fd(l).d}–${fd(sumDias(l, 6)).d}</span><div style="flex:1;min-width:0;text-align:left"><b>Semana ${tituloSemana(l)}</b><div class="note">${d ? (sinReunion(d) ? esc(d.evento + (d.eventoTema ? " · " + d.eventoTema : "")) + " · no hay reunión" : esc(d.lectura || "Sin lectura") + (d.t1.titulo ? " · " + esc(d.t1.titulo) : "")) : "Sin programa"}</div></div><span class="pill ${est[1]}">${est[0]}</span></button>`;
   }
-  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}<button class="btn line" id="pdfVmc">📄 PDF del mes</button>${cAdmin() ? `<button class="btn line" id="s89Mes">📄 Papeletas S-89 del mes</button>` : ""}</div>`;
+  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}<button class="btn line" id="pdfVmc">📄 PDF del mes</button><button class="btn line" id="rotVmc">📊 Rotación de asignaciones</button>${cAdmin() ? `<button class="btn line" id="s89Mes">📄 Papeletas S-89 del mes</button>` : ""}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-sem]").forEach(b => b.onclick = () => fichaVmc(b.dataset.sem));
+  $("#rotVmc").onclick = () => abrirRot("vmc");
   $("#pdfVmc").onclick = () => pdfVmc(semanasMes(CG.mes).map(l => { const r = R("vmc").find(x => x.k === l); return [l, r && r.d]; }), `Vida y Ministerio ${mesNombre(CG.mes)}`);
   if ($("#s89Mes")) $("#s89Mes").onclick = () => exportarS89(semanasMes(CG.mes).flatMap(l => { const r = R("vmc").find(x => x.k === l); return papeletas(r && r.d, l); }), `Papeletas S-89 ${mesNombre(CG.mes)}`);
   if ($("#jwMes")) $("#jwMes").onclick = async () => {
@@ -1012,8 +1015,9 @@ function vAcomod() {
     h += `<div class="label">${REU[tipo]}</div><div class="card" style="padding:4px 0;overflow-x:auto"><table class="ctable"><thead><tr><th>Fecha</th>${tipo !== "entre" ? "<th>Presidente</th><th>Lector</th>" : ""}<th>Acomodador</th><th>Micrófonos</th><th>Plataforma</th></tr></thead><tbody>
       ${l.length ? l.map(r => `<tr data-aid="${r.id}"><td><b>${corto(r.k)}</b></td>${tipo !== "entre" ? `<td>${esc(nomCorto(r.d.presidente))}</td><td>${esc(nomCorto(r.d.lector))}</td>` : ""}<td>${esc(nomCorto(r.d.acomodador))}</td><td>${(r.d.microfonos || []).filter(Boolean).map(nomCorto).map(esc).join("<br>")}</td><td>${esc(nomCorto(r.d.plataforma))}</td></tr>`).join("") : `<tr><td colspan="6" class="note" style="text-align:center;padding:14px">Sin asignaciones este mes</td></tr>`}</tbody></table></div>`;
   }
-  h += `<div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn pri" id="nuevoA">+ Asignación</button>` : ""}${btnExcel("xlsAc", "Excel del mes")}</div>`;
+  h += `<div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn pri" id="nuevoA">+ Asignación</button>` : ""}${btnExcel("xlsAc", "Excel del mes")}<button class="btn line" id="rotAc">📊 Rotación</button></div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
+  $("#rotAc").onclick = () => abrirRot("acomod", "acom");
   document.querySelectorAll("[data-aid]").forEach(t => t.onclick = () => fichaAcomod(R("acomod").find(r => r.id === t.dataset.aid)));
   if ($("#nuevoA")) $("#nuevoA").onclick = () => fichaAcomod(null);
   $("#xlsAc").onclick = () => conExcel(xlsAcomod);
