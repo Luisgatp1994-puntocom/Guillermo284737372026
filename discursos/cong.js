@@ -838,7 +838,7 @@ async function pdfVmc(semanas, titulo) {
     const FN = await pdf.embedFont(L.StandardFonts.Helvetica), FB = await pdf.embedFont(L.StandardFonts.HelveticaBold), FBI = await pdf.embedFont(L.StandardFonts.HelveticaBoldOblique);
     const hex = h => L.rgb(parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255);
     const NEGRO = "000000", VERDE = "2E6E4E", TEAL = "067876", ORO = "A0701B", ROJO = "8A0B14", GRIS = "8C8C8C";
-    const PW = 595.28, PH = 841.89, M = 24, RH = 16.5, AN = [36, 31, 12, 21, 15, 35], esc_ = (PW - 2 * M) / AN.reduce((a, b) => a + b);
+    const una = semanas.length === 1, PW = una ? 841.89 : 595.28, PH = una ? 595.28 : 841.89, M = una ? 30 : 24; let RH = 16.5, FS = 1; const AN = [36, 31, 12, 21, 15, 35], esc_ = (PW - 2 * M) / AN.reduce((a, b) => a + b);
     const X = [M]; AN.forEach(w => X.push(X[X.length - 1] + w * esc_)); const COL = c => "ABCDEF".indexOf(c);
     const seguro = t => String(t ?? "").replace(/[●◦]/g, "•").replace(/[^\x20-\x7E -ÿ•–—‘’“”…€]/g, "");
     const MX = t => String(t || "").toUpperCase(), N = id => MX(nom(id));
@@ -848,10 +848,10 @@ async function pdfVmc(semanas, titulo) {
     // texto de varias partes dentro de las columnas c1..c2, encogido si no cabe
     const rich = (c1, c2, partes, o = {}) => {
       const x0 = X[COL(c1)] + 3, x1 = X[COL(c2) + 1] - 3, ancho = x1 - x0; let k = 1;
-      const medir = k => partes.reduce((s, [t, f = {}]) => s + fnt(f).widthOfTextAtSize(seguro(t), (f.size || 10.5) * .86 * k), 0);
+      const medir = k => partes.reduce((s, [t, f = {}]) => s + fnt(f).widthOfTextAtSize(seguro(t), (f.size || 10.5) * .86 * FS * k), 0);
       while (medir(k) > ancho && k > .5) k -= .04;
       const tot = medir(k); let x = o.align === "right" ? x1 - tot : o.align === "center" ? x0 + (ancho - tot) / 2 : x0;
-      partes.forEach(([t, f = {}]) => { const sz = (f.size || 10.5) * .86 * k, tt = seguro(t); pg.drawText(tt, { x, y: y - RH / 2 - sz * .35, size: sz, font: fnt(f), color: hex(f.color || NEGRO) }); x += fnt(f).widthOfTextAtSize(tt, sz); });
+      partes.forEach(([t, f = {}]) => { const sz = (f.size || 10.5) * .86 * FS * k, tt = seguro(t); pg.drawText(tt, { x, y: y - RH / 2 - sz * .35, size: sz, font: fnt(f), color: hex(f.color || NEGRO) }); x += fnt(f).widthOfTextAtSize(tt, sz); });
     };
     const put = (c1, c2, t, o = {}) => { if (o.fill) pg.drawRectangle({ x: X[COL(c1)], y: y - RH, width: X[COL(c2) + 1] - X[COL(c1)], height: RH, color: hex(o.fill) }); if (o.box) pg.drawRectangle({ x: X[COL(c1)], y: y - RH, width: X[COL(c2) + 1] - X[COL(c1)], height: RH, borderColor: hex(NEGRO), borderWidth: .5 }); rich(c1, c2, [[t, o]], o); };
     const nombre = (c1, c2, id, o = {}) => put(c1, c2, N(id), { align: "center", box: true, fill: o.fill, color: o.color });
@@ -859,6 +859,7 @@ async function pdfVmc(semanas, titulo) {
     const sala = (l1, p, l2, a, chico) => { put("B", "B", l1, { bold: false, align: "right", size: chico ? 9 : 10.5 }); nombre("C", "D", p); put("E", "E", l2, { bold: false, align: "right", size: chico ? 9 : 10.5 }); nombre("F", "F", a); y -= RH; };
     const linea = () => pg.drawLine({ start: { x: X[0], y: y }, end: { x: X[6], y: y }, thickness: .5, color: hex(NEGRO) });
     const filas = d => !d || sinReunion(d) ? 2 : 13 + d.maestros.reduce((s, m) => s + (m.pa || m.aa ? 3 : 2), 0) + d.vida.length;
+    if (una) { const d1 = semanas[0][1] ? { ...VMC_BASE(), ...semanas[0][1] } : null; RH = Math.min(34, (PH - 2 * M - 16) / filas(d1)); FS = Math.min(1.75, RH / 16.5); }
     nueva();
     for (const [l, d0] of semanas) {
       const d = d0 ? { ...VMC_BASE(), ...d0 } : null;
