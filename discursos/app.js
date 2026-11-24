@@ -172,6 +172,9 @@ $("#hubBell").onclick=()=>abrirCong("avi");
 $("#cBack").onclick=()=>cVolver();
 $("#cBell").onclick=()=>abrirCong("avi");
 function cambiarTema(){const r=document.documentElement,dark=r.dataset.theme==="dark";r.dataset.theme=dark?"light":"dark";LS.set("dtb_tema",r.dataset.theme)}
+// Corrector ortográfico del teclado en todos los campos de texto (menos los que lo apagan a propósito: búsqueda, PIN)
+function activarOrtografia(raiz){(raiz.querySelectorAll?raiz:document).querySelectorAll('input:not([type]),input[type="text"],textarea').forEach(t=>{if(t.hasAttribute("autocorrect")||t.dataset.orto)return;t.dataset.orto="1";t.spellcheck=true;t.setAttribute("autocorrect","on");if(!t.hasAttribute("autocapitalize"))t.setAttribute("autocapitalize","sentences");t.lang="es"})}
+try{activarOrtografia(document);new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1){if(n.matches&&n.matches("input,textarea"))activarOrtografia(n.parentNode||document);else activarOrtografia(n)}}))).observe(document.body,{childList:true,subtree:true})}catch(e){}
 // Apariencia: modo claro/oscuro y tamaño de letra (como en JW Library)
 const ZOOMS=[.88,.94,1,1.07,1.14,1.22,1.3,1.4,1.5,1.62];
 function ponerZoom(i){const z=ZOOMS[i]||1;document.documentElement.style.setProperty("--z",z);document.documentElement.classList.toggle("zm",z!==1);LS.set("dtb_zoom",String(i))}

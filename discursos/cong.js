@@ -58,6 +58,7 @@ const esHermano = p => p.sexo === "H";
 const esNombrado = p => p.privilegio === "anciano" || p.privilegio === "siervo";
 const val = (bg, id) => { const e = bg.querySelector("#" + id); return e ? e.value.trim() : ""; };
 const campo = (lab, html) => `<div class="cf"><span class="flab">${lab}</span>${html}</div>`;
+const mayus = t => (t = String(t || "").trim()) ? t[0].toUpperCase() + t.slice(1) : t;
 const inp = (id, v, ph, extra) => `<input id="${id}" value="${esc(v || "")}" placeholder="${esc(ph || "")}" ${extra || ""}>`;
 function mesSelector(onCambio) {
   return { html: `<div class="mesnav"><button class="x" data-mes="-1" aria-label="Mes anterior">‹</button><label class="mespick"><b>${mesNombre(CG.mes)} ▾</b><input type="month" id="mesPick" value="${CG.mes}"></label><button class="x" data-mes="1" aria-label="Mes siguiente">›</button></div>`,
@@ -735,8 +736,8 @@ function fichaVmc(l) {
       const leer = () => {
         if (sinR) return { ...d, evento: val(bg, "vE"), eventoTema: val(bg, "vEt"), lectura: val(bg, "vL") };
         const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "" }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
-        bg.querySelectorAll("#vMae .vpart").forEach((_, i) => nd.maestros.push({ titulo: val(bg, "mT" + i), min: val(bg, "mM" + i), ref: val(bg, "mR" + i), p: val(bg, "mP" + i), pa: val(bg, "mPA" + i), a: val(bg, "mA" + i), aa: val(bg, "mAA" + i) }));
-        let i = 0; while (q("#vV" + i)) { const vid = q("#vVv" + i).checked; nd.vida.push({ titulo: val(bg, "vV" + i), min: val(bg, "vVm" + i) || "15", video: vid, texto: vid ? val(bg, "vVt" + i) : "", p: vid ? "" : val(bg, "vVp" + i) }); i++; }
+        bg.querySelectorAll("#vMae .vpart").forEach((_, i) => nd.maestros.push({ titulo: mayus(val(bg, "mT" + i)), min: val(bg, "mM" + i), ref: val(bg, "mR" + i), p: val(bg, "mP" + i), pa: val(bg, "mPA" + i), a: val(bg, "mA" + i), aa: val(bg, "mAA" + i) }));
+        let i = 0; while (q("#vV" + i)) { const vid = q("#vVv" + i).checked; nd.vida.push({ titulo: mayus(val(bg, "vV" + i)), min: val(bg, "vVm" + i) || "15", video: vid, texto: vid ? mayus(val(bg, "vVt" + i)) : "", p: vid ? "" : val(bg, "vVp" + i) }); i++; }
         return nd;
       };
       const repintar = () => { d = leer(); q("#vCuerpo").innerHTML = cuerpo(); enlazar(); programar(); };
