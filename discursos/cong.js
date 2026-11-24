@@ -183,7 +183,7 @@ function cRender() {
   const fn = { pub: vPub, pred: vPred, reu: vReu, inf: vInf, rec: vRec, avi: vAvi }[CG.sec];
   fn();
 }
-function cVolver() { $("#cong").hidden = true; mostrarInicio(); }
+function cVolver() { if ($("#cong").classList.contains("mie")) return mieIr(null); $("#cong").hidden = true; mostrarInicio(); }
 
 /* ================= PUBLICADORES ================= */
 let fPub = "";
@@ -1709,7 +1709,7 @@ async function abrirMiEspacio() {
   $("#cview").innerHTML = `<div class="note" style="padding:30px;text-align:center">Cargando tu información…</div>`;
   try { const d = await rpc("pub_data", {}); CG.me = { ...d.me, rol: "publicador" }; CG.personas = d.personas || []; CG.reg = d.reg || []; }
   catch (e) { $("#cview").innerHTML = `<div class="card note" style="padding:20px">${esc(e.message)}</div><button class="btn line" style="width:100%;margin-top:12px" onclick="salir()">Salir</button>`; return; }
-  vMiEspacio();
+  MIE.vista = null; vMiEspacio();
 }
 function misAsignaciones(desde, hasta) {
   const yo = CG.me.persona, out = [];
@@ -1734,7 +1734,12 @@ function misAsignaciones(desde, hasta) {
   meses.forEach(m => salidasDelMes(m).forEach(x => { if (x.r.d.capitan === yo) add(x.f, "Capitán de predicación", `${x.r.d.hora || ""} · ${x.r.d.lugar || ""}${x.r.d.territorio ? " · " + nomTerr(x.r.d.territorio) : ""}`, "🗺️"); }));
   return out.sort((a, b) => a.f < b.f ? -1 : 1);
 }
+function mieIr(v) { MIE.vista = v; vMiEspacio(); }
 function vMiEspacio() {
+  const V = MIE.vista && permPub(MIE.vista) ? MIE.vista : null;
+  const TIT = { asig: ["Mis asignaciones", "Reuniones, acomodadores y predicación"], pred: ["Predicación", "Salidas de la semana"], rec: ["Recordatorios", "Aseo de tu grupo y eventos"], inf: ["Mi informe", "Tu informe de cada mes"] };
+  document.querySelector("#cong .top").hidden = !V; $("#cBack").hidden = !V; $("#cBell").hidden = true;
+  if (V) { $("#ctit").textContent = TIT[V][0]; $("#csub").textContent = TIT[V][1]; }
   const yo = CG.me; const hoy = HOY; const hasta = (() => { const m = mesMas(hoy.slice(0, 7), 1); return diasMes(m).pop(); })();
   const marca = document.querySelector(".hubbrand") ? document.querySelector(".hubbrand").outerHTML : "";
   const dS = new Date(hoy + "T12:00:00"); const fechaL = (t => t[0].toUpperCase() + t.slice(1))(dS.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" }));
@@ -1742,7 +1747,7 @@ function vMiEspacio() {
   const asig = permPub("asig") ? misAsignaciones(hoy, hasta) : [];
   const sem7 = sumDias(hoy, 6);
   // ---- Encabezado igual al inicio
-  let h = `<div class="hubtop mie-top">${marca}<div class="hubicons"><button class="ico-btn" id="mieTema" aria-label="Apariencia">${document.querySelector(".btnTema") ? document.querySelector(".btnTema").innerHTML : "☾"}</button><button class="ico-btn" id="mieSalir2" aria-label="Salir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></button></div></div>
+  let h = "", home = `<div class="hubtop mie-top">${marca}<div class="hubicons"><button class="ico-btn" id="mieTema" aria-label="Apariencia">${document.querySelector(".btnTema") ? document.querySelector(".btnTema").innerHTML : "☾"}</button><button class="ico-btn" id="mieSalir2" aria-label="Salir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></button></div></div>
     <h1 class="hubtitle">${saludo()}, ${esc(yo.nombre.split(" ")[0])}</h1>
     <div class="hubsub"><span>${fechaL}</span><span class="pill t-acc">Publicador</span><span class="pill t-idle">Grupo ${yo.grupo} · ${HOR[yo.horario] || ""}</span></div>`;
   // ---- Esta semana: mis asignaciones de los próximos 7 días + sábado + jueves
@@ -1756,7 +1761,7 @@ function vMiEspacio() {
     if (vm && vm.d && jue <= sem7) items.push(sinReunion(vm.d) ? { f: jue, o: 1, t: vm.d.evento, s: "No hay reunión entre semana" } : { f: jue, t: "Vida y Ministerio", s: `Lectura: ${vm.d.lectura || ""}` });
   }
   items.sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : (a.c === "mia" ? -1 : 1));
-  h += `<div class="hweek"><div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Mi semana</div>
+  home += `<div class="hweek"><div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Mi semana</div>
     ${items.length ? items.map(x => { const dd = new Date(x.f + "T12:00:00"); return `<div class="hev"><span class="d ${x.o ? "o" : x.c === "mia" ? "m" : ""}">${DS[dd.getDay()]}<small>${dd.getDate()} ${MES[dd.getMonth()].slice(0, 3)}</small></span><span style="min-width:0"><b>${esc(x.t)}</b><span class="s">${esc(x.s)}</span></span>${x.c === "mia" ? `<span class="pill t-warn" style="margin-left:auto;flex:none">Tuya</span>` : ""}</div>`; }).join("") : `<p class="note" style="padding:8px 0 10px">Esta semana no tienes asignaciones. 🙌</p>`}</div>`;
   // ---- Contadores
   const mi = mesesInforme(); const mAnt = mesMas(hoy.slice(0, 7), -1); const infAnt = infDe(mAnt);
@@ -1765,45 +1770,46 @@ function vMiEspacio() {
   if (permPub("asig")) c.push([asig.length, "Asignaciones próximas", "var(--accent)", "mieA"]);
   if (permPub("inf")) c.push([infAnt ? "✓" : "!", infAnt ? `Informe de ${MES[+mAnt.slice(5) - 1]} enviado` : `Falta tu informe de ${MES[+mAnt.slice(5) - 1]}`, infAnt ? "var(--ok)" : "var(--warn)", "mieI"]);
   if (permPub("pred")) c.push([nSal, "Salidas de predicación esta semana", "var(--ok)", "mieP"]);
-  if (c.length) h += `<div class="hcnt" style="grid-template-columns:repeat(${c.length},1fr)">${c.map(([n, t, col, to]) => `<button data-ir="${to}"><b style="color:${col}">${n}</b><small>${t}</small></button>`).join("")}</div>`;
+  if (c.length) home += `<div class="hcnt" style="grid-template-columns:repeat(${c.length},1fr)">${c.map(([n, t, col, to]) => `<button data-ir="${to}"><b style="color:${col}">${n}</b><small>${t}</small></button>`).join("")}</div>`;
   // ---- Secciones
   const SEC = [["mieA", "asig", "Mis asignaciones", "Reuniones, acomodadores y predicación", "t-acc", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>'],
     ["mieP", "pred", "Predicación", "Salidas de la semana", "t-ok", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>'],
     ["mieR", "rec", "Recordatorios", "Aseo de tu grupo y eventos", "t-warn", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg>'],
     ["mieI", "inf", "Mi informe", "Envíalo cada mes", "t-cyan", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>']].filter(x => permPub(x[1]));
-  if (SEC.length) h += `<div class="label" style="margin:4px 6px 10px">Secciones</div><div class="hubgrid">${SEC.map(([to, , n, d, tono, ico]) => `<button class="hcard cuad" data-ir="${to}"><span class="tile ${tono}">${ico}</span><span class="txt"><b>${n}</b><small>${d}</small></span></button>`).join("")}</div>`;
+  if (SEC.length) home += `<div class="label" style="margin:4px 6px 10px">Secciones</div><div class="hubgrid">${SEC.map(([to, , n, d, tono, ico]) => `<button class="hcard cuad" data-ir="${to}"><span class="tile ${tono}">${ico}</span><span class="txt"><b>${n}</b><small>${d}</small></span></button>`).join("")}</div>`;
   // ---- Detalle de cada sección
-  if (permPub("asig")) {
-    h += `<div class="label" id="mieA" style="margin-top:22px">Mis asignaciones</div>`;
+  if (V === "asig") {
     const filaA = x => { const F = fd(x.f); const dd = dias(hoy, x.f); return `<div class="card srow mie-a"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)"><small>${DIAS[isoDia(x.f)].slice(0, 3)}</small>${F.d} ${F.m.slice(0, 3)}</span><div style="flex:1;min-width:0"><b>${x.ico} ${esc(x.que)}</b><div class="note">${esc(x.det)}</div></div>${dd <= 7 ? `<span class="pill t-warn">${dd === 0 ? "Hoy" : dd === 1 ? "Mañana" : `En ${dd} días`}</span>` : ""}</div>`; };
     h += asig.length ? `<div class="list">${asig.slice(0, 3).map(filaA).join("")}</div>${asig.length > 3 ? `<details class="mas"><summary>Ver las otras ${asig.length - 3} asignaciones</summary><div class="list" style="margin-top:8px">${asig.slice(3).map(filaA).join("")}</div></details>` : ""}`
       : `<div class="card note" style="padding:16px">No tienes asignaciones de aquí a fin del próximo mes. 🙌</div>`;
   }
-  if (permPub("pred")) {
+  if (V === "pred") {
     const sal = [hoy.slice(0, 7), mesMas(hoy.slice(0, 7), 1)].flatMap(m => salidasDelMes(m)).filter(x => x.f >= hoy && x.f <= sem7);
     const dias7 = [0, 1, 2, 3, 4, 5, 6].map(n => sumDias(hoy, n));
     if (!MIE.dia || !dias7.includes(MIE.dia)) MIE.dia = (sal[0] || {}).f || hoy;
-    h += `<div class="label" id="mieP">Predicación de la semana</div><div class="card spad"><div class="wk">${dias7.map(f => { const n = sal.filter(x => x.f === f).length; const dd = isoDia(f);
+    h += `<div class="card spad"><div class="wk">${dias7.map(f => { const n = sal.filter(x => x.f === f).length; const dd = isoDia(f);
       return `<button class="wkd ${f === MIE.dia ? "on" : ""}" data-wd="${f}" style="--c:#${COLOR_DIA[dd]}"><small>${f === hoy ? "Hoy" : DIAS[dd].slice(0, 3)}</small><b>${fd(f).d}</b><i>${n ? "•".repeat(Math.min(n, 3)) : "–"}</i></button>`; }).join("")}</div><div id="wkDet"></div></div>`;
   }
-  if (permPub("rec")) {
+  if (V === "rec") {
     let prox = null; for (let i = 0; i < 12 && !prox; i++) { const l = sumDias(lunesDe(hoy), 7 * i); const [hh, g] = grupoSemana(l); if (hh === yo.horario && +g === +yo.grupo) prox = l; }
     const ev = R("evento").filter(e => (e.d.hasta || e.k) >= hoy).sort((a, b) => a.k < b.k ? -1 : 1).slice(0, 3);
-    h += `<div class="label" id="mieR">Recordatorios</div><div class="list">`;
+    h += `<div class="list">`;
     if (prox) h += `<div class="card srow"><span class="dpill" style="background:var(--warn-soft);color:var(--warn)">🧹</span><div style="flex:1"><b>Aseo y hospitalidad de tu grupo</b><div class="note">${lunesDe(hoy) === prox ? "¡Es esta semana!" : `Semana del ${fd(prox).d} de ${fd(prox).m}`}</div></div></div>`;
     ev.forEach(e => { h += `<div class="card srow"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)">${fd(e.k).d} ${fd(e.k).m.slice(0, 3)}</span><div style="flex:1"><b>${esc(e.d.titulo || e.d.tipo || "Evento")}</b>${e.d.hasta && e.d.hasta !== e.k ? `<div class="note">Hasta el ${fd(e.d.hasta).d} de ${fd(e.d.hasta).m}</div>` : ""}</div></div>`; });
     if (!prox && !ev.length) h += `<div class="card note" style="padding:16px">Sin recordatorios por ahora.</div>`;
     h += `</div>`;
   }
-  if (permPub("inf")) h += `<div class="label" id="mieI">Mi informe</div><div id="mieInf"></div>`;
-  h += `<button class="btn line" style="width:100%;margin-top:18px" id="mieSalir">Salir</button>`;
+  if (V === "inf") h += `<div id="mieInf"></div>`;
+  if (!V) h = home + `<button class="btn line" style="width:100%;margin-top:18px" id="mieSalir">Salir</button>`;
+  else h += `<button class="btn line" style="width:100%;margin-top:18px" id="mieVolver">‹ Volver a Mi espacio</button>`;
   $("#cview").innerHTML = h; scrollTo(0, 0);
-  const fuera = () => { $("#cBack").hidden = false; $("#cBell").hidden = false; document.querySelector("#cong .top").hidden = false; $("#cong").classList.remove("mie"); $("#cong").hidden = true; salir(); };
-  $("#mieSalir").onclick = fuera; $("#mieSalir2").onclick = fuera;
-  $("#mieTema").onclick = () => typeof abrirApariencia === "function" ? abrirApariencia() : cambiarTema();
-  document.querySelectorAll("#cview [data-ir]").forEach(b => b.onclick = () => { const t = document.getElementById(b.dataset.ir); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); });
-  if (permPub("inf")) pintaMiInforme();
-  if (permPub("pred")) pintaDiaPred();
+  const fuera = () => { MIE.vista = null; $("#cBack").hidden = false; $("#cBell").hidden = false; document.querySelector("#cong .top").hidden = false; $("#cong").classList.remove("mie"); $("#cong").hidden = true; salir(); };
+  if (!V) { $("#mieSalir").onclick = fuera; $("#mieSalir2").onclick = fuera; $("#mieTema").onclick = () => typeof abrirApariencia === "function" ? abrirApariencia() : cambiarTema(); }
+  else $("#mieVolver").onclick = () => mieIr(null);
+  const IR = { mieA: "asig", mieP: "pred", mieR: "rec", mieI: "inf" };
+  document.querySelectorAll("#cview [data-ir]").forEach(b => b.onclick = () => mieIr(IR[b.dataset.ir]));
+  if (V === "inf") pintaMiInforme();
+  if (V === "pred") pintaDiaPred();
 }
 function pintaDiaPred() {
   const box = $("#wkDet"); if (!box) return;
