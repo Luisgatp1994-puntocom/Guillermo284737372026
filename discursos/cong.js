@@ -1704,7 +1704,7 @@ let MIE = { mesInf: null };
 const permPub = k => { const l = (PERM && PERM.publicador) || ["asig", "semana", "pred", "rec", "inf"]; return l.includes(k); };
 async function abrirMiEspacio() {
   $("#login").hidden = true; $("#hub").hidden = true; $("#app").hidden = true; $("#fab").hidden = true; $("#cong").hidden = false;
-  $("#cBack").hidden = true; $("#cBell").hidden = true;
+  $("#cBack").hidden = true; $("#cBell").hidden = true; document.querySelector("#cong .top").hidden = true; $("#cong").classList.add("mie");
   $("#ctit").textContent = "Mi espacio"; $("#csub").textContent = "Cargando…";
   $("#cview").innerHTML = `<div class="note" style="padding:30px;text-align:center">Cargando tu información…</div>`;
   try { const d = await rpc("pub_data", {}); CG.me = { ...d.me, rol: "publicador" }; CG.personas = d.personas || []; CG.reg = d.reg || []; }
@@ -1724,7 +1724,8 @@ function misAsignaciones(desde, hasta) {
       s(m.p, t, `Sala principal${m.pa ? " · ayudante: " + P2(m.pa) : ""}`); s(m.pa, `Ayudante en: ${t}`, `Sala principal · con ${P2(m.p)}`);
       s(m.a, t, `Sala auxiliar${m.aa ? " · ayudante: " + P2(m.aa) : ""}`); s(m.aa, `Ayudante en: ${t}`, `Sala auxiliar · con ${P2(m.a)}`); });
     (d.vida || []).forEach((v, i) => { if (!v.video) s(v.p, `${4 + (d.maestros || []).length + i}. ${v.titulo}`, `Nuestra vida cristiana · ${v.min || 15} min`); });
-    s(d.estudio.p, "Conductor del estudio bíblico de la congregación"); s(d.estudio.lector, "Lector del estudio bíblico"); s(d.oracion2, "Oración final");
+    if (d.evento !== "Visita del superintendente de circuito") { s(d.estudio.p, "Conductor del estudio bíblico de la congregación"); s(d.estudio.lector, "Lector del estudio bíblico"); }
+    if (!d.oracion2Sup) s(d.oracion2, "Oración final");
   });
   R("acomod").forEach(r => { const d = r.d; const reu = d.reunion === "entre" ? "Reunión de entre semana" : `Reunión del sábado · ${HOR[d.reunion] || ""}`;
     if (d.presidente === yo) add(r.k, "Presidente de la reunión pública", reu, "🎤"); if (d.lector === yo) add(r.k, "Lector de La Atalaya", reu, "📘");
@@ -1735,44 +1736,72 @@ function misAsignaciones(desde, hasta) {
 }
 function vMiEspacio() {
   const yo = CG.me; const hoy = HOY; const hasta = (() => { const m = mesMas(hoy.slice(0, 7), 1); return diasMes(m).pop(); })();
-  $("#csub").textContent = `${yo.nombre} · Grupo ${yo.grupo} · ${HOR[yo.horario] || ""}`;
-  let h = `<div class="mie-hola"><b>${saludo()}, ${esc(yo.nombre.split(" ")[0])}</b><span>Aquí está todo lo tuyo.</span></div>`;
+  const marca = document.querySelector(".hubbrand") ? document.querySelector(".hubbrand").outerHTML : "";
+  const dS = new Date(hoy + "T12:00:00"); const fechaL = (t => t[0].toUpperCase() + t.slice(1))(dS.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" }));
+  const DS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
+  const asig = permPub("asig") ? misAsignaciones(hoy, hasta) : [];
+  const sem7 = sumDias(hoy, 6);
+  // ---- Encabezado igual al inicio
+  let h = `<div class="hubtop mie-top">${marca}<div class="hubicons"><button class="ico-btn" id="mieTema" aria-label="Apariencia">${document.querySelector(".btnTema") ? document.querySelector(".btnTema").innerHTML : "☾"}</button><button class="ico-btn" id="mieSalir2" aria-label="Salir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></button></div></div>
+    <h1 class="hubtitle">${saludo()}, ${esc(yo.nombre.split(" ")[0])}</h1>
+    <div class="hubsub"><span>${fechaL}</span><span class="pill t-acc">Publicador</span><span class="pill t-idle">Grupo ${yo.grupo} · ${HOR[yo.horario] || ""}</span></div>`;
+  // ---- Esta semana: mis asignaciones de los próximos 7 días + sábado + jueves
+  const items = [];
+  asig.filter(x => x.f <= sem7).forEach(x => items.push({ f: x.f, t: `${x.ico} ${x.que}`, s: x.det, c: "mia" }));
+  if (permPub("semana")) {
+    const sab = (typeof sabados === "function" ? sabados() : []).find(p => p.f >= hoy && p.f <= sem7);
+    if (sab) { const o = sab.o ? H(sab.o) : null; items.push(sab.e === "evento" ? { f: sab.f, o: 1, t: "Sin reunión el sábado", s: "Asamblea o evento" } : { f: sab.f, t: sab.d ? `Discurso: «${tit(sab.d)}»` : "Discurso público", s: o ? `Hermano ${o.nombre}${C(o.cong) ? " · " + cname(o.cong) : ""}` : "Orador por confirmar" }); }
+    const jue = sumDias(lunesDe(hoy), 3) >= hoy ? sumDias(lunesDe(hoy), 3) : sumDias(lunesDe(hoy), 10);
+    const vm = R("vmc").find(r => r.k === lunesDe(jue));
+    if (vm && vm.d && jue <= sem7) items.push(sinReunion(vm.d) ? { f: jue, o: 1, t: vm.d.evento, s: "No hay reunión entre semana" } : { f: jue, t: "Vida y Ministerio", s: `Lectura: ${vm.d.lectura || ""}` });
+  }
+  items.sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : (a.c === "mia" ? -1 : 1));
+  h += `<div class="hweek"><div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Mi semana</div>
+    ${items.length ? items.map(x => { const dd = new Date(x.f + "T12:00:00"); return `<div class="hev"><span class="d ${x.o ? "o" : x.c === "mia" ? "m" : ""}">${DS[dd.getDay()]}<small>${dd.getDate()} ${MES[dd.getMonth()].slice(0, 3)}</small></span><span style="min-width:0"><b>${esc(x.t)}</b><span class="s">${esc(x.s)}</span></span>${x.c === "mia" ? `<span class="pill t-warn" style="margin-left:auto;flex:none">Tuya</span>` : ""}</div>`; }).join("") : `<p class="note" style="padding:8px 0 10px">Esta semana no tienes asignaciones. 🙌</p>`}</div>`;
+  // ---- Contadores
+  const mi = mesesInforme(); const mAnt = mesMas(hoy.slice(0, 7), -1); const infAnt = infDe(mAnt);
+  const nSal = permPub("pred") ? [hoy.slice(0, 7), mesMas(hoy.slice(0, 7), 1)].flatMap(m => salidasDelMes(m)).filter(x => x.f >= hoy && x.f <= sem7).length : 0;
+  const c = [];
+  if (permPub("asig")) c.push([asig.length, "Asignaciones próximas", "var(--accent)", "mieA"]);
+  if (permPub("inf")) c.push([infAnt ? "✓" : "!", infAnt ? `Informe de ${MES[+mAnt.slice(5) - 1]} enviado` : `Falta tu informe de ${MES[+mAnt.slice(5) - 1]}`, infAnt ? "var(--ok)" : "var(--warn)", "mieI"]);
+  if (permPub("pred")) c.push([nSal, "Salidas de predicación esta semana", "var(--ok)", "mieP"]);
+  if (c.length) h += `<div class="hcnt" style="grid-template-columns:repeat(${c.length},1fr)">${c.map(([n, t, col, to]) => `<button data-ir="${to}"><b style="color:${col}">${n}</b><small>${t}</small></button>`).join("")}</div>`;
+  // ---- Secciones
+  const SEC = [["mieA", "asig", "Mis asignaciones", "Reuniones, acomodadores y predicación", "t-acc", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>'],
+    ["mieP", "pred", "Predicación", "Salidas de la semana", "t-ok", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>'],
+    ["mieR", "rec", "Recordatorios", "Aseo de tu grupo y eventos", "t-warn", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg>'],
+    ["mieI", "inf", "Mi informe", "Envíalo cada mes", "t-cyan", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>']].filter(x => permPub(x[1]));
+  if (SEC.length) h += `<div class="label" style="margin:4px 6px 10px">Secciones</div><div class="hubgrid">${SEC.map(([to, , n, d, tono, ico]) => `<button class="hcard cuad" data-ir="${to}"><span class="tile ${tono}">${ico}</span><span class="txt"><b>${n}</b><small>${d}</small></span></button>`).join("")}</div>`;
+  // ---- Detalle de cada sección
   if (permPub("asig")) {
-    const a = misAsignaciones(hoy, hasta);
-    h += `<div class="label">Mis asignaciones</div>`;
+    h += `<div class="label" id="mieA" style="margin-top:22px">Mis asignaciones</div>`;
     const filaA = x => { const F = fd(x.f); const dd = dias(hoy, x.f); return `<div class="card srow mie-a"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)"><small>${DIAS[isoDia(x.f)].slice(0, 3)}</small>${F.d} ${F.m.slice(0, 3)}</span><div style="flex:1;min-width:0"><b>${x.ico} ${esc(x.que)}</b><div class="note">${esc(x.det)}</div></div>${dd <= 7 ? `<span class="pill t-warn">${dd === 0 ? "Hoy" : dd === 1 ? "Mañana" : `En ${dd} días`}</span>` : ""}</div>`; };
-    h += a.length ? `<div class="list">${a.slice(0, 3).map(filaA).join("")}</div>${a.length > 3 ? `<details class="mas"><summary>Ver las otras ${a.length - 3} asignaciones</summary><div class="list" style="margin-top:8px">${a.slice(3).map(filaA).join("")}</div></details>` : ""}`
+    h += asig.length ? `<div class="list">${asig.slice(0, 3).map(filaA).join("")}</div>${asig.length > 3 ? `<details class="mas"><summary>Ver las otras ${asig.length - 3} asignaciones</summary><div class="list" style="margin-top:8px">${asig.slice(3).map(filaA).join("")}</div></details>` : ""}`
       : `<div class="card note" style="padding:16px">No tienes asignaciones de aquí a fin del próximo mes. 🙌</div>`;
   }
-  if (permPub("semana")) {
-    const sab = (typeof sabados === "function" ? sabados() : []).find(p => p.f >= hoy);
-    const vm = R("vmc").find(r => r.k === lunesDe(hoy));
-    const o = sab && sab.o ? H(sab.o) : null;
-    h += `<div class="label">Esta semana</div><div class="card spad mie-sem">`;
-    if (sab) h += sab.e === "evento" ? `<div><b>Sábado ${fd(sab.f).d}:</b> no hay reunión (asamblea o evento).</div>` : `<div class="note">Discurso público · sábado ${fd(sab.f).d} de ${fd(sab.f).m} · ${esc(GRUPO.hora || "")}</div><div class="mie-d">${sab.d ? `«${esc(tit(sab.d))}»` : "Discurso por confirmar"}</div><div class="note">${o ? `Hermano ${esc(o.nombre)}${C(o.cong) ? " · " + esc(cname(o.cong)) : ""}` : "Orador por confirmar"}</div>`;
-    if (vm && vm.d) h += `<div class="note" style="margin-top:10px">📖 Lectura de la semana: <b>${esc(vm.d.lectura || "")}</b>${sinReunion(vm.d) ? ` · ${esc(vm.d.evento)}: no hay reunión entre semana` : ""}</div>`;
-    h += `</div>`;
-  }
   if (permPub("pred")) {
-    const sal = [hoy.slice(0, 7), mesMas(hoy.slice(0, 7), 1)].flatMap(m => salidasDelMes(m)).filter(x => x.f >= hoy && x.f <= sumDias(hoy, 6));
+    const sal = [hoy.slice(0, 7), mesMas(hoy.slice(0, 7), 1)].flatMap(m => salidasDelMes(m)).filter(x => x.f >= hoy && x.f <= sem7);
     const dias7 = [0, 1, 2, 3, 4, 5, 6].map(n => sumDias(hoy, n));
     if (!MIE.dia || !dias7.includes(MIE.dia)) MIE.dia = (sal[0] || {}).f || hoy;
-    h += `<div class="label">Predicación de la semana</div><div class="card spad"><div class="wk">${dias7.map(f => { const n = sal.filter(x => x.f === f).length; const dd = isoDia(f);
+    h += `<div class="label" id="mieP">Predicación de la semana</div><div class="card spad"><div class="wk">${dias7.map(f => { const n = sal.filter(x => x.f === f).length; const dd = isoDia(f);
       return `<button class="wkd ${f === MIE.dia ? "on" : ""}" data-wd="${f}" style="--c:#${COLOR_DIA[dd]}"><small>${f === hoy ? "Hoy" : DIAS[dd].slice(0, 3)}</small><b>${fd(f).d}</b><i>${n ? "•".repeat(Math.min(n, 3)) : "–"}</i></button>`; }).join("")}</div><div id="wkDet"></div></div>`;
   }
   if (permPub("rec")) {
     let prox = null; for (let i = 0; i < 12 && !prox; i++) { const l = sumDias(lunesDe(hoy), 7 * i); const [hh, g] = grupoSemana(l); if (hh === yo.horario && +g === +yo.grupo) prox = l; }
     const ev = R("evento").filter(e => (e.d.hasta || e.k) >= hoy).sort((a, b) => a.k < b.k ? -1 : 1).slice(0, 3);
-    h += `<div class="label">Recordatorios</div><div class="list">`;
+    h += `<div class="label" id="mieR">Recordatorios</div><div class="list">`;
     if (prox) h += `<div class="card srow"><span class="dpill" style="background:var(--warn-soft);color:var(--warn)">🧹</span><div style="flex:1"><b>Aseo y hospitalidad de tu grupo</b><div class="note">${lunesDe(hoy) === prox ? "¡Es esta semana!" : `Semana del ${fd(prox).d} de ${fd(prox).m}`}</div></div></div>`;
     ev.forEach(e => { h += `<div class="card srow"><span class="dpill" style="background:var(--accent-soft);color:var(--accent)">${fd(e.k).d} ${fd(e.k).m.slice(0, 3)}</span><div style="flex:1"><b>${esc(e.d.titulo || e.d.tipo || "Evento")}</b>${e.d.hasta && e.d.hasta !== e.k ? `<div class="note">Hasta el ${fd(e.d.hasta).d} de ${fd(e.d.hasta).m}</div>` : ""}</div></div>`; });
     if (!prox && !ev.length) h += `<div class="card note" style="padding:16px">Sin recordatorios por ahora.</div>`;
     h += `</div>`;
   }
-  if (permPub("inf")) h += `<div class="label">Mi informe</div><div id="mieInf"></div>`;
+  if (permPub("inf")) h += `<div class="label" id="mieI">Mi informe</div><div id="mieInf"></div>`;
   h += `<button class="btn line" style="width:100%;margin-top:18px" id="mieSalir">Salir</button>`;
   $("#cview").innerHTML = h; scrollTo(0, 0);
-  $("#mieSalir").onclick = () => { $("#cBack").hidden = false; $("#cBell").hidden = false; $("#cong").hidden = true; salir(); };
+  const fuera = () => { $("#cBack").hidden = false; $("#cBell").hidden = false; document.querySelector("#cong .top").hidden = false; $("#cong").classList.remove("mie"); $("#cong").hidden = true; salir(); };
+  $("#mieSalir").onclick = fuera; $("#mieSalir2").onclick = fuera;
+  $("#mieTema").onclick = () => typeof abrirApariencia === "function" ? abrirApariencia() : cambiarTema();
+  document.querySelectorAll("#cview [data-ir]").forEach(b => b.onclick = () => { const t = document.getElementById(b.dataset.ir); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); });
   if (permPub("inf")) pintaMiInforme();
   if (permPub("pred")) pintaDiaPred();
 }
