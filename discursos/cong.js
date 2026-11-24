@@ -94,15 +94,29 @@ function celda(ws, ref, v, o) {
   if (o.border !== false) c.border = borde;
   return c;
 }
+// Entrega de archivos: abre el menú de compartir del celular (WhatsApp sale ahí). Si el celular ya no deja abrirlo
+// porque el archivo tardó en armarse, muestra un botón para compartir con un toque.
+function bajarArchivo(blob, nombre) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
+async function entregar(blob, nombre, listo) {
+  const file = new File([blob], nombre, { type: blob.type });
+  const puede = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  if (!puede) { bajarArchivo(blob, nombre); toast(listo); return; }
+  try { await navigator.share({ files: [file], title: nombre }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  const bg = document.createElement("div"); bg.className = "sheet-bg";
+  bg.innerHTML = `<div class="sheet" role="dialog"><div class="grab"></div><div class="shead"><h2>✅ ${esc(listo)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
+    <p class="note" style="margin:0 2px 14px">📄 ${esc(nombre)}</p>
+    ${puede ? `<button class="btn ok" id="shWa" style="width:100%;font-size:17px;padding:16px">${I.wa} Compartir por WhatsApp</button><p class="note" style="margin:8px 2px 12px;text-align:center">Se abre el menú de compartir: escoge WhatsApp y el chat o grupo.</p>` : ""}
+    <button class="btn line" id="shBaj" style="width:100%">⬇ Descargar</button></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove(); bg.onclick = e => { if (e.target === bg) close(); }; bg.querySelector("[data-close]").onclick = close;
+  const wa = bg.querySelector("#shWa"); if (wa) wa.onclick = async () => { try { await navigator.share({ files: [file], title: nombre }); close(); } catch (e) { if (!e || e.name !== "AbortError") { bajarArchivo(blob, nombre); close(); } } };
+  bg.querySelector("#shBaj").onclick = () => { bajarArchivo(blob, nombre); close(); };
+}
 async function descargar(wb, nombre) {
   nombre = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  const file = new File([blob], nombre, { type: blob.type });
-  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nombre }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-  toast("Excel listo");
+  await entregar(blob, nombre, "Excel listo");
 }
 async function conExcel(fn) {
   document.body.classList.add("loading");
@@ -867,10 +881,8 @@ async function exportarS89(lst, nombre) {
       const c = i % 4; papeleta(s, (c % 2) * w + 26, (c < 2 ? H : h) - 24, w - 52);
     });
     const bytes = await pdf.save(); const nom = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "") + ".pdf";
-    const blob = new Blob([bytes], { type: "application/pdf" }); const file = new File([blob], nom, { type: "application/pdf" });
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nom }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nom; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-    toast(`${lst.length} papeletas listas`);
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    await entregar(blob, nom, `${lst.length} papeletas listas`);
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 /* ================= PDF de Vida y Ministerio (mismo diseño del Excel) ================= */
@@ -942,10 +954,8 @@ async function pdfVmc(semanas, titulo) {
     }
     paginas.forEach((p, i) => { p.drawText("CRABS · Congregación Tierra Baja", { x: M, y: 12, size: 7, font: FN, color: hex("777777") }); const t = `Página ${i + 1} de ${paginas.length}`; p.drawText(t, { x: PW - M - FN.widthOfTextAtSize(t, 7), y: 12, size: 7, font: FN, color: hex("777777") }); });
     const bytes = await pdf.save(); const nom_ = titulo.normalize("NFD").replace(/[̀-ͯ]/g, "") + ".pdf";
-    const blob = new Blob([bytes], { type: "application/pdf" }); const file = new File([blob], nom_, { type: "application/pdf" });
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nom_ }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nom_; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-    toast("PDF listo");
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    await entregar(blob, nom_, "PDF listo");
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 async function xlsVmc(X) {
@@ -1366,10 +1376,8 @@ async function exportarS21(personas, anio, nombreArchivo) {
       await paginaS21(pdf, F, p, anio, infs);
     }
     const bytes = await pdf.save(); const nombre = nombreArchivo.normalize("NFD").replace(/[̀-ͯ]/g, "") + ".pdf";
-    const blob = new Blob([bytes], { type: "application/pdf" }); const file = new File([blob], nombre, { type: "application/pdf" });
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: nombre }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-    toast(personas.length > 1 ? `${personas.length} tarjetas listas` : "Tarjeta lista");
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    await entregar(blob, nombre, personas.length > 1 ? `${personas.length} tarjetas listas` : "Tarjeta lista");
   } catch (e) { toast(e.message); }
   finally { document.body.classList.remove("loading"); }
 }
