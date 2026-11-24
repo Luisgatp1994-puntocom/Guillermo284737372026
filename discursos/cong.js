@@ -875,7 +875,7 @@ async function pdfVmc(semanas, titulo) {
         rich("A", "E", [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", {}], [" (10 mins)", { size: 9 }]]); nombre("F", "F", d.t2.p); y -= RH;
         const cita = (d.lect.cita || "").match(/^(.*?)\s*(\(th[^)]*\))?\s*$/) || ["", d.lect.cita, ""];
         rich("A", "C", [["3. ", { color: TEAL }], ["Lectura de la Biblia", {}], [" (4 mins)", { size: 9 }], [":" + (cita[1] || ""), {}], ...(cita[2] ? [[" " + cita[2], { size: 9 }]] : [])]);
-        put("D", "E", "Consejero S. Aux.:", { align: "right", size: 9, color: "7030A0" }); nombre("F", "F", d.consejero, { fill: "E4D7F5", color: "7030A0" }); y -= RH;
+        put("D", "E", "Consejero S. Aux.:", { align: "right", size: 9, color: "067876" }); nombre("F", "F", d.consejero, { fill: "CFEAE7", color: "05605E" }); y -= RH;
         sala("S. Princ.:", d.lect.p, "S. Aux.:", d.lect.a);
         barra("SEAMOS MEJORES MAESTROS", ORO);
         d.maestros.forEach((m, i) => {
@@ -934,7 +934,7 @@ async function xlsVmc(X) {
       merge("A", "E"); rich("A" + r, [["2. ", { color: TEAL }], [d.t2.titulo || "Busquemos perlas escondidas", {}], [" (10 mins)", { size: 9 }]]); nombre("F", d.t2.p); r++;
       const cita = (d.lect.cita || "").match(/^(.*?)\s*(\(th[^)]*\))?\s*$/) || ["", d.lect.cita, ""];
       merge("A", "D"); rich("A" + r, [["3. ", { color: TEAL }], ["Lectura de la Biblia", {}], [" (4 mins)", { size: 9 }], [":" + (cita[1] || ""), {}], ...(cita[2] ? [[" " + cita[2], { size: 9 }]] : [])]);
-      put("E" + r, "Consejero S. Aux.:", { align: "right", size: 9, color: "7030A0" }); nombre("F", d.consejero, { fill: "E4D7F5", color: "7030A0" }); r++;
+      put("E" + r, "Consejero S. Aux.:", { align: "right", size: 9, color: "067876" }); nombre("F", d.consejero, { fill: "CFEAE7", color: "05605E" }); r++;
       sala("S. Princ.:", d.lect.p, "S. Aux.:", d.lect.a);
       barra("SEAMOS MEJORES MAESTROS", ORO);
       d.maestros.forEach((m, i) => {
