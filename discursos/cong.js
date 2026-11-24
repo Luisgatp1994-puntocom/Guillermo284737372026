@@ -99,23 +99,53 @@ function celda(ws, ref, v, o) {
 function bajarArchivo(blob, nombre) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
 const saludoHora = () => { const h = new Date().getHours(); return h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches"; };
 function copiarSilencio(t) { try { navigator.clipboard.writeText(t).catch(() => {}); } catch (e) {} }
-async function entregar(blob, nombre, listo, mensaje) {
-  const file = new File([blob], nombre, { type: blob.type });
-  const puede = !!(navigator.canShare && navigator.canShare({ files: [file] }));
-  if (!puede) { bajarArchivo(blob, nombre); toast(listo); return; }
-  const datos = mensaje ? { files: [file], title: nombre, text: mensaje } : { files: [file], title: nombre };
+// PDF → imágenes JPG (para quien no abre PDF en el celular), con pdf.js
+let _pdfjs = null;
+async function cargarPdfJs() {
+  if (_pdfjs) return _pdfjs;
+  await new Promise((ok, ko) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"; sc.onload = ok; sc.onerror = () => ko(new Error("No se pudo cargar el conversor a imagen. Revisa el internet.")); document.head.appendChild(sc); });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  return (_pdfjs = window.pdfjsLib);
+}
+async function pdfAImagenes(bytes, base) {
+  const L = await cargarPdfJs(); const doc = await L.getDocument({ data: bytes.slice(0) }).promise; const out = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const pg = await doc.getPage(i); const vp = pg.getViewport({ scale: 2.4 }); const c = document.createElement("canvas"); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+    const bl = await new Promise(r => c.toBlob(r, "image/jpeg", .92)); out.push(new File([bl], `${base}${doc.numPages > 1 ? ` (${i} de ${doc.numPages})` : ""}.jpg`, { type: "image/jpeg" }));
+  }
+  return out;
+}
+// Pregunta si lo quiere en PDF o en imagen
+function elegirFormato(titulo, cb) {
+  const bg = document.createElement("div"); bg.className = "sheet-bg";
+  bg.innerHTML = `<div class="sheet" role="dialog"><div class="grab"></div><div class="shead"><h2>${esc(titulo)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
+    <p class="note" style="margin:0 2px 6px">¿Cómo lo quieres compartir?</p>
+    <div class="fmt"><button data-f="img"><i>🖼</i><b>Imagen</b><small>Se ve en cualquier celular, directo en el chat</small></button><button data-f="pdf"><i>📄</i><b>PDF</b><small>Para imprimir o guardar</small></button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove(); bg.onclick = e => { if (e.target === bg) close(); }; bg.querySelector("[data-close]").onclick = close;
+  bg.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { close(); cb(b.dataset.f); });
+}
+// Entrega: abre el menú de compartir del celular (WhatsApp sale ahí). Si el celular no deja abrirlo solo, muestra un botón.
+async function entregar(arch, nombre, listo, mensaje) {
+  const files = Array.isArray(arch) ? arch : [new File([arch], nombre, { type: arch.type })];
+  const bajarTodo = () => files.forEach((f, i) => setTimeout(() => bajarArchivo(f, f.name), i * 400));
+  const puede = !!(navigator.canShare && navigator.canShare({ files }));
+  if (!puede) { bajarTodo(); toast(listo); return; }
+  const datos = mensaje ? { files, title: nombre, text: mensaje } : { files, title: nombre };
   if (mensaje) copiarSilencio(mensaje);
   try { await navigator.share(datos); if (mensaje) toast("El mensaje también quedó copiado, por si WhatsApp no lo pega"); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  const esImg = files[0].type.startsWith("image/");
   const bg = document.createElement("div"); bg.className = "sheet-bg";
   bg.innerHTML = `<div class="sheet" role="dialog"><div class="grab"></div><div class="shead"><h2>✅ ${esc(listo)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
-    <p class="note" style="margin:0 2px 10px">📄 ${esc(nombre)}</p>
+    <p class="note" style="margin:0 2px 10px">${esImg ? "🖼" : "📄"} ${files.length > 1 ? `${files.length} imágenes` : esc(files[0].name)}</p>
     ${mensaje ? `<div class="card spad" style="margin-bottom:12px;white-space:pre-line;font-size:14px">${esc(mensaje)}</div>` : ""}
-    ${puede ? `<button class="btn ok" id="shWa" style="width:100%;font-size:17px;padding:16px">${I.wa} Compartir por WhatsApp</button><p class="note" style="margin:8px 2px 12px;text-align:center">Escoge WhatsApp y el chat o grupo.${mensaje ? " El mensaje queda copiado: si no aparece con el PDF, mantén presionado y pega." : ""}</p>` : ""}
+    <button class="btn ok" id="shWa" style="width:100%;font-size:17px;padding:16px">${I.wa} Compartir por WhatsApp</button><p class="note" style="margin:8px 2px 12px;text-align:center">Escoge WhatsApp y el chat o grupo.${mensaje ? " El mensaje queda copiado: si no aparece, mantén presionado y pega." : ""}</p>
     <button class="btn line" id="shBaj" style="width:100%">⬇ Descargar</button></div>`;
   document.body.appendChild(bg);
   const close = () => bg.remove(); bg.onclick = e => { if (e.target === bg) close(); }; bg.querySelector("[data-close]").onclick = close;
-  const wa = bg.querySelector("#shWa"); if (wa) wa.onclick = async () => { if (mensaje) copiarSilencio(mensaje); try { await navigator.share(datos); close(); } catch (e) { if (!e || e.name !== "AbortError") { bajarArchivo(blob, nombre); close(); } } };
-  bg.querySelector("#shBaj").onclick = () => { bajarArchivo(blob, nombre); close(); };
+  bg.querySelector("#shWa").onclick = async () => { if (mensaje) copiarSilencio(mensaje); try { await navigator.share(datos); close(); } catch (e) { if (!e || e.name !== "AbortError") { bajarTodo(); close(); } } };
+  bg.querySelector("#shBaj").onclick = () => { bajarTodo(); close(); };
 }
 async function descargar(wb, nombre) {
   nombre = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -580,7 +610,7 @@ function todasAsign() {
     (d.maestros || []).forEach((m, i) => { const t = `Parte ${4 + i}`; add(m.p, f, "est", t); add(m.a, f, "est", t + " (sala aux.)"); add(m.pa, f, "est", "Ayudante"); add(m.aa, f, "est", "Ayudante (sala aux.)"); });
     add(d.intro, f, "nomb", "Presidente"); add(d.oracion1, f, "nomb", "Oración inicial"); add(d.t1.p, f, "nomb", "Discurso de Tesoros"); add(d.t2.p, f, "nomb", "Perlas escondidas"); add(d.consejero, f, "nomb", "Consejero sala aux.");
     (d.vida || []).forEach(v => { if (!v.video) add(v.p, f, "nomb", "Nuestra vida cristiana"); });
-    add(d.estudio && d.estudio.p, f, "nomb", "Estudio bíblico"); add(d.estudio && d.estudio.lector, f, "nomb", "Lector del estudio"); add(d.oracion2, f, "nomb", "Oración final"); });
+    if (d.evento !== "Visita del superintendente de circuito") { add(d.estudio && d.estudio.p, f, "nomb", "Estudio bíblico"); add(d.estudio && d.estudio.lector, f, "nomb", "Lector del estudio"); } add(d.oracion2, f, "nomb", "Oración final"); });
   R("acomod").forEach(r => { const d = r.d || {}, f = r.k.slice(0, 10);
     add(d.presidente, f, "acom", "Presidente"); add(d.lector, f, "acom", "Lector"); add(d.acomodador, f, "acom", "Acomodador"); (d.microfonos || []).forEach(x => add(x, f, "acom", "Micrófonos")); add(d.plataforma, f, "acom", "Plataforma"); });
   return out;
@@ -706,12 +736,12 @@ function vVmc() {
     const est = !d ? ["Vacío", "t-idle"] : sinReunion(d) ? ["Sin reunión", "t-warn"] : n >= 15 ? ["Completo", "t-ok"] : n ? [`${n} asignados`, "t-info"] : ["Falta asignar", "t-bad"];
     h += `<button class="card trow" data-sem="${l}"><span class="dpill" style="background:${sinReunion(d) ? "var(--warn-soft);color:var(--warn)" : "var(--accent-soft);color:var(--accent)"}">${fd(l).d}–${fd(sumDias(l, 6)).d}</span><div style="flex:1;min-width:0;text-align:left"><b>Semana ${tituloSemana(l)}</b><div class="note">${d ? (sinReunion(d) ? esc(d.evento + (d.eventoTema ? " · " + d.eventoTema : "")) + " · no hay reunión" : esc(d.lectura || "Sin lectura") + (d.t1.titulo ? " · " + esc(d.t1.titulo) : "")) : "Sin programa"}</div></div><span class="pill ${est[1]}">${est[0]}</span></button>`;
   }
-  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}<button class="btn line" id="pdfVmc">📄 PDF del mes</button><button class="btn line" id="rotVmc">📊 Rotación de asignaciones</button>${cAdmin() ? `<button class="btn line" id="s89Mes">📄 Papeletas S-89 del mes</button>` : ""}</div>`;
+  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}<button class="btn line" id="pdfVmc">📤 Compartir el mes</button><button class="btn line" id="rotVmc">📊 Rotación de asignaciones</button>${cAdmin() ? `<button class="btn line" id="s89Mes">📄 Papeletas S-89 del mes</button>` : ""}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-sem]").forEach(b => b.onclick = () => fichaVmc(b.dataset.sem));
   $("#rotVmc").onclick = () => abrirRot("vmc");
-  $("#pdfVmc").onclick = () => pdfVmc(semanasMes(CG.mes).map(l => { const r = R("vmc").find(x => x.k === l); return [l, r && r.d]; }), `Vida y Ministerio ${mesNombre(CG.mes)}`);
-  if ($("#s89Mes")) $("#s89Mes").onclick = () => exportarS89(semanasMes(CG.mes).flatMap(l => { const r = R("vmc").find(x => x.k === l); return papeletas(r && r.d, l); }), `Papeletas S-89 ${mesNombre(CG.mes)}`);
+  $("#pdfVmc").onclick = () => elegirFormato(`Vida y Ministerio · ${mesNombre(CG.mes)}`, f => pdfVmc(semanasMes(CG.mes).map(l => { const r = R("vmc").find(x => x.k === l); return [l, r && r.d]; }), `Vida y Ministerio ${mesNombre(CG.mes)}`, null, f));
+  if ($("#s89Mes")) $("#s89Mes").onclick = () => elegirFormato("Papeletas S-89 del mes", f => exportarS89(semanasMes(CG.mes).flatMap(l => { const r = R("vmc").find(x => x.k === l); return papeletas(r && r.d, l); }), `Papeletas S-89 ${mesNombre(CG.mes)}`, f));
   if ($("#jwMes")) $("#jwMes").onclick = async () => {
     const b = $("#jwMes"); b.disabled = true; let ok = 0, falla = [];
     for (const l of semanasMes(CG.mes)) {
@@ -754,7 +784,10 @@ function fichaVmc(l) {
     <div class="vhead"><span>🎵 Canción</span><input class="tin min" id="vC2" value="${esc(d.c2)}" inputmode="numeric"></div>
     <div id="vVida">${d.vida.map((v, i) => `<div class="card vpart"><div class="vptit"><span class="vn" style="color:#8A0B14">${nM + i}.</span> <input class="tin" id="vV${i}" value="${esc(v.titulo)}" placeholder="Título"> <input class="tin min" id="vVm${i}" value="${esc(v.min || "15")}" inputmode="numeric"></div><label class="ic chk vvid"><input type="checkbox" id="vVv${i}" ${v.video ? "checked" : ""}> Sin asignado (video o informe del Cuerpo Gobernante)</label><div id="vVw${i}" ${v.video ? "hidden" : ""}>${S("vVp" + i, v.p, nomb, true)}</div><div id="vVx${i}" ${v.video ? "" : "hidden"}><input class="tin" id="vVt${i}" value="${esc(v.texto || "")}" placeholder="Texto del recuadro (ej.: Informe del Cuerpo Gobernante)" style="width:100%"><small class="note">Si lo dejas vacío sale VIDEO.</small></div></div>`).join("")}</div>
     ${ed ? `<div class="row"><button class="btn line" id="vVMas">+ Parte</button><button class="btn line" id="vVMenos">− Parte</button></div>` : ""}
-    <div class="card vpart">${parte(`<span style="color:#8A0B14">${nM + d.vida.length}</span>`, "Estudio bíblico de la congregación", "30", d.estudio.ref ? ` <small>${esc(d.estudio.ref)}</small>` : "")}<div class="vsala"><span>Conductor</span>${S("vEc", d.estudio.p, anc, true)}</div><div class="vsala"><span>Lector</span>${S("vEl", d.estudio.lector, H, true)}</div></div>
+    <div class="card vpart" id="vEstN" ${d.evento === "Visita del superintendente de circuito" ? "hidden" : ""}>${parte(`<span style="color:#8A0B14">${nM + d.vida.length}</span>`, "Estudio bíblico de la congregación", "30", d.estudio.ref ? ` <small>${esc(d.estudio.ref)}</small>` : "")}<div class="vsala"><span>Conductor</span>${S("vEc", d.estudio.p, anc, true)}</div><div class="vsala"><span>Lector</span>${S("vEl", d.estudio.lector, H, true)}</div></div>
+    <div class="card vpart vsup" id="vEstV" ${d.evento === "Visita del superintendente de circuito" ? "" : "hidden"}>${parte(`<span style="color:#8A0B14">${nM + d.vida.length}</span>`, "Discurso de servicio", "30", " <small>(en lugar del estudio bíblico)</small>")}
+      <div class="vsala"><span>Lo da</span><input class="tin" id="vSup" value="${esc(d.estudio.sup || "")}" placeholder="Nombre del superintendente de circuito"></div>
+      <div class="vsala"><span>Tema</span><input class="tin" id="vSupT" value="${esc(d.estudio.supT || "")}" placeholder="Título del discurso (opcional)"></div></div>
     <div class="vhead" style="color:#8A0B14"><span>Palabras de conclusión · 🎵 Canción</span><input class="tin min" id="vC3" value="${esc(d.c3)}" inputmode="numeric"><span>y oración</span>${S("vO2", d.oracion2, nomb, true)}</div>`;
   };
   hoja(`<div class="shead"><h2>Semana ${tituloSemana(l)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
@@ -770,12 +803,13 @@ function fichaVmc(l) {
       <div id="vCuerpo">${cuerpo()}</div>
     </div>
     <div id="vAviso"></div>
-    <button class="btn line" id="vPdf" style="width:100%;margin-bottom:8px">📄 PDF de esta semana</button>
+    <button class="btn line" id="vPdf" style="width:100%;margin-bottom:8px">📤 Compartir esta semana (imagen o PDF)</button>
     ${ed ? `<div id="vAuto" class="autos">💾 Se guarda solo mientras haces cambios</div><button class="btn pri" id="vOk">Guardar y cerrar</button>` : `<p class="note">Solo los administradores pueden editar.</p>`}`,
     (bg, close) => {
       const q = s => bg.querySelector(s);
       if (!ed) bg.querySelectorAll("input,select").forEach(x => x.disabled = true);
       let sinR = sinReunion(d);
+      const vv = q("#vVisita"); if (vv) vv.addEventListener("change", () => { const n = q("#vEstN"), v = q("#vEstV"); if (n) n.hidden = vv.checked; if (v) v.hidden = !vv.checked; });
       bg.querySelectorAll("[data-ev]").forEach(b => b.onclick = () => { sinR = !!b.dataset.ev; bg.querySelectorAll("[data-ev]").forEach(x => x.classList.toggle("on", x === b)); q("#vEv").hidden = !sinR; q("#vNormal").hidden = sinR; programar(); });
       // ---- Guardado automático: guarda en silencio ~1 s después de cada cambio; el aviso a los hermanos sale una sola vez al cerrar ----
       const orig = r ? JSON.parse(JSON.stringify(r.d)) : null; let rid = r ? r.id : null, ultimo = null, timer = null, huboAuto = false;
@@ -796,7 +830,7 @@ function fichaVmc(l) {
         bg._alCerrar = () => { const nd = leer(); (async () => { await autoGuardar(); if (huboAuto && rid) { try { await rpc("cong_reg_guardar", { p_modulo: "vmc", p_clave: l, p_id: rid, p_d: nd, p_aviso: avisoDe(nd) }); } catch (e) {} await cCargar(); render(); } })(); }; }
       const leer = () => {
         if (sinR) return { ...d, evento: val(bg, "vE"), eventoTema: val(bg, "vEt"), lectura: val(bg, "vL") };
-        const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "" }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
+        const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "", sup: val(bg, "vSup"), supT: mayus(val(bg, "vSupT")) }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
         bg.querySelectorAll("#vMae .vpart").forEach((_, i) => nd.maestros.push({ titulo: mayus(val(bg, "mT" + i)), min: val(bg, "mM" + i), ref: val(bg, "mR" + i), p: val(bg, "mP" + i), pa: val(bg, "mPA" + i), a: val(bg, "mA" + i), aa: val(bg, "mAA" + i) }));
         let i = 0; while (q("#vV" + i)) { const vid = q("#vVv" + i).checked; nd.vida.push({ titulo: mayus(val(bg, "vV" + i)), min: val(bg, "vVm" + i) || "15", video: vid, texto: vid ? mayus(val(bg, "vVt" + i)) : "", p: vid ? "" : val(bg, "vVp" + i) }); i++; }
         return nd;
@@ -816,8 +850,8 @@ function fichaVmc(l) {
       if (q("#vJW")) q("#vJW").onclick = async () => { const b = q("#vJW"); b.disabled = true; b.textContent = "Trayendo…";
         try { d = aplicarJW(leer(), await traerJW(l)); q("#vL").value = d.lectura; q("#vCuerpo").innerHTML = cuerpo(); enlazar(); programar(); toast("Programa traído de JW. Revisa y asigna."); }
         catch (e) { toast(e.message); } b.disabled = false; b.textContent = "⬇ Traer programa de JW"; };
-      q("#vPdf").onclick = () => pdfVmc([[l, ed ? leer() : d]], `Vida y Ministerio semana ${tituloSemana(l)}`);
-      if (q("#vS89")) q("#vS89").onclick = () => exportarS89(papeletas(leer(), l), `Papeletas S-89 semana ${tituloSemana(l)}`);
+      q("#vPdf").onclick = () => { const dd = ed ? leer() : d; elegirFormato(`Semana ${tituloSemana(l)}`, f => pdfVmc([[l, dd]], `Vida y Ministerio semana ${tituloSemana(l)}`, null, f)); };
+      if (q("#vS89")) q("#vS89").onclick = () => { const dd = leer(); elegirFormato("Papeletas S-89", f => exportarS89(papeletas(dd, l), `Papeletas S-89 semana ${tituloSemana(l)}`, f)); };
       if (q("#vSug")) q("#vSug").onclick = () => {
         d = leer(); const usados = new Set(asignVmc(d));
         const elegir = (filtro, sexo) => { const c = CG.personas.filter(p => filtro(p) && !usados.has(p.id) && (!sexo || p.sexo === sexo)).sort((a, b) => (ult[a.id] || "") < (ult[b.id] || "") ? -1 : (ult[a.id] || "") > (ult[b.id] || "") ? 1 : a.nombre.localeCompare(b.nombre)); const x = c[0]; if (x) usados.add(x.id); return x ? x.id : ""; };
@@ -857,7 +891,7 @@ function papeletas(d, l) {
   return out;
 }
 const fechaLarga = f => { const [y, m, dd] = f.split("-").map(Number); return `${DIAS[((new Date(y, m - 1, dd).getDay() + 6) % 7) + 1].toLowerCase()} ${dd} de ${MES[m - 1]} de ${y}`; };
-async function exportarS89(lst, nombre) {
+async function exportarS89(lst, nombre, formato = "pdf") {
   if (!lst.length) { toast("No hay estudiantes asignados todavía"); return; }
   document.body.classList.add("loading");
   try {
@@ -886,12 +920,12 @@ async function exportarS89(lst, nombre) {
       const c = i % 4; papeleta(s, (c % 2) * w + 26, (c < 2 ? H : h) - 24, w - 52);
     });
     const bytes = await pdf.save(); const nom = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "") + ".pdf";
-    const blob = new Blob([bytes], { type: "application/pdf" });
+    const blob = formato === "img" ? await pdfAImagenes(bytes, nom.replace(/\.pdf$/, "")) : new Blob([bytes], { type: "application/pdf" });
     await entregar(blob, nom, `${lst.length} papeletas listas`, `${saludoHora()}, hermanos 👋🏽\nLes comparto las hojas de asignación (S-89) para la reunión Vida y Ministerio. Cada uno busque la suya y prepárese con tiempo. ¡Gracias!`);
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 /* ================= PDF de Vida y Ministerio (mismo diseño del Excel) ================= */
-async function pdfVmc(semanas, titulo, mensaje) {
+async function pdfVmc(semanas, titulo, mensaje, formato = "pdf") {
   document.body.classList.add("loading");
   try {
     const L = await cargarPdfLib(); const pdf = await L.PDFDocument.create(); pdf.setTitle(titulo); pdf.setAuthor("CRABS · Congregación Tierra Baja");
@@ -949,8 +983,9 @@ async function pdfVmc(semanas, titulo, mensaje) {
         rich("A", "F", [["• ", { color: ROJO }], [`Canción ${d.c2}`, {}]]); y -= RH;
         const n0 = 4 + d.maestros.length;
         d.vida.forEach((v, i) => { const anchoBox = v.video && v.texto; rich("A", anchoBox ? "D" : "E", [[`${n0 + i}. `, { color: ROJO }], [v.titulo, {}], [` (${v.min || 15} mins)`, { size: 9 }]]); if (v.video) put(anchoBox ? "E" : "F", "F", MX(v.texto) || "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "444444" }); else nombre("F", "F", v.p); y -= RH; });
-        rich("A", "B", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
-        nombre("C", "D", d.estudio.p); put("E", "E", "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", "F", d.estudio.lector); y -= RH;
+        if (d.evento === "Visita del superintendente de circuito") { rich("A", "D", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Discurso de servicio", {}], [" (30 mins)", { size: 9 }], ...(d.estudio.supT ? [[`: «${d.estudio.supT}»`, { size: 9, italic: true }]] : [])]); put("E", "F", MX(d.estudio.sup) || "SUPERINTENDENTE DE CIRCUITO", { align: "center", box: true, fill: "E3F4F2", color: "05605E" }); y -= RH; }
+        else { rich("A", "B", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
+        nombre("C", "D", d.estudio.p); put("E", "E", "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", "F", d.estudio.lector); y -= RH; }
         rich("A", "B", [["• ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
         rich("C", "E", [["• ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", "F", d.oracion2); y -= RH;
       }
@@ -959,8 +994,8 @@ async function pdfVmc(semanas, titulo, mensaje) {
     }
     paginas.forEach((p, i) => { p.drawText("CRABS · Congregación Tierra Baja", { x: M, y: 12, size: 7, font: FN, color: hex("777777") }); const t = `Página ${i + 1} de ${paginas.length}`; p.drawText(t, { x: PW - M - FN.widthOfTextAtSize(t, 7), y: 12, size: 7, font: FN, color: hex("777777") }); });
     const bytes = await pdf.save(); const nom_ = titulo.normalize("NFD").replace(/[̀-ͯ]/g, "") + ".pdf";
-    const blob = new Blob([bytes], { type: "application/pdf" });
-    await entregar(blob, nom_, "PDF listo", mensaje || `${saludoHora()}, hermanos 👋🏽\nLes comparto el programa de Vida y Ministerio ${semanas.length === 1 ? `de la semana ${tituloSemana(semanas[0][0])}` : `de ${mesNombre(CG.mes)}`}.\nPor favor revisen sus asignaciones y, si alguno tiene algún inconveniente, avísenme con tiempo. ¡Muchas gracias!`);
+    const blob = formato === "img" ? await pdfAImagenes(bytes, nom_.replace(/\.pdf$/, "")) : new Blob([bytes], { type: "application/pdf" });
+    await entregar(blob, nom_, formato === "img" ? "Imagen lista" : "PDF listo", mensaje || `${saludoHora()}, hermanos 👋🏽\nLes comparto el programa de Vida y Ministerio ${semanas.length === 1 ? `de la semana ${tituloSemana(semanas[0][0])}` : `de ${mesNombre(CG.mes)}`}.\nPor favor revisen sus asignaciones y, si alguno tiene algún inconveniente, avísenme con tiempo. ¡Muchas gracias!`);
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 async function xlsVmc(X) {
@@ -1006,8 +1041,9 @@ async function xlsVmc(X) {
       merge("A", "F"); rich("A" + r, [["● ", { color: ROJO }], [`Canción ${d.c2}`, {}]]); r++;
       const n0 = 4 + d.maestros.length;
       d.vida.forEach((v, i) => { const anchoBox = v.video && v.texto; merge("A", anchoBox ? "D" : "E"); rich("A" + r, [[`${n0 + i}. `, { color: ROJO }], [v.titulo, {}], [` (${v.min || 15} mins)`, { size: 9 }]]); if (v.video) { if (anchoBox) merge("E", "F"); } if (v.video) put((anchoBox ? "E" : "F") + r, MX(v.texto) || "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "444444", shrink: true }); else nombre("F", v.p); r++; });
-      merge("A", "B"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
-      merge("C", "D"); nombre("C", d.estudio.p); put("E" + r, "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", d.estudio.lector); r++;
+      if (d.evento === "Visita del superintendente de circuito") { merge("A", "D"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Discurso de servicio", {}], [" (30 mins)", { size: 9 }], ...(d.estudio.supT ? [[`: «${d.estudio.supT}»`, { size: 9, italic: true }]] : [])]); merge("E", "F"); put("E" + r, MX(d.estudio.sup) || "SUPERINTENDENTE DE CIRCUITO", { align: "center", box: true, fill: "E3F4F2", color: "05605E", shrink: true }); r++; }
+      else { merge("A", "B"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
+      merge("C", "D"); nombre("C", d.estudio.p); put("E" + r, "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", d.estudio.lector); r++; }
       merge("A", "B"); rich("A" + r, [["● ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
       merge("C", "E"); rich("C" + r, [["● ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", d.oracion2); r++;
     }
