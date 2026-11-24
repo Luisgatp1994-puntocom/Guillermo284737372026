@@ -598,6 +598,48 @@ async function xlsTerritorios(X) {
 /* ================= REUNIONES ================= */
 function vReu() { return CG.tab === "acomod" ? vAcomod() : CG.tab === "asist" ? vAsist() : CG.tab === "rot" ? vRot() : vVmc(); }
 
+/* ================= INICIO: "Esta semana" y pendientes ================= */
+const proxDia = (f, dw) => { const d = new Date(f + "T12:00:00"); d.setDate(d.getDate() + ((dw - d.getDay() + 7) % 7)); return d.toISOString().slice(0, 10); };
+async function pintarHubExtra(sabPend) {
+  const box = $("#hubweek"), cnt = $("#hubcnt"); if (!box) return;
+  try { if (!CG.reg.length || Date.now() - (CG._t || 0) > 60000) { await cCargar(); CG._t = Date.now(); } } catch (e) { return; }
+  if ($("#hub").hidden) return;
+  const V = "Visita del superintendente de circuito", cap = t => String(t || "").toLowerCase().replace(/(^|\s)\S/g, x => x.toUpperCase());
+  const jue = proxDia(HOY, 4), sab = proxDia(HOY, 6), jue2 = sumDias(jue, 7);
+  const ev = f => R("evento").find(e => f >= e.k && f <= (e.d.hasta || e.k));
+  const vmc = f => { const r = R("vmc").find(x => x.k === lunesDe(f)), d = r && r.d;
+    if (d && sinReunion(d)) return { f, o: 1, t: d.evento + (d.eventoTema ? " · " + d.eventoTema : ""), s: "No hay reunión entre semana" };
+    if (!d || !d.t1 || !d.t1.titulo) return { f, t: "Vida y Ministerio", s: "Falta cargar el programa", c: "wa" };
+    const n = asignVmc(d).length;
+    return { f, t: `Vida y Ministerio · ${cap(d.lectura)}`, s: (d.evento === V ? "Visita del superintendente · " : "") + (n >= 15 ? "✓ Programa completo" : n ? `${n} asignados, faltan algunos` : "Falta asignar"), c: n >= 15 ? "ok" : "bad" };
+  };
+  const disc = f => { const p = typeof getSab === "function" ? getSab(f) : null; const e = ev(f);
+    if (p && p.e === "evento") return { f, o: 1, t: e ? e.d.titulo : "Sin reunión", s: "No hay discurso público" };
+    const o = p && p.o && typeof H === "function" ? H(p.o) : null; const [et] = (ESTADOS[p ? p.e : "sin"] || ["Sin asignar"]);
+    return { f, t: "Discurso público" + (o ? " · " + o.nombre.split(" ").slice(0, 2).join(" ") : ""), s: o ? et : "Sin orador todavía", c: p && p.e === "conf" ? "ok" : o ? "" : "bad", disc: 1 };
+  };
+  const items = [];
+  if (puede("reu")) items.push(vmc(jue), vmc(jue2));
+  if (puede("disc")) items.push(disc(sab));
+  items.sort((a, b) => a.f < b.f ? -1 : 1);
+  const DS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
+  box.innerHTML = items.length ? `<div class="hweek"><div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Esta semana en la congregación</div>
+    ${items.map(x => { const dd = new Date(x.f + "T12:00:00"); return `<button class="hev" data-hs="${x.disc ? "disc" : "reu"}"><span class="d ${x.o ? "o" : ""}">${DS[dd.getDay()]}<small>${dd.getDate()} ${MES[dd.getMonth()].slice(0, 3)}</small></span><span><b>${esc(x.t)}</b><span class="s ${x.c || ""}">${esc(x.s)}</span></span></button>`; }).join("")}</div>` : "";
+  const semSin = [...new Set(semanasMes(HOY.slice(0, 7)).concat(semanasMes(mesMas(HOY.slice(0, 7), 1))))].filter(l => sumDias(l, 6) >= HOY).slice(0, 5).filter(l => { const r = R("vmc").find(x => x.k === l), d = r && r.d; return !(d && sinReunion(d)) && asignVmc(d).length < 15; }).length;
+  const mesI = +HOY.slice(8) <= 10 ? mesMas(HOY.slice(0, 7), -1) : HOY.slice(0, 7);
+  const verInf = puede("inf") && esAdmin(); const lista = verInf ? CG.personas.filter(p => veTodos() || (p.horario + "|" + p.grupo) === miGrupoKey()) : [];
+  const faltan = lista.filter(p => !R("informe").some(r => r.k === mesI + "|" + p.id)).length;
+  const c = [];
+  if (verInf) c.push([faltan, "Informes por entregar", "var(--warn)", "inf"]);
+  if (puede("reu")) c.push([semSin, "Semanas sin asignar", semSin ? "var(--bad)" : "var(--ok)", "reu"]);
+  if (puede("disc")) c.push([sabPend || 0, "Sábados por cerrar", "var(--accent)", "disc"]);
+  cnt.innerHTML = c.length ? `<div class="hcnt" style="grid-template-columns:repeat(${c.length},1fr)">${c.map(([n, t, col, s]) => `<button data-hs="${s}"><b style="color:${col}">${n}</b><small>${t}</small></button>`).join("")}</div>` : "";
+  $("#hublab").hidden = false;
+  const bd = (id, n, cl) => { const e = $("#bd-" + id); if (e) { e.hidden = !n; e.textContent = n > 99 ? "99+" : n; e.className = "bd " + cl; } };
+  bd("reu", semSin, "r"); bd("inf", verInf ? faltan : 0, "n");
+  document.querySelectorAll("#hub [data-hs]").forEach(b => b.onclick = () => abrirSeccion(b.dataset.hs));
+}
+
 /* ================= ROTACIÓN: cómo van repartidas las asignaciones ================= */
 let ROT = "est", ROT_VOLVER = "vmc";
 function abrirRot(desde, tipo) { ROT_VOLVER = desde; if (tipo) ROT = tipo; CG.tab = "rot"; vRot(); }
@@ -610,7 +652,7 @@ function todasAsign() {
     (d.maestros || []).forEach((m, i) => { const t = `Parte ${4 + i}`; add(m.p, f, "est", t); add(m.a, f, "est", t + " (sala aux.)"); add(m.pa, f, "est", "Ayudante"); add(m.aa, f, "est", "Ayudante (sala aux.)"); });
     add(d.intro, f, "nomb", "Presidente"); add(d.oracion1, f, "nomb", "Oración inicial"); add(d.t1.p, f, "nomb", "Discurso de Tesoros"); add(d.t2.p, f, "nomb", "Perlas escondidas"); add(d.consejero, f, "nomb", "Consejero sala aux.");
     (d.vida || []).forEach(v => { if (!v.video) add(v.p, f, "nomb", "Nuestra vida cristiana"); });
-    if (d.evento !== "Visita del superintendente de circuito") { add(d.estudio && d.estudio.p, f, "nomb", "Estudio bíblico"); add(d.estudio && d.estudio.lector, f, "nomb", "Lector del estudio"); } add(d.oracion2, f, "nomb", "Oración final"); });
+    if (d.evento !== "Visita del superintendente de circuito") { add(d.estudio && d.estudio.p, f, "nomb", "Estudio bíblico"); add(d.estudio && d.estudio.lector, f, "nomb", "Lector del estudio"); } if (!d.oracion2Sup) add(d.oracion2, f, "nomb", "Oración final"); });
   R("acomod").forEach(r => { const d = r.d || {}, f = r.k.slice(0, 10);
     add(d.presidente, f, "acom", "Presidente"); add(d.lector, f, "acom", "Lector"); add(d.acomodador, f, "acom", "Acomodador"); (d.microfonos || []).forEach(x => add(x, f, "acom", "Micrófonos")); add(d.plataforma, f, "acom", "Plataforma"); });
   return out;
@@ -788,7 +830,8 @@ function fichaVmc(l) {
     <div class="card vpart vsup" id="vEstV" ${d.evento === "Visita del superintendente de circuito" ? "" : "hidden"}>${parte(`<span style="color:#8A0B14">${nM + d.vida.length}</span>`, "Discurso de servicio", "30", " <small>(en lugar del estudio bíblico)</small>")}
       <div class="vsala"><span>Lo da</span><input class="tin" id="vSup" value="${esc(d.estudio.sup || "")}" placeholder="Nombre del superintendente de circuito"></div>
       <div class="vsala"><span>Tema</span><input class="tin" id="vSupT" value="${esc(d.estudio.supT || "")}" placeholder="Título del discurso (opcional)"></div></div>
-    <div class="vhead" style="color:#8A0B14"><span>Palabras de conclusión · 🎵 Canción</span><input class="tin min" id="vC3" value="${esc(d.c3)}" inputmode="numeric"><span>y oración</span>${S("vO2", d.oracion2, nomb, true)}</div>`;
+    <div class="vhead" style="color:#8A0B14"><span>Palabras de conclusión · 🎵 Canción</span><input class="tin min" id="vC3" value="${esc(d.c3)}" inputmode="numeric"><span>y oración</span>${S("vO2", d.oracion2, nomb, true)}</div>
+    <label class="ic chk vsupo" id="vO2SupW" ${d.evento === "Visita del superintendente de circuito" ? "" : "hidden"}><input type="checkbox" id="vO2Sup" ${d.oracion2Sup ? "checked" : ""}> La oración final la hace el superintendente de circuito</label>`;
   };
   hoja(`<div class="shead"><h2>Semana ${tituloSemana(l)}</h2><button class="x" data-close aria-label="Cerrar">✕</button></div>
     <div class="picks" id="vTipo"><button class="pk ${sinReunion(d) ? "" : "on"}" data-ev="">Hay reunión</button><button class="pk ${sinReunion(d) ? "on" : ""}" data-ev="1">No hay reunión (asamblea, evento)</button></div>
@@ -809,7 +852,7 @@ function fichaVmc(l) {
       const q = s => bg.querySelector(s);
       if (!ed) bg.querySelectorAll("input,select").forEach(x => x.disabled = true);
       let sinR = sinReunion(d);
-      const vv = q("#vVisita"); if (vv) vv.addEventListener("change", () => { const n = q("#vEstN"), v = q("#vEstV"); if (n) n.hidden = vv.checked; if (v) v.hidden = !vv.checked; });
+      const vv = q("#vVisita"); if (vv) vv.addEventListener("change", () => { const n = q("#vEstN"), v = q("#vEstV"), o = q("#vO2SupW"); if (n) n.hidden = vv.checked; if (v) v.hidden = !vv.checked; if (o) o.hidden = !vv.checked; });
       bg.querySelectorAll("[data-ev]").forEach(b => b.onclick = () => { sinR = !!b.dataset.ev; bg.querySelectorAll("[data-ev]").forEach(x => x.classList.toggle("on", x === b)); q("#vEv").hidden = !sinR; q("#vNormal").hidden = sinR; programar(); });
       // ---- Guardado automático: guarda en silencio ~1 s después de cada cambio; el aviso a los hermanos sale una sola vez al cerrar ----
       const orig = r ? JSON.parse(JSON.stringify(r.d)) : null; let rid = r ? r.id : null, ultimo = null, timer = null, huboAuto = false;
@@ -830,7 +873,7 @@ function fichaVmc(l) {
         bg._alCerrar = () => { const nd = leer(); (async () => { await autoGuardar(); if (huboAuto && rid) { try { await rpc("cong_reg_guardar", { p_modulo: "vmc", p_clave: l, p_id: rid, p_d: nd, p_aviso: avisoDe(nd) }); } catch (e) {} await cCargar(); render(); } })(); }; }
       const leer = () => {
         if (sinR) return { ...d, evento: val(bg, "vE"), eventoTema: val(bg, "vEt"), lectura: val(bg, "vL") };
-        const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "", sup: val(bg, "vSup"), supT: mayus(val(bg, "vSupT")) }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2") };
+        const nd = { ...d, evento: q("#vVisita").checked ? "Visita del superintendente de circuito" : "", eventoTema: "", lectura: val(bg, "vL"), c1: val(bg, "vC1"), oracion1: val(bg, "vO1"), intro: val(bg, "vI"), t1: { titulo: val(bg, "vT1"), min: "10", p: val(bg, "vT1p") }, t2: { titulo: "Busquemos perlas escondidas", min: "10", p: val(bg, "vT2p") }, lect: { cita: val(bg, "vLc"), p: val(bg, "vLp"), a: val(bg, "vLa") }, consejero: val(bg, "vCo"), maestros: [], c2: val(bg, "vC2"), vida: [], estudio: { p: val(bg, "vEc"), lector: val(bg, "vEl"), ref: d.estudio.ref || "", sup: val(bg, "vSup"), supT: mayus(val(bg, "vSupT")) }, c3: val(bg, "vC3"), oracion2: val(bg, "vO2"), oracion2Sup: !!(q("#vVisita").checked && q("#vO2Sup") && q("#vO2Sup").checked) };
         bg.querySelectorAll("#vMae .vpart").forEach((_, i) => nd.maestros.push({ titulo: mayus(val(bg, "mT" + i)), min: val(bg, "mM" + i), ref: val(bg, "mR" + i), p: val(bg, "mP" + i), pa: val(bg, "mPA" + i), a: val(bg, "mA" + i), aa: val(bg, "mAA" + i) }));
         let i = 0; while (q("#vV" + i)) { const vid = q("#vVv" + i).checked; nd.vida.push({ titulo: mayus(val(bg, "vV" + i)), min: val(bg, "vVm" + i) || "15", video: vid, texto: vid ? mayus(val(bg, "vVt" + i)) : "", p: vid ? "" : val(bg, "vVp" + i) }); i++; }
         return nd;
@@ -983,11 +1026,11 @@ async function pdfVmc(semanas, titulo, mensaje, formato = "pdf") {
         rich("A", "F", [["• ", { color: ROJO }], [`Canción ${d.c2}`, {}]]); y -= RH;
         const n0 = 4 + d.maestros.length;
         d.vida.forEach((v, i) => { const anchoBox = v.video && v.texto; rich("A", anchoBox ? "D" : "E", [[`${n0 + i}. `, { color: ROJO }], [v.titulo, {}], [` (${v.min || 15} mins)`, { size: 9 }]]); if (v.video) put(anchoBox ? "E" : "F", "F", MX(v.texto) || "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "444444" }); else nombre("F", "F", v.p); y -= RH; });
-        if (d.evento === "Visita del superintendente de circuito") { rich("A", "D", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Discurso de servicio", {}], [" (30 mins)", { size: 9 }], ...(d.estudio.supT ? [[`: «${d.estudio.supT}»`, { size: 9, italic: true }]] : [])]); put("E", "F", MX(d.estudio.sup) || "SUPERINTENDENTE DE CIRCUITO", { align: "center", box: true, fill: "E3F4F2", color: "05605E" }); y -= RH; }
+        if (d.evento === "Visita del superintendente de circuito") { rich("A", "C", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Discurso de servicio", {}], [" (30 mins)", { size: 9 }], ...(d.estudio.supT ? [[`: «${d.estudio.supT}»`, { size: 9, italic: true }]] : [])]); put("D", "E", "Superintendente de circuito:", { bold: false, align: "right", size: 9 }); put("F", "F", MX(d.estudio.sup) || "—", { align: "center", box: true, fill: "E3F4F2", color: "05605E" }); y -= RH; }
         else { rich("A", "B", [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
         nombre("C", "D", d.estudio.p); put("E", "E", "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", "F", d.estudio.lector); y -= RH; }
         rich("A", "B", [["• ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
-        rich("C", "E", [["• ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", "F", d.oracion2); y -= RH;
+        rich("C", "E", [["• ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); if (d.oracion2Sup) put("F", "F", MX(d.estudio.sup) || "SUPERINTENDENTE", { align: "center", box: true, fill: "E3F4F2", color: "05605E" }); else nombre("F", "F", d.oracion2); y -= RH;
       }
       pg.drawRectangle({ x: X[0], y, width: X[6] - X[0], height: y0 - y, borderColor: hex(NEGRO), borderWidth: 1.6 });
       y -= RH;
@@ -1041,11 +1084,11 @@ async function xlsVmc(X) {
       merge("A", "F"); rich("A" + r, [["● ", { color: ROJO }], [`Canción ${d.c2}`, {}]]); r++;
       const n0 = 4 + d.maestros.length;
       d.vida.forEach((v, i) => { const anchoBox = v.video && v.texto; merge("A", anchoBox ? "D" : "E"); rich("A" + r, [[`${n0 + i}. `, { color: ROJO }], [v.titulo, {}], [` (${v.min || 15} mins)`, { size: 9 }]]); if (v.video) { if (anchoBox) merge("E", "F"); } if (v.video) put((anchoBox ? "E" : "F") + r, MX(v.texto) || "VIDEO", { align: "center", box: true, fill: "EFEFEF", color: "444444", shrink: true }); else nombre("F", v.p); r++; });
-      if (d.evento === "Visita del superintendente de circuito") { merge("A", "D"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Discurso de servicio", {}], [" (30 mins)", { size: 9 }], ...(d.estudio.supT ? [[`: «${d.estudio.supT}»`, { size: 9, italic: true }]] : [])]); merge("E", "F"); put("E" + r, MX(d.estudio.sup) || "SUPERINTENDENTE DE CIRCUITO", { align: "center", box: true, fill: "E3F4F2", color: "05605E", shrink: true }); r++; }
+      if (d.evento === "Visita del superintendente de circuito") { merge("A", "C"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Discurso de servicio", {}], [" (30 mins)", { size: 9 }], ...(d.estudio.supT ? [[`: «${d.estudio.supT}»`, { size: 9, italic: true }]] : [])]); merge("D", "E"); put("D" + r, "Superintendente de circuito:", { bold: false, align: "right", size: 9 }); put("F" + r, MX(d.estudio.sup) || "—", { align: "center", box: true, fill: "E3F4F2", color: "05605E", shrink: true }); r++; }
       else { merge("A", "B"); rich("A" + r, [[`${n0 + d.vida.length}. `, { color: ROJO }], ["Estudio bíblico de la congregación", {}], [" (30 mins)", { size: 9 }]]);
       merge("C", "D"); nombre("C", d.estudio.p); put("E" + r, "Lector:", { bold: false, align: "right", size: 9 }); nombre("F", d.estudio.lector); r++; }
       merge("A", "B"); rich("A" + r, [["● ", { color: ROJO }], ["Palabras de conclusión", { color: ROJO }], [" (3 mins)", { color: ROJO, size: 9 }]]);
-      merge("C", "E"); rich("C" + r, [["● ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); nombre("F", d.oracion2); r++;
+      merge("C", "E"); rich("C" + r, [["● ", { color: ROJO }], [`Canción ${d.c3} y oración`, { color: ROJO }]], { align: "right" }); if (d.oracion2Sup) put("F" + r, MX(d.estudio.sup) || "SUPERINTENDENTE", { align: "center", box: true, fill: "E3F4F2", color: "05605E", shrink: true }); else nombre("F", d.oracion2); r++;
     }
     // marco grueso de la semana
     for (let k = r0; k < r; k++) { const a = ws.getCell("A" + k), f = ws.getCell("F" + k); a.border = { ...(a.border || {}), left: grueso }; f.border = { ...(f.border || {}), right: grueso }; ws.getRow(k).height = 17; }
