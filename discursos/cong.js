@@ -887,7 +887,7 @@ async function exportarS89(lst, nombre) {
     });
     const bytes = await pdf.save(); const nom = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "") + ".pdf";
     const blob = new Blob([bytes], { type: "application/pdf" });
-    await entregar(blob, nom, `${lst.length} papeletas listas`, `${saludoHora()}, hermanos 👋\nLes comparto las hojas de asignación (S-89) para la reunión Vida y Ministerio. Cada uno busque la suya y prepárese con tiempo. ¡Gracias! 🙏`);
+    await entregar(blob, nom, `${lst.length} papeletas listas`, `${saludoHora()}, hermanos 👋🏽\nLes comparto las hojas de asignación (S-89) para la reunión Vida y Ministerio. Cada uno busque la suya y prepárese con tiempo. ¡Gracias!`);
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 /* ================= PDF de Vida y Ministerio (mismo diseño del Excel) ================= */
@@ -960,7 +960,7 @@ async function pdfVmc(semanas, titulo, mensaje) {
     paginas.forEach((p, i) => { p.drawText("CRABS · Congregación Tierra Baja", { x: M, y: 12, size: 7, font: FN, color: hex("777777") }); const t = `Página ${i + 1} de ${paginas.length}`; p.drawText(t, { x: PW - M - FN.widthOfTextAtSize(t, 7), y: 12, size: 7, font: FN, color: hex("777777") }); });
     const bytes = await pdf.save(); const nom_ = titulo.normalize("NFD").replace(/[̀-ͯ]/g, "") + ".pdf";
     const blob = new Blob([bytes], { type: "application/pdf" });
-    await entregar(blob, nom_, "PDF listo", mensaje || `${saludoHora()}, hermanos 👋\nLes comparto el programa de Vida y Ministerio ${semanas.length === 1 ? `de la semana ${tituloSemana(semanas[0][0])}` : `de ${mesNombre(CG.mes)}`}.\nPor favor revisen sus asignaciones y, si alguno tiene algún inconveniente, avísenme con tiempo. ¡Muchas gracias! 🙏`);
+    await entregar(blob, nom_, "PDF listo", mensaje || `${saludoHora()}, hermanos 👋🏽\nLes comparto el programa de Vida y Ministerio ${semanas.length === 1 ? `de la semana ${tituloSemana(semanas[0][0])}` : `de ${mesNombre(CG.mes)}`}.\nPor favor revisen sus asignaciones y, si alguno tiene algún inconveniente, avísenme con tiempo. ¡Muchas gracias!`);
   } catch (e) { toast(e.message); } finally { document.body.classList.remove("loading"); }
 }
 async function xlsVmc(X) {
@@ -1174,8 +1174,8 @@ function bloquePendientes(lista, inf) {
   if (!pend.length) return `<div class="aviso" style="margin-top:10px;background:var(--ok-soft)">✅<span>Todos entregaron el informe de ${mesNombre(CG.mes).split(" ")[0]}.</span></div>`;
   const mesT = mesNombre(CG.mes).split(" ")[0];
   const limite = mesMas(CG.mes, 1) === HOY.slice(0, 7) && +HOY.slice(8) <= 10;
-  const msg = p => `Hola, ${p.nombre.split(" ")[0]} 👋 ¿Cómo estás? Te escribo para recordarte con cariño el informe de predicación de ${mesT}.${limite ? " Si puedes, mándamelo antes del 10." : ""} Me lo puedes enviar por aquí${p.acceso ? " o registrarlo tú mismo en la app" : ""}. ¡Muchas gracias! 🙏`;
-  const grupo = `Buenas, hermanos 👋 Un recordatorio con cariño: si aún no han enviado su informe de predicación de ${mesT}, por favor háganmelo llegar${limite ? " antes del 10" : ""}. A quienes ya lo enviaron, ¡mil gracias! 🙏`;
+  const msg = p => `Hola, ${p.nombre.split(" ")[0]} 👋🏽 ¿Cómo estás? Te escribo para recordarte con cariño el informe de predicación de ${mesT}.${limite ? " Si puedes, mándamelo antes del 10." : ""} Me lo puedes enviar por aquí${p.acceso ? " o registrarlo tú mismo en la app" : ""}. ¡Muchas gracias!`;
+  const grupo = `Buenas, hermanos 👋🏽 Un recordatorio con cariño: si aún no han enviado su informe de predicación de ${mesT}, por favor háganmelo llegar${limite ? " antes del 10" : ""}. A quienes ya lo enviaron, ¡mil gracias!`;
   return `<details class="plg"><summary>⏳ Faltan por entregar <span class="pill t-warn">${pend.length}</span></summary><div class="card spad" style="margin-top:8px">
     <a class="btn ok" style="width:100%" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(grupo)}">${I.wa} Recordatorio general al grupo</a>
     <p class="note" style="margin:8px 2px">El mensaje al grupo no menciona nombres. A cada uno le puedes escribir en privado:</p>
