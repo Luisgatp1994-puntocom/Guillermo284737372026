@@ -114,7 +114,7 @@ async function conExcel(fn) {
 const SEC = {
   pub: { titulo: "Publicadores", sub: "Grupos de servicio", tabs: [["lista", "Por grupo"], ["usuarios", "Usuarios y PIN"]] },
   pred: { titulo: "Predicación", sub: "Salidas y territorios", tabs: [["horario", "Horario"], ["terr", "Territorios"], ["stats", "📊 Estadísticas"]] },
-  reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"], ["asist", "Asistencia"]] },
+  reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"], ["asist", "Asistencia"], ["rot", "📊 Rotación"]] },
   inf: { titulo: "Informes", sub: "Informe mensual por grupo", tabs: [] },
   rec: { titulo: "Recordatorios", sub: "Aseo, hospitalidad y eventos", tabs: [["aseo", "Aseo y hospitalidad"], ["eventos", "Eventos"]] },
   avi: { titulo: "Notificaciones", sub: "Cambios de toda la congregación", tabs: [] }
@@ -547,7 +547,46 @@ async function xlsTerritorios(X) {
 }
 
 /* ================= REUNIONES ================= */
-function vReu() { return CG.tab === "acomod" ? vAcomod() : CG.tab === "asist" ? vAsist() : vVmc(); }
+function vReu() { return CG.tab === "acomod" ? vAcomod() : CG.tab === "asist" ? vAsist() : CG.tab === "rot" ? vRot() : vVmc(); }
+
+/* ================= ROTACIÓN: cómo van repartidas las asignaciones ================= */
+let ROT = "est";
+const ROT_TIPOS = { est: "Estudiantes", nomb: "Partes y oraciones", acom: "Acomodadores y audio" };
+// Todas las asignaciones como { id, f (fecha), tipo, que }
+function todasAsign() {
+  const out = []; const add = (id, f, tipo, que) => { if (id) out.push({ id, f, tipo, que }); };
+  R("vmc").forEach(r => { const d = r.d; if (!d || !d.t1 || sinReunion(d)) return; const f = sumDias(r.k, 3);
+    add(d.lect.p, f, "est", "Lectura de la Biblia"); add(d.lect.a, f, "est", "Lectura (sala aux.)");
+    (d.maestros || []).forEach((m, i) => { const t = `Parte ${4 + i}`; add(m.p, f, "est", t); add(m.a, f, "est", t + " (sala aux.)"); add(m.pa, f, "est", "Ayudante"); add(m.aa, f, "est", "Ayudante (sala aux.)"); });
+    add(d.intro, f, "nomb", "Presidente"); add(d.oracion1, f, "nomb", "Oración inicial"); add(d.t1.p, f, "nomb", "Discurso de Tesoros"); add(d.t2.p, f, "nomb", "Perlas escondidas"); add(d.consejero, f, "nomb", "Consejero sala aux.");
+    (d.vida || []).forEach(v => { if (!v.video) add(v.p, f, "nomb", "Nuestra vida cristiana"); });
+    add(d.estudio && d.estudio.p, f, "nomb", "Estudio bíblico"); add(d.estudio && d.estudio.lector, f, "nomb", "Lector del estudio"); add(d.oracion2, f, "nomb", "Oración final"); });
+  R("acomod").forEach(r => { const d = r.d || {}, f = r.k.slice(0, 10);
+    add(d.presidente, f, "acom", "Presidente"); add(d.lector, f, "acom", "Lector"); add(d.acomodador, f, "acom", "Acomodador"); (d.microfonos || []).forEach(x => add(x, f, "acom", "Micrófonos")); add(d.plataforma, f, "acom", "Plataforma"); });
+  return out;
+}
+function vRot() {
+  const todas = todasAsign().filter(a => a.tipo === ROT), hoy = HOY, desde = sumDias(hoy, -182), d90 = sumDias(hoy, -91);
+  const elegibles = CG.personas.filter(p => ROT === "est" ? true : p.sexo === "H").filter(p => ROT !== "nomb" || p.privilegio !== "no_bautizado");
+  const fila = p => { const mias = todas.filter(a => a.id === p.id).sort((a, b) => a.f < b.f ? -1 : 1); const pas = mias.filter(a => a.f <= hoy), fut = mias.filter(a => a.f > hoy);
+    return { p, ult: pas[pas.length - 1], prox: fut[0], n6: mias.filter(a => a.f >= desde).length }; };
+  const filas = elegibles.map(fila);
+  const conAlgo = filas.filter(x => (x.ult && x.ult.f >= d90) || x.prox).length;
+  const primero = todas.map(a => a.f).sort()[0];
+  const espera = filas.filter(x => !x.prox).sort((a, b) => (a.ult ? a.ult.f : "") < (b.ult ? b.ult.f : "") ? -1 : (a.ult ? a.ult.f : "") > (b.ult ? b.ult.f : "") ? 1 : a.p.nombre.localeCompare(b.p.nombre));
+  const filaHtml = x => `<div class="pend"><span><b>${esc(x.p.nombre)}</b><small>${x.ult ? `Última: ${esc(x.ult.que)} · ${corto(x.ult.f)} (${hace(x.ult.f, hoy)})` : "Sin asignación registrada"}</small></span><span class="pill ${!x.ult ? "t-bad" : dias(x.ult.f, hoy) > 90 ? "t-warn" : "t-ok"}">${x.ult ? hace(x.ult.f, hoy).replace("hace ", "") : "nunca"}</span></div>`;
+  const prox = filas.filter(x => x.prox).sort((a, b) => a.prox.f < b.prox.f ? -1 : 1);
+  const top = filas.filter(x => x.n6).sort((a, b) => b.n6 - a.n6).slice(0, 10);
+  let h = tabs(SEC.reu.tabs) + `<div class="roles ctabs" style="margin-bottom:10px">${Object.entries(ROT_TIPOS).map(([k, t]) => `<button class="chipo ${ROT === k ? "" : "off"}" data-rot="${k}">${t}</button>`).join("")}</div>
+    <div class="kpis" style="grid-template-columns:1fr 1fr 1fr"><div class="kpi"><span class="n">${elegibles.length}</span><span class="l">${ROT === "est" ? "Publicadores" : "Hermanos"}</span></div><div class="kpi"><span class="n">${conAlgo}</span><span class="l">Con asignación (3 meses)</span></div><div class="kpi"><span class="n">${elegibles.length - conAlgo}</span><span class="l">Sin asignación</span></div></div>
+    <p class="note" style="margin:6px 4px 12px">${ROT === "est" ? "Lectura de la Biblia y partes de Seamos mejores maestros (titular y ayudante)." : ROT === "nomb" ? "Presidente, oraciones, discursos, perlas, consejero, Nuestra vida cristiana, estudio y lector. Solo hermanos bautizados." : "Presidente y lector del fin de semana, acomodadores, micrófonos y plataforma."} ${primero ? `Cuenta desde ${corto(primero)}, que es lo que hay cargado en la app.` : "Todavía no hay asignaciones cargadas."}</p>
+    <details class="plg" open><summary>⏳ Llevan más tiempo sin asignación <span class="pill t-warn">${elegibles.length - conAlgo}</span></summary><div class="card spad" style="margin-top:8px">${espera.slice(0, 15).map(filaHtml).join("") || `<p class="note">Todos tienen algo programado 🙌</p>`}
+      ${espera.length > 15 ? `<details class="mas"><summary>Ver los otros ${espera.length - 15}</summary>${espera.slice(15).map(filaHtml).join("")}</details>` : ""}</div></details>
+    <details class="plg"><summary>📅 Ya tienen asignación próxima <span class="pill t-ok">${prox.length}</span></summary><div class="card spad" style="margin-top:8px">${prox.map(x => `<div class="pend"><span><b>${esc(x.p.nombre)}</b><small>${esc(x.prox.que)}</small></span><span class="pill t-ok">${corto(x.prox.f)}</span></div>`).join("") || `<p class="note">Nada programado todavía.</p>`}</div></details>
+    <details class="plg"><summary>🔁 Los que más asignaciones han tenido (6 meses)</summary><div class="card spad" style="margin-top:8px">${top.length ? barras(top.map(x => ({ l: esc(nomCorto(x.p.id)), v: x.n6 }))) : `<p class="note">Sin datos todavía.</p>`}</div></details>`;
+  $("#cview").innerHTML = h; bindTabs();
+  document.querySelectorAll("[data-rot]").forEach(b => b.onclick = () => { ROT = b.dataset.rot; vRot(); });
+}
 
 /* ================= ASISTENCIA a las reuniones ================= */
 const asistDe = (f, tipo) => R("asist").find(r => r.k === f + "|" + tipo);
