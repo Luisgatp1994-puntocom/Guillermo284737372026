@@ -634,9 +634,8 @@ async function pintarHubExtra(sabPend) {
   if (puede("reu")) c.push([semSin, "Semanas sin asignar", semSin ? "var(--bad)" : "var(--ok)", "reu"]);
   if (puede("disc")) c.push([sabPend || 0, "Sábados por cerrar", "var(--accent)", "disc"]);
   cnt.innerHTML = ""; void (c.length && `<div class="hcnt" style="grid-template-columns:repeat(${c.length},1fr)">${c.map(([n, t, col, s]) => `<button data-hs="${s}"><b style="color:${col}">${n}</b><small>${t}</small></button>`).join("")}</div>` );
-  $("#hublab").hidden = false;
   const bd = (id, n, cl) => { const e = $("#bd-" + id); if (e) { e.hidden = !n; e.textContent = n > 99 ? "99+" : n; e.className = "bd " + cl; } };
-  bd("reu", semSin, "r"); bd("inf", verInf ? faltan : 0, "n");
+  bd("reu", semSin, "r"); bd("inf", verInf ? faltan : 0, "n"); bd("disc", sabPend || 0, "n");
   document.querySelectorAll("#hub [data-hs]").forEach(b => b.onclick = () => abrirSeccion(b.dataset.hs));
 }
 
