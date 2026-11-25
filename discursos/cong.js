@@ -66,7 +66,7 @@ function mesSelector(onCambio) {
       const mp = document.querySelector("#mesPick"); if (mp) mp.onchange = () => { if (/^\d{4}-\d{2}$/.test(mp.value)) { CG.mes = mp.value; onCambio(); } }; } };
 }
 function tabs(lista) {
-  return `<div class="roles ctabs">${lista.map(([k, l]) => `<button class="chipo ${CG.tab === k ? "" : "off"}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
+  return `<div class="roles ctabs seg">${lista.map(([k, l]) => `<button class="chipo ${CG.tab === k ? "" : "off"}" data-ctab="${k}">${l}</button>`).join("")}</div>`;
 }
 function bindTabs() { document.querySelectorAll("[data-ctab]").forEach(b => b.onclick = () => { CG.tab = b.dataset.ctab; cRender(); }); }
 const vacio = t => `<div class="card empty">${t}</div>`;
@@ -162,7 +162,7 @@ async function conExcel(fn) {
 /* ---------- Navegación ---------- */
 const SEC = {
   pub: { titulo: "Publicadores", sub: "Grupos de servicio", tabs: [["lista", "Por grupo"], ["usuarios", "Usuarios y PIN"]] },
-  pred: { titulo: "Predicación", sub: "Salidas y territorios", tabs: [["horario", "Horario"], ["terr", "Territorios"], ["stats", "📊 Estadísticas"]] },
+  pred: { titulo: "Predicación", sub: "Salidas y territorios", tabs: [["horario", "Horario"], ["terr", "Territorios"], ["stats", "Estadísticas"]] },
   reu: { titulo: "Reuniones", sub: "Programa y asignaciones", tabs: [["vmc", "Vida y Ministerio"], ["acomod", "Acomodadores"], ["asist", "Asistencia"]] },
   inf: { titulo: "Informes", sub: "Informe mensual por grupo", tabs: [] },
   rec: { titulo: "Recordatorios", sub: "Aseo, hospitalidad y eventos", tabs: [["aseo", "Aseo y hospitalidad"], ["eventos", "Eventos"]] },
@@ -659,7 +659,7 @@ async function pintarHubExtra(sabPend) {
 /* ================= ROTACIÓN: cómo van repartidas las asignaciones ================= */
 let ROT = "est", ROT_VOLVER = "vmc";
 function abrirRot(desde, tipo) { ROT_VOLVER = desde; if (tipo) ROT = tipo; CG.tab = "rot"; vRot(); }
-const ROT_TIPOS = { est: "Estudiantes", nomb: "Partes y oraciones", acom: "Acomodadores y audio" };
+const ROT_TIPOS = { est: "Estudiantes", nomb: "Partes", acom: "Acomodadores" };
 // Todas las asignaciones como { id, f (fecha), tipo, que }
 function todasAsign() {
   const out = []; const add = (id, f, tipo, que) => { if (id) out.push({ id, f, tipo, que }); };
@@ -685,7 +685,7 @@ function vRot() {
   const filaHtml = x => `<div class="pend"><span><b>${esc(x.p.nombre)}</b><small>${x.ult ? `Última: ${esc(x.ult.que)} · ${corto(x.ult.f)} (${hace(x.ult.f, hoy)})` : "Sin asignación registrada"}</small></span><span class="pill ${!x.ult ? "t-bad" : dias(x.ult.f, hoy) > 90 ? "t-warn" : "t-ok"}">${x.ult ? hace(x.ult.f, hoy).replace("hace ", "") : "nunca"}</span></div>`;
   const prox = filas.filter(x => x.prox).sort((a, b) => a.prox.f < b.prox.f ? -1 : 1);
   const top = filas.filter(x => x.n6).sort((a, b) => b.n6 - a.n6).slice(0, 10);
-  let h = `<button class="btn line" id="rotVolver" style="width:100%;margin-bottom:12px">‹ Volver a Reuniones</button><div class="label" style="margin-top:0">📊 Rotación de asignaciones</div><div class="roles ctabs" style="margin-bottom:10px">${Object.entries(ROT_TIPOS).map(([k, t]) => `<button class="chipo ${ROT === k ? "" : "off"}" data-rot="${k}">${t}</button>`).join("")}</div>
+  let h = `<button class="btn line" id="rotVolver" style="width:100%;margin-bottom:12px">‹ Volver a Reuniones</button><div class="label" style="margin-top:0">📊 Rotación de asignaciones</div><div class="roles ctabs seg" style="margin-bottom:10px">${Object.entries(ROT_TIPOS).map(([k, t]) => `<button class="chipo ${ROT === k ? "" : "off"}" data-rot="${k}">${t}</button>`).join("")}</div>
     <div class="kpis" style="grid-template-columns:1fr 1fr 1fr"><div class="kpi"><span class="n">${elegibles.length}</span><span class="l">${ROT === "est" ? "Publicadores" : "Hermanos"}</span></div><div class="kpi"><span class="n">${conAlgo}</span><span class="l">Con asignación (3 meses)</span></div><div class="kpi"><span class="n">${elegibles.length - conAlgo}</span><span class="l">Sin asignación</span></div></div>
     <p class="note" style="margin:6px 4px 12px">${ROT === "est" ? "Lectura de la Biblia y partes de Seamos mejores maestros (titular y ayudante)." : ROT === "nomb" ? "Presidente, oraciones, discursos, perlas, consejero, Nuestra vida cristiana, estudio y lector. Solo hermanos bautizados." : "Presidente y lector del fin de semana, acomodadores, micrófonos y plataforma."} ${primero ? `Cuenta desde ${corto(primero)}, que es lo que hay cargado en la app.` : "Todavía no hay asignaciones cargadas."}</p>
     <details class="plg" open><summary>⏳ Llevan más tiempo sin asignación <span class="pill t-warn">${elegibles.length - conAlgo}</span></summary><div class="card spad" style="margin-top:8px">${espera.slice(0, 15).map(filaHtml).join("") || `<p class="note">Todos tienen algo programado 🙌</p>`}
@@ -792,9 +792,9 @@ function vVmc() {
     const r = R("vmc").find(x => x.k === l); const d = r ? r.d : null;
     const n = asignVmc(d).length;
     const est = !d ? ["Vacío", "t-idle"] : sinReunion(d) ? ["Sin reunión", "t-warn"] : n >= 15 ? ["Completo", "t-ok"] : n ? [`${n} asignados`, "t-info"] : ["Falta asignar", "t-bad"];
-    h += `<button class="card trow" data-sem="${l}"><span class="dpill" style="background:${sinReunion(d) ? "var(--warn-soft);color:var(--warn)" : "var(--accent-soft);color:var(--accent)"}">${fd(l).d}–${fd(sumDias(l, 6)).d}</span><div style="flex:1;min-width:0;text-align:left"><b>Semana ${tituloSemana(l)}</b><div class="note">${d ? (sinReunion(d) ? esc(d.evento + (d.eventoTema ? " · " + d.eventoTema : "")) + " · no hay reunión" : esc(d.lectura || "Sin lectura") + (d.t1.titulo ? " · " + esc(d.t1.titulo) : "")) : "Sin programa"}</div></div><span class="pill ${est[1]}">${est[0]}</span></button>`;
+    h += `<button class="card trow st-${est[1].slice(2)}" data-sem="${l}"><span class="dpill" style="background:${sinReunion(d) ? "var(--warn-soft);color:var(--warn)" : "var(--accent-soft);color:var(--accent)"}">${fd(l).d}–${fd(sumDias(l, 6)).d}</span><div style="flex:1;min-width:0;text-align:left"><b>Semana ${tituloSemana(l)}</b><div class="note">${d ? (sinReunion(d) ? esc(d.evento + (d.eventoTema ? " · " + d.eventoTema : "")) + " · no hay reunión" : esc(d.lectura || "Sin lectura") + (d.t1.titulo ? " · " + esc(d.t1.titulo) : "")) : "Sin programa"}</div></div><span class="pill ${est[1]}">${est[0]}</span></button>`;
   }
-  h += `</div><div class="row" style="margin-top:12px">${cAdmin() ? `<button class="btn line" id="jwMes">⬇ Traer el mes de JW</button>` : ""}<button class="btn line" id="pdfVmc">📤 Compartir el mes</button><button class="btn line" id="rotVmc">📊 Rotación de asignaciones</button>${cAdmin() ? `<button class="btn line" id="s89Mes">📄 Papeletas S-89 del mes</button>` : ""}</div>`;
+  h += `</div><div class="acc">${cAdmin() ? `<button class="btn line" id="jwMes"><i>⬇️</i>Traer de JW</button>` : ""}<button class="btn line" id="pdfVmc"><i>📤</i>Compartir mes</button><button class="btn line" id="rotVmc"><i>📊</i>Rotación</button>${cAdmin() ? `<button class="btn line" id="s89Mes"><i>🧾</i>Papeletas</button>` : ""}</div>`;
   $("#cview").innerHTML = h; ms.bind(); bindTabs();
   document.querySelectorAll("[data-sem]").forEach(b => b.onclick = () => fichaVmc(b.dataset.sem));
   $("#rotVmc").onclick = () => abrirRot("vmc");
