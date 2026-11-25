@@ -286,6 +286,8 @@ nav button{line-height:1.1}
 .wknav{display:flex;align-items:center;justify-content:space-between;margin:-4px 0 10px}.wknav b{font-size:15px}
 .wkbtn{flex:1;min-width:0;border:0;background:none;text-align:left;color:var(--ink);cursor:pointer;padding:0;font:inherit}
 .plg{margin-top:12px}
+#hub #hubnext .hweek{margin-top:12px}#hub .hev .pill{margin-left:auto;flex:none;font-size:11px}
+.hnx+.hev{border-top:0}.hnx{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:8px 0 0}
 /* Inicio compacto: todo cabe en una pantalla */
 #hub .hubtop{margin-bottom:14px}#hub .hubtitle{font-size:24px;margin:2px 0 12px}#hub .hubsub{margin:-6px 0 14px;font-size:13.5px}
 #hub .hweek{padding:10px 14px 2px;margin-bottom:12px}#hub .hev{padding:7px 0;gap:10px}#hub .hev .d{width:46px;padding:4px 0;font-size:12px;border-radius:12px}#hub .hev b{font-size:13.5px}#hub .hev span.s{font-size:12px}
@@ -544,7 +546,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
     <div class="err" id="err"></div>
     <div class="pad" id="pad"></div>
   </div>
-  <div class="note" style="opacity:.6">v6.4</div>
+  <div class="note" style="opacity:.6">v6.5</div>
 </div>
 
 <div id="hub" hidden>
@@ -558,6 +560,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
   <div id="hubweek"></div><div id="hubcnt"></div>
   <div class="label" id="hublab" hidden style="margin:4px 6px 10px">Secciones</div>
   <div class="hubgrid" id="hubgrid"></div>
+  <div id="hubnext"></div>
   <p class="note" style="text-align:center;margin-top:18px" id="hubver"></p>
 </div>
 </div>

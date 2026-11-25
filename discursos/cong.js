@@ -636,6 +636,23 @@ async function pintarHubExtra(sabPend) {
   cnt.innerHTML = ""; void (c.length && `<div class="hcnt" style="grid-template-columns:repeat(${c.length},1fr)">${c.map(([n, t, col, s]) => `<button data-hs="${s}"><b style="color:${col}">${n}</b><small>${t}</small></button>`).join("")}</div>` );
   const bd = (id, n, cl) => { const e = $("#bd-" + id); if (e) { e.hidden = !n; e.textContent = n > 99 ? "99+" : n; e.className = "bd " + cl; } };
   bd("reu", semSin, "r"); bd("inf", verInf ? faltan : 0, "n"); bd("disc", sabPend || 0, "n");
+  // ---- Lo que viene: mis asignaciones + cuenta regresiva de eventos
+  const nx = $("#hubnext");
+  if (nx) {
+    const fila = (f, t, sub, pill, o) => { const dd = new Date(f + "T12:00:00"); return `<div class="hev"><span class="d ${o ? "o" : ""}">${DS[dd.getDay()]}<small>${dd.getDate()} ${MES[dd.getMonth()].slice(0, 3)}</small></span><span style="min-width:0"><b>${esc(t)}</b>${sub ? `<span class="s">${esc(sub)}</span>` : ""}</span>${pill || ""}</div>`; };
+    const falta = f => { const n = dias(HOY, f); return n <= 0 ? "Hoy" : n === 1 ? "Mañana" : n < 60 ? `Faltan ${n} días` : `Faltan ${Math.round(n / 30)} meses`; };
+    let mias = [];
+    try { if (CG.me && CG.me.persona && typeof misAsignaciones === "function") mias = misAsignaciones(HOY, sumDias(HOY, 45)).slice(0, 3); } catch (e) {}
+    const evs = [];
+    R("evento").filter(e => (e.d.hasta || e.k) >= HOY).forEach(e => evs.push({ f: e.k, t: e.d.titulo || e.d.tipo || "Evento" }));
+    R("vmc").filter(r => r.d && r.d.evento === V && sumDias(r.k, 6) >= HOY).forEach(r => { if (!evs.some(x => x.f >= r.k && x.f <= sumDias(r.k, 6) && /superintendente/i.test(x.t))) evs.push({ f: r.k, t: "Visita del superintendente de circuito" }); });
+    evs.sort((a, b) => a.f < b.f ? -1 : 1);
+    const ev3 = evs.slice(0, 3);
+    let hh = "";
+    if (CG.me && CG.me.persona) hh += `<div class="hnx">Tus asignaciones</div>` + (mias.length ? mias.map(x => fila(x.f, `${x.ico} ${x.que}`, x.det, `<span class="pill t-warn">${dias(HOY, x.f) <= 7 ? (dias(HOY, x.f) === 0 ? "Hoy" : dias(HOY, x.f) === 1 ? "Mañana" : "Tuya") : "Tuya"}</span>`)).join("") : `<p class="note" style="margin:6px 0 8px">No tienes asignaciones próximas 🙌🏽</p>`);
+    if (ev3.length) hh += `<div class="hnx">Próximos eventos</div>` + ev3.map(e => fila(e.f, e.t, "", `<span class="pill t-acc">${falta(e.f)}</span>`, 1)).join("");
+    nx.innerHTML = hh ? `<div class="hweek"><div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Lo que viene</div>${hh}</div>` : "";
+  }
   document.querySelectorAll("#hub [data-hs]").forEach(b => b.onclick = () => abrirSeccion(b.dataset.hs));
 }
 

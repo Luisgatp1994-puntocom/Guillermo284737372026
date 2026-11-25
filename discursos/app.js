@@ -155,7 +155,7 @@ function mostrarInicio(){
   document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{const x=SECCIONES.find(s=>s.id===b.dataset.sec);if(x.activa)abrirSeccion(x.id);else toast(`${x.nombre}: la estamos construyendo`)});
   contarAvisos().then(n=>{$("#hubnb").innerHTML=n>0?`<span class="b">${n>9?"9+":n}</span>`:""});
   $("#hubver").textContent=document.querySelector(".login .note[style*='opacity']")?.textContent||"";
-  $("#hubweek").innerHTML="";$("#hubcnt").innerHTML="";$("#hublab").hidden=true;
+  $("#hubweek").innerHTML="";$("#hubnext").innerHTML="";$("#hubcnt").innerHTML="";$("#hublab").hidden=true;
   if(typeof pintarHubExtra==="function")pintarHubExtra(pend);
   scrollTo(0,0);
 }
